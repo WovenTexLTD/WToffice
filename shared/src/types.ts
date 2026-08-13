@@ -72,7 +72,17 @@ export type FurnitureKind =
   | "whiteboard"
   | "lamp"
   | "bench"
-  | "console";
+  | "console"
+  | "partition"
+  | "wallArt"
+  | "locker"
+  | "pillow"
+  | "deskLamp"
+  | "tv"
+  | "printer"
+  | "waterCooler"
+  | "roundTable"
+  | "benchDesk";
 
 export interface Furniture {
   kind: FurnitureKind;
@@ -83,6 +93,14 @@ export interface Furniture {
   /** Overrides the kind's default footprint. */
   w?: number;
   h?: number;
+  /**
+   * Overrides the kind's default model.
+   *
+   * Variety is what stops a furnished room reading as copy-paste: four desks
+   * that are the same object four times look wrong in a way one desk never
+   * does. Names a file in web/public/models without the extension.
+   */
+  model?: string;
   /**
    * Whether you have to walk around it.
    *
@@ -112,7 +130,6 @@ export interface Floor {
   entrance: Rect;
 }
 
-/** Default footprint per kind, in world pixels. */
 /**
  * Footprints, in world pixels.
  *
@@ -136,32 +153,16 @@ export const FURNITURE_SIZE: Record<FurnitureKind, { w: number; h: number }> = {
   lamp: { w: 37, h: 37 }, //           0.44 × 0.44 m
   bench: { w: 82, h: 31 }, //          0.97 × 0.36 m
   console: { w: 105, h: 30 }, //       1.24 × 0.35 m
-};
-
-/**
- * How far each kind stands off the floor, in world pixels.
- *
- * The renderer draws a dark silhouette at the footprint and the real shape
- * raised by this much, so the gap between them reads as the side of the object.
- * Values are pre-compensated for the ground-plane squash — on screen they land
- * at roughly 70% of these.
- */
-export const FURNITURE_HEIGHT: Record<FurnitureKind, number> = {
-  desk: 24,
-  chair: 16,
-  sofa: 20,
-  armchair: 20,
-  meetingTable: 24,
-  coffeeTable: 12,
-  stool: 14,
-  counter: 30,
-  plant: 26,
-  rug: 0,
-  shelf: 34,
-  whiteboard: 40,
-  lamp: 18,
-  bench: 14,
-  console: 20,
+  partition: { w: 164, h: 13 }, //     1.93 × 0.15 m
+  wallArt: { w: 107, h: 7 }, //        1.26 × 0.08 m
+  locker: { w: 72, h: 32 }, //         0.85 × 0.38 m
+  pillow: { w: 36, h: 26 }, //         0.42 × 0.31 m
+  deskLamp: { w: 21, h: 21 }, //       0.25 × 0.25 m
+  tv: { w: 115, h: 22 }, //            1.35 × 0.26 m
+  printer: { w: 60, h: 37 }, //        0.70 × 0.44 m
+  waterCooler: { w: 43, h: 43 }, //    0.51 × 0.51 m
+  roundTable: { w: 184, h: 173 }, //   2.17 × 2.03 m
+  benchDesk: { w: 313, h: 65 }, //     3.68 × 0.77 m
 };
 
 export type PresenceStatus = "available" | "focusing" | "away";

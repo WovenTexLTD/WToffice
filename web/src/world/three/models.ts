@@ -139,7 +139,7 @@ function mug(x: number, z: number): THREE.Group {
 
 type Build = (w: number, d: number) => THREE.Group;
 
-const BUILD: Record<FurnitureKind, Build> = {
+const BUILD: Partial<Record<FurnitureKind, Build>> = {
   desk(w, d) {
     const g = new THREE.Group();
     const top = 62; // 75cm
@@ -344,13 +344,25 @@ const BUILD: Record<FurnitureKind, Build> = {
   },
 };
 
+/** Stand-in for kinds with no hand-built primitive. */
+const genericBlock: Build = (w, d) => {
+  const g = new THREE.Group();
+  g.add(box(w, 40, d, M.fabricDark, 0, 20, 0));
+  return g;
+};
+
 /** Builds one piece, positioned and rotated on the floor plan. */
 export function buildFurniture(item: Furniture): THREE.Group {
   const size = FURNITURE_SIZE[item.kind];
   const w = item.w ?? size.w;
   const d = item.h ?? size.h;
 
-  const group = BUILD[item.kind](w, d);
+  // A plain block stands in for any kind without a hand-built shape. These are
+  // only ever placeholders — every kind in the manifest is replaced by its real
+  // model a moment later — so a generic fallback is enough, and it means adding
+  // a furniture kind costs one line rather than a new primitive.
+  const build = BUILD[item.kind] ?? genericBlock;
+  const group = build(w, d);
   // World Y is depth on the floor plane; Three's Y is up.
   group.position.set(item.x, 0, item.y);
   group.rotation.y = -(item.rotation ?? 0);

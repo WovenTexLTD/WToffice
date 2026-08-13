@@ -59,10 +59,13 @@ function normalise(source: THREE.Group, spec: ModelSpec, width: number, depth: n
   //
   // glTF specifies Y-up, but packs exported from Blender or 3ds Max routinely
   // ship Z-up with no correcting rotation. Measured as-is, such a model reports
-  // its height as depth — so it is fitted on its side, and every chair in the
-  // room lies down.
+  // its height as depth — so it is fitted on its side.
+  //
+  // The sign matters and is worth checking rather than assuming: this pack
+  // builds *downward*, with each model spanning Z −h to 0, so up is −Z and the
+  // correction is +90°. Rotating the other way stands everything on its head.
   const oriented = new THREE.Group();
-  if (spec.upAxis === "z") oriented.rotation.x = -Math.PI / 2;
+  if (spec.upAxis === "z") oriented.rotation.x = Math.PI / 2;
   oriented.add(model);
   oriented.updateMatrixWorld(true);
 
@@ -111,8 +114,12 @@ function normalise(source: THREE.Group, spec: ModelSpec, width: number, depth: n
  * room.
  */
 export async function modelFor(item: Furniture): Promise<THREE.Group | null> {
-  const spec = MODELS[item.kind];
-  if (!spec) return null;
+  const base = MODELS[item.kind];
+  if (!base) return null;
+
+  // A per-item override swaps the model but keeps the kind's scale and axis,
+  // since variants come from the same pack.
+  const spec = item.model ? { ...base, url: `/models/${item.model}.glb` } : base;
 
   const size = FURNITURE_SIZE[item.kind];
   const width = item.w ?? size.w;

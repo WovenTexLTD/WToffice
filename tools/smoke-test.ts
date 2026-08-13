@@ -34,9 +34,9 @@ const near = (a: number, b: number, tol = 0.01) => Math.abs(a - b) <= tol;
 
 console.log("\nGeometry\n");
 
-const meetingCentre = { x: 1300, y: 250 };
+const meetingCentre = { x: 2180, y: 300 };
 check("zoneAt finds the meeting room", zoneAt(meetingCentre.x, meetingCentre.y, floor.zones) === "meeting");
-check("zoneAt returns null on the open floor", zoneAt(300, 520, floor.zones) === null);
+check("zoneAt returns null on the open floor", zoneAt(300, 870, floor.zones) === null);
 check(
   "a doorway is outside the zone",
   zoneAt(floor.doors[0].x + 7, floor.doors[0].y + 45, floor.zones) === null,
@@ -44,12 +44,12 @@ check(
 );
 
 const open = (x: number, y: number) => ({ x, y, zoneId: null });
-const inRoom = (id: string) => ({ x: 1300, y: 250, zoneId: id });
+const inRoom = (id: string) => ({ x: 2180, y: 300, zoneId: id });
 
 check("same room hears at full volume", audioGain(inRoom("meeting"), inRoom("meeting"), EARSHOT) === 1);
 check("different rooms are silent", audioGain(inRoom("meeting"), inRoom("focus"), EARSHOT) === 0);
-check("room seals against the open floor", audioGain(inRoom("meeting"), open(1300, 250), EARSHOT) === 0);
-check("open floor seals against a room", audioGain(open(1300, 250), inRoom("meeting"), EARSHOT) === 0);
+check("room seals against the open floor", audioGain(inRoom("meeting"), open(2180, 300), EARSHOT) === 0);
+check("open floor seals against a room", audioGain(open(2180, 300), inRoom("meeting"), EARSHOT) === 0);
 check("touching is full volume", audioGain(open(500, 500), open(500, 500), EARSHOT) === 1);
 check("half earshot is half volume", near(audioGain(open(500, 500), open(500 + EARSHOT / 2, 500), EARSHOT), 0.5));
 check("beyond earshot is silent", audioGain(open(500, 500), open(500 + EARSHOT + 1, 500), EARSHOT) === 0);
@@ -63,19 +63,19 @@ check("sliding along a wall blocks the blocked axis", slid.x >= 34, `x held at $
 
 console.log("\nBroadcast and doors\n");
 
-const shouting = { x: 1300, y: 250, zoneId: "meeting", broadcasting: true };
-check("a broadcast pierces a sealed room", audioGain(open(300, 520), shouting, EARSHOT) === 1);
-check("a broadcast pierces distance", audioGain(open(60, 960), shouting, EARSHOT) === 1);
+const shouting = { x: 2180, y: 300, zoneId: "meeting", broadcasting: true };
+check("a broadcast pierces a sealed room", audioGain(open(300, 870), shouting, EARSHOT) === 1);
+check("a broadcast pierces distance", audioGain(open(60, 1600), shouting, EARSHOT) === 1);
 check(
   "broadcast is one-way",
-  audioGain(shouting, open(300, 520), EARSHOT) === 0,
+  audioGain(shouting, open(300, 870), EARSHOT) === 0,
   "the broadcaster still only hears their own room",
 );
 
 // Video follows the zone, not the distance — a face across the floor is still
 // presence, but a sealed room is still private.
-check("video carries across the open floor", videoVisible(open(60, 60), open(1000, 900)));
-check("video is hidden by a sealed room", !videoVisible(open(300, 520), inRoom("meeting")));
+check("video carries across the open floor", videoVisible(open(60, 60), open(1600, 1400)));
+check("video is hidden by a sealed room", !videoVisible(open(300, 870), inRoom("meeting")));
 check("video is shared inside a room", videoVisible(inRoom("meeting"), inRoom("meeting")));
 check("video is hidden between two rooms", !videoVisible(inRoom("focus"), inRoom("meeting")));
 check("a broadcaster is visible from anywhere", videoVisible(inRoom("focus"), shouting));
@@ -95,13 +95,13 @@ check(
 );
 
 check("doorAt finds a door under the pointer", doorAt(d0.x + 5, d0.y + 40, floor.doors)?.id === doorId);
-check("doorAt returns null away from any door", doorAt(300, 520, floor.doors) === null);
+check("doorAt returns null away from any door", doorAt(300, 870, floor.doors) === null);
 
 // A shut door must actually stop someone walking through the gap.
 const shutWalls = collisionRects(floor, [doorId]);
 const blocked = resolveMove(
-  { x: 1000, y: 255 },
-  { x: 1100, y: 255 },
+  { x: 1700, y: 300 },
+  { x: 1900, y: 300 },
   PLAYER_RADIUS,
   shutWalls,
   floor,
@@ -109,8 +109,8 @@ const blocked = resolveMove(
 check("a shut door blocks passage", blocked.x < d0.x - PLAYER_RADIUS + 1, `stopped at x = ${blocked.x.toFixed(1)}`);
 
 const throughOpen = resolveMove(
-  { x: 1000, y: 255 },
-  { x: 1100, y: 255 },
+  { x: 1700, y: 300 },
+  { x: 1900, y: 300 },
   PLAYER_RADIUS,
   openGeometry,
   floor,
@@ -187,7 +187,7 @@ async function run(): Promise<void> {
   check("client receives welcome with an id", alice.id.length > 0, alice.id);
 
   const welcome = alice.inbox.find((m) => m.t === "welcome");
-  check("welcome carries the floor", welcome?.t === "welcome" && welcome.floor.zones.length === 2);
+  check("welcome carries the floor", welcome?.t === "welcome" && welcome.floor.zones.length === 3);
 
   const bob = await connect("Bob");
   await wait(200);
@@ -323,9 +323,10 @@ async function run(): Promise<void> {
     alice,
     { x: before?.x ?? floor.spawn.x, y: before?.y ?? floor.spawn.y },
     [
-      { x: 1000, y: 520 },
-      { x: 1000, y: 255 },
-      { x: 1180, y: 255 },
+      { x: 700, y: 850 },
+      { x: 1700, y: 850 },
+      { x: 1700, y: 300 },
+      { x: 1900, y: 300 },
     ],
   );
   const aliceInside = playerIn(alice, alice.id);
