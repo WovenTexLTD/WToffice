@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { ThreeScene as OfficeScene } from "@/world/three/ThreeScene";
 import { OfficeClient, type ConnectionStatus } from "@/net/officeClient";
 import { MediaEngine, type MicState, type PeerDiagnostic, type ShareState } from "@/media/MediaEngine";
-import { VideoOverlay } from "@/video/VideoOverlay";
+import { VideoOverlay, type AvatarLook } from "@/video/VideoOverlay";
 import { SidePanel, type PanelTab } from "@/components/SidePanel";
 import {
   TEAM_CHANNEL,
@@ -258,6 +258,20 @@ function Stage({ name }: { name: string }) {
     const overlay = overlayRef.current;
     const media = mediaRef.current;
     if (!overlay || !media) return;
+
+    // Tile content: name, colour, and voice state. Updated when players change,
+    // never per frame — the scene writes positions directly.
+    const looks = new Map<string, AvatarLook>();
+    for (const p of players) {
+      looks.set(p.id, {
+        name: p.id === selfId ? `${p.name} (you)` : p.name,
+        color: p.color,
+        speaking: p.speaking,
+        muted: p.muted,
+        status: p.status,
+      });
+    }
+    overlay.setPlayers(looks);
 
     for (const p of players) {
       const isSelf = p.id === selfId;

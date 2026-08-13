@@ -36,16 +36,29 @@ import { labelSprite, surfaces } from "./textures";
 
 /* ── Scale ────────────────────────────────────────────────────────── */
 
-const WALL_H = 210;
-const BODY_H = 140;
-const HEAD_Y = BODY_H + 4;
+const WALL_H = 165;
 
-const MIN_DISTANCE = 520;
-const MAX_DISTANCE = 1500;
-const DEFAULT_DISTANCE = 980;
+/**
+ * How high a video tile floats above the floor.
+ *
+ * Low, because the camera is nearly overhead: a tile lifted to head height
+ * would project well away from the feet it belongs to and slide around as the
+ * camera moves.
+ */
+const TILE_Y = 34;
 
-/** Camera direction: up and back, giving roughly 52° of tilt. */
-const VIEW_DIR = new THREE.Vector3(0, 0.82, 0.58).normalize();
+const MIN_DISTANCE = 620;
+const MAX_DISTANCE = 1900;
+const DEFAULT_DISTANCE = 1150;
+
+/**
+ * Camera direction: almost straight down, tipped back about 20°.
+ *
+ * The realism comes from the objects and the lighting, not from the angle. Tilt
+ * far enough to see the fronts of things and the room stops reading as a plan
+ * and starts hiding half of itself behind the furniture.
+ */
+const VIEW_DIR = new THREE.Vector3(0, 0.94, 0.34).normalize();
 
 const STATUS_COLOR: Record<string, number> = {
   available: 0x3f8a63,
@@ -56,10 +69,9 @@ const STATUS_COLOR: Record<string, number> = {
 interface Avatar {
   state: PlayerState;
   group: THREE.Group;
-  body: THREE.Mesh;
+  /** Contact shadow, so a tile reads as standing somewhere rather than floating. */
+  shadow: THREE.Mesh;
   ring: THREE.Mesh;
-  status: THREE.Mesh;
-  label: THREE.Sprite;
   earshot: THREE.Mesh | null;
   cur: { x: number; y: number };
   target: { x: number; y: number };
@@ -412,40 +424,30 @@ export class ThreeScene {
     const isSelf = state.id === this.selfId;
     const color = new THREE.Color(state.color);
 
-    const body = new THREE.Mesh(
-      new THREE.CapsuleGeometry(PLAYER_RADIUS * 0.86, BODY_H - PLAYER_RADIUS * 1.72, 8, 20),
-      new THREE.MeshStandardMaterial({ color, roughness: 0.6 }),
+    // Everything you actually see of a person is a DOM tile above the canvas.
+    // In the scene they leave only a shadow and a ring, which is what ties the
+    // tile to a place on the floor.
+    const shadow = new THREE.Mesh(
+      new THREE.CircleGeometry(PLAYER_RADIUS * 1.15, 32),
+      new THREE.MeshBasicMaterial({ color: 0x241d17, transparent: true, opacity: 0.26 }),
     );
-    body.position.y = BODY_H / 2;
-    body.castShadow = true;
-    body.receiveShadow = true;
-    group.add(body);
+    shadow.rotation.x = -Math.PI / 2;
+    shadow.position.y = 1.6;
+    group.add(shadow);
 
-    // Speaking ring, flat on the floor at their feet.
     const ring = new THREE.Mesh(
-      new THREE.TorusGeometry(PLAYER_RADIUS * 1.5, 2.5, 8, 40),
+      new THREE.TorusGeometry(PLAYER_RADIUS * 1.4, 2.6, 8, 40),
       new THREE.MeshStandardMaterial({
         color,
         emissive: color,
-        emissiveIntensity: 1.4,
+        emissiveIntensity: 1.6,
         roughness: 0.4,
       }),
     );
     ring.rotation.x = -Math.PI / 2;
-    ring.position.y = 2;
+    ring.position.y = 2.2;
     ring.visible = false;
     group.add(ring);
-
-    const status = new THREE.Mesh(
-      new THREE.SphereGeometry(6, 12, 10),
-      new THREE.MeshStandardMaterial({ color: 0x3f8a63, emissive: 0x1a3a28, roughness: 0.5 }),
-    );
-    status.position.set(PLAYER_RADIUS * 0.9, BODY_H - 14, 0);
-    group.add(status);
-
-    const label = labelSprite(isSelf ? `${state.name} (you)` : state.name, "#F4F1EA", 0.72);
-    label.position.y = BODY_H + 46;
-    group.add(label);
 
     let earshot: THREE.Mesh | null = null;
     if (isSelf) {
@@ -469,10 +471,8 @@ export class ThreeScene {
     this.avatars.set(state.id, {
       state,
       group,
-      body,
+      shadow,
       ring,
-      status,
-      label,
       earshot,
       cur: { x: state.x, y: state.y },
       target: { x: state.x, y: state.y },
@@ -695,8 +695,6 @@ export class ThreeScene {
     if (self) {
       self.cur = { ...this.local };
       self.group.position.set(this.local.x, 0, this.local.y);
-      // Face the way you are walking. Cheap, and it makes the room feel alive.
-      self.body.rotation.y = Math.atan2(dx, dz);
     }
   }
 
@@ -704,15 +702,9 @@ export class ThreeScene {
     const k = 1 - Math.exp(-14 * dt);
     for (const [id, avatar] of this.avatars) {
       if (id === this.selfId) continue;
-      const prevX = avatar.cur.x;
-      const prevZ = avatar.cur.y;
       avatar.cur.x += (avatar.target.x - avatar.cur.x) * k;
       avatar.cur.y += (avatar.target.y - avatar.cur.y) * k;
       avatar.group.position.set(avatar.cur.x, 0, avatar.cur.y);
-
-      const dx = avatar.cur.x - prevX;
-      const dz = avatar.cur.y - prevZ;
-      if (Math.hypot(dx, dz) > 0.4) avatar.body.rotation.y = Math.atan2(dx, dz);
     }
   }
 
@@ -767,13 +759,12 @@ export class ThreeScene {
       avatar.ring.visible = talking;
       if (talking) avatar.ring.scale.setScalar(pulse);
 
+      // Someone away fades on the floor as well as in the roster.
       if (avatar.state.status !== avatar.lastStatus) {
         avatar.lastStatus = avatar.state.status;
-        const material = avatar.status.material as THREE.MeshStandardMaterial;
-        material.color.setHex(STATUS_COLOR[avatar.state.status] ?? STATUS_COLOR.away);
+        const material = avatar.shadow.material as THREE.MeshBasicMaterial;
+        material.opacity = avatar.state.status === "away" ? 0.12 : 0.26;
       }
-      // Badges and labels always face the reader.
-      avatar.status.position.x = PLAYER_RADIUS * 0.9;
     }
   }
 
@@ -804,8 +795,8 @@ export class ThreeScene {
     const up = new THREE.Vector3(0, 1, 0).applyQuaternion(this.camera.quaternion);
 
     for (const [id, avatar] of this.avatars) {
-      head.set(avatar.cur.x, HEAD_Y, avatar.cur.y);
-      rim.copy(head).addScaledVector(up, PLAYER_RADIUS);
+      head.set(avatar.cur.x, TILE_Y, avatar.cur.y);
+      rim.copy(head).addScaledVector(up, PLAYER_RADIUS * 1.35);
 
       head.project(this.camera);
       rim.project(this.camera);

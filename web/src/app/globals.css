@@ -424,25 +424,6 @@ body {
   pointer-events: none;
 }
 
-.video-circle {
-  position: absolute;
-  top: 0;
-  left: 0;
-  border-radius: 50%;
-  overflow: hidden;
-  border: 3px solid #f8fafa;
-  background: #2b3b43;
-  box-shadow: 0 2px 8px -2px rgba(21, 34, 42, 0.4);
-  will-change: transform;
-}
-
-.video-circle video {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  display: block;
-}
-
 /* ── Screenshare ───────────────────────────────────────────────── */
 
 .share-panel {
@@ -951,4 +932,88 @@ body {
 /* Knocks sit clear of the side panel when it is open. */
 .office.with-panel .knocks {
   right: calc(var(--panel-w) + 16px);
+}
+
+/* ── Avatar tiles ──────────────────────────────────────────────── */
+
+.avatar-tile {
+  position: absolute;
+  top: 0;
+  left: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  will-change: transform;
+}
+
+.avatar-frame {
+  width: 100%;
+  overflow: hidden;
+  background: #47606c;
+  display: grid;
+  place-items: center;
+  border: 2px solid rgba(255, 255, 255, 0.92);
+  box-shadow:
+    0 3px 10px -2px rgba(20, 16, 12, 0.5),
+    0 0 0 0 rgba(111, 191, 149, 0);
+  transition: box-shadow 110ms ease-out;
+}
+
+.avatar-tile.speaking .avatar-frame {
+  box-shadow:
+    0 3px 10px -2px rgba(20, 16, 12, 0.5),
+    0 0 0 3px rgba(111, 191, 149, 0.9);
+}
+
+/* Video only replaces the initials once a stream is actually bound. */
+.avatar-frame video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: none;
+}
+
+.avatar-tile.has-video .avatar-frame video {
+  display: block;
+}
+
+.avatar-tile.has-video .avatar-initials {
+  display: none;
+}
+
+.avatar-initials {
+  grid-area: 1 / 1;
+  color: #fff;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  user-select: none;
+}
+
+.avatar-frame video {
+  grid-area: 1 / 1;
+}
+
+.avatar-name {
+  margin-top: 4px;
+  padding: 2px 7px;
+  border-radius: 4px;
+  background: rgba(21, 22, 18, 0.82);
+  color: #f2efe9;
+  font-weight: 500;
+  line-height: 1.4;
+  white-space: nowrap;
+  max-width: 160%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.avatar-tile.muted .avatar-name::after {
+  content: " ·  muted";
+  color: #e0b76a;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .avatar-frame {
+    transition: none;
+  }
 }
