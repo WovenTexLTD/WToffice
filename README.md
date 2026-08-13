@@ -10,8 +10,7 @@ products like Kumospace.
 
 ## Status
 
-**Phase 4 complete** — rooms you can shut yourself into, and a way to address
-the whole floor.
+**Phase 5 complete** — the office is worth opening when nobody else is in it.
 
 | Phase | | |
 |---|---|---|
@@ -19,8 +18,8 @@ the whole floor.
 | 2 | Proximity audio | ✅ done |
 | 3 | Video circles + screenshare | ✅ done |
 | 4 | Doors, broadcast | ✅ done |
-| 5 | Chat, status | ← next |
-| 6 | Art pass | |
+| 5 | Chat, status | ✅ done |
+| 6 | Art pass | ← next |
 | 7 | Auth, deploy, harden | |
 
 ### The gate
@@ -62,11 +61,38 @@ and a zone edge overlapping a wall.
 ## Layout
 
 ```
-shared/    types, collision + audio maths, the floor definition
-server/    authoritative world state over ws
-web/       Next.js app, PixiJS renderer
+shared/    types, collision + audio maths, the floor, channel naming
+server/    authoritative world state over ws, SQLite message store
+web/       Next.js app, PixiJS renderer, side panel
 tools/     floor verifier, smoke test
 ```
+
+## Chat and presence
+
+Press `C` for the side panel. A team channel, a DM thread per person, status of
+available / focusing / away with a free-text note, and auto-away after five
+idle minutes that yields the moment you touch anything.
+
+### SQLite, not Postgres
+
+`node:sqlite` is built into Node 24, so history persists with no container, no
+native build and no dependency. A five-person office has one writer and a few
+dozen messages a day — Postgres would be infrastructure to maintain for no gain.
+The schema in `server/src/store.ts` is plain enough to move later.
+
+The database lives at `server/data/office.db` and is gitignored.
+
+### Identity
+
+DM threads are keyed by a stable identity, not the connection id, which changes
+on every reconnect. Until Phase 7 brings Google SSO, identity is the normalised
+name — `toIdentity()` becomes the subject id then and everything above it keeps
+working.
+
+Channel names are derived, not assigned: `dmChannel(a, b)` sorts the two
+identities, so both ends compute the same name without coordinating. The server
+checks `canAccessChannel` on every read and write, so a DM is only ever
+delivered to and writable by its two participants.
 
 `shared/` is imported as raw TypeScript by both sides — no build step. Its
 internal imports are deliberately extensionless so that tsx (server) and

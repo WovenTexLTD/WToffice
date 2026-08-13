@@ -39,6 +39,12 @@ const COLORS = {
   doorHandle: "#C08A2E",
 } as const;
 
+const STATUS_COLOR = {
+  available: "#2F6B4F",
+  focusing: "#C08A2E",
+  away: "#8C9EA6",
+} as const;
+
 const MIN_ZOOM = 0.55;
 const MAX_ZOOM = 1.5;
 
@@ -48,6 +54,9 @@ interface Avatar {
   body: Graphics;
   /** Ring that appears while this person is talking. */
   speakingRing: Graphics;
+  /** Small presence dot. Redrawn only when the status changes. */
+  statusDot: Graphics;
+  lastStatus: string | null;
   nameLabel: Text;
   /** Rendered position, smoothed toward `target`. */
   cur: { x: number; y: number };
@@ -303,6 +312,11 @@ export class OfficeScene {
     initials.anchor.set(0.5);
     view.addChild(initials);
 
+    // Sits on the rim, bottom-right, like a presence badge.
+    const statusDot = new Graphics();
+    statusDot.position.set(PLAYER_RADIUS * 0.72, PLAYER_RADIUS * 0.72);
+    view.addChild(statusDot);
+
     const name = new Text({
       text: isSelf ? `${state.name} (you)` : state.name,
       style: {
@@ -324,6 +338,8 @@ export class OfficeScene {
       view,
       body,
       speakingRing,
+      statusDot,
+      lastStatus: null,
       nameLabel: name,
       cur: { x: state.x, y: state.y },
       target: { x: state.x, y: state.y },
@@ -557,11 +573,39 @@ export class OfficeScene {
 
   private updateSpeakingRings(): void {
     const pulse = 0.3 + Math.sin(this.elapsed * 7) * 0.12;
+
     for (const avatar of this.avatars.values()) {
       const active = avatar.state.speaking && !avatar.state.muted;
       avatar.speakingRing.visible = active;
       if (active) avatar.speakingRing.alpha = pulse;
+
+      // Redraw the badge only when the status actually changes.
+      const status = avatar.state.status;
+      if (status !== avatar.lastStatus) {
+        avatar.lastStatus = status;
+        const fill = STATUS_COLOR[status] ?? STATUS_COLOR.away;
+        avatar.statusDot.clear();
+        avatar.statusDot.circle(0, 0, 5.5).fill(fill);
+        avatar.statusDot.circle(0, 0, 5.5).stroke({ width: 2.5, color: "#F8FAFA" });
+      }
     }
+  }
+
+  /**
+   * Walk over to someone.
+   *
+   * Aims beside them rather than at them, so you end up standing alongside
+   * instead of shoving into their collision circle and stopping short.
+   */
+  walkToPlayer(playerId: string): void {
+    const target = this.avatars.get(playerId);
+    if (!target || playerId === this.selfId) return;
+
+    const fromLeft = this.local.x <= target.cur.x;
+    this.moveTarget = {
+      x: target.cur.x + (fromLeft ? -1 : 1) * PLAYER_RADIUS * 2.4,
+      y: target.cur.y,
+    };
   }
 
   /** Local voice activity, applied without waiting for the server round trip. */

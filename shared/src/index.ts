@@ -4,3 +4,4 @@
 export * from "./types";
 export * from "./geometry";
 export * from "./floor";
+export * from "./chat";

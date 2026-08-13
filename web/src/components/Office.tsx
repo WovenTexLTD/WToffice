@@ -5,7 +5,18 @@ import { OfficeScene } from "@/world/OfficeScene";
 import { OfficeClient, type ConnectionStatus } from "@/net/officeClient";
 import { MediaEngine, type MicState, type PeerDiagnostic, type ShareState } from "@/media/MediaEngine";
 import { VideoOverlay } from "@/video/VideoOverlay";
-import type { Floor, PlayerState } from "@wtoffice/shared";
+import { SidePanel, type PanelTab } from "@/components/SidePanel";
+import {
+  TEAM_CHANNEL,
+  pointInRect,
+  type ChatMessage,
+  type Floor,
+  type PlayerState,
+  type PresenceStatus,
+} from "@wtoffice/shared";
+
+/** Auto-away after this long with no keyboard or mouse. */
+const IDLE_MS = 5 * 60_000;
 
 const WS_URL = process.env.NEXT_PUBLIC_WS_URL ?? "ws://localhost:3001";
 
@@ -101,6 +112,18 @@ function Stage({ name }: { name: string }) {
   const [knocks, setKnocks] = useState<{ id: number; name: string; doorId: string }[]>([]);
   const [diagnostics, setDiagnostics] = useState<PeerDiagnostic[] | null>(null);
 
+  const [panelOpen, setPanelOpen] = useState(true);
+  const [panelTab, setPanelTab] = useState<PanelTab>("chat");
+  const [activeChannel, setActiveChannel] = useState(TEAM_CHANNEL);
+  const [threads, setThreads] = useState<Record<string, ChatMessage[]>>({});
+  const [hasMore, setHasMore] = useState<Record<string, boolean>>({});
+  const [unread, setUnread] = useState<Record<string, number>>({});
+
+  /** Channels we have already asked the server for. */
+  const loadedRef = useRef<Set<string>>(new Set());
+  /** Read by socket handlers, which close over their first render otherwise. */
+  const viewRef = useRef({ open: true, tab: "chat" as PanelTab, channel: TEAM_CHANNEL, identity: "" });
+
   useEffect(() => {
     const host = hostRef.current;
     if (!host) return;
@@ -174,6 +197,32 @@ function Stage({ name }: { name: string }) {
       onCorrect: (x, y) => scene.correctPosition(x, y),
       onStatus: setStatus,
       onSignal: (from, data) => void media.handleSignal(from, data),
+
+      onChat: (message) => {
+        setThreads((prev) => ({
+          ...prev,
+          [message.channel]: [...(prev[message.channel] ?? []), message],
+        }));
+
+        // Unread only counts what you are not already looking at.
+        const view = viewRef.current;
+        const watching = view.open && view.tab === "chat" && view.channel === message.channel;
+        if (!watching && message.identity !== view.identity) {
+          setUnread((prev) => ({ ...prev, [message.channel]: (prev[message.channel] ?? 0) + 1 }));
+        }
+      },
+
+      onHistory: (channel, page, more) => {
+        setThreads((prev) => {
+          const existing = prev[channel] ?? [];
+          // A page whose newest message predates what we hold is older history
+          // being paged in; anything else replaces.
+          const isOlder =
+            existing.length > 0 && page.length > 0 && page[page.length - 1].id < existing[0].id;
+          return { ...prev, [channel]: isOlder ? [...page, ...existing] : page };
+        });
+        setHasMore((prev) => ({ ...prev, [channel]: more }));
+      },
     });
     clientRef.current = client;
 
@@ -248,6 +297,88 @@ function Stage({ name }: { name: string }) {
     void media.setScreen(media.getScreenState() !== "on");
   }, []);
 
+  /* ── Chat plumbing ─────────────────────────────────────────────── */
+
+  const self = players.find((p) => p.id === selfId);
+
+  // Socket handlers are created once, so they read the current view from a ref.
+  useEffect(() => {
+    viewRef.current = {
+      open: panelOpen,
+      tab: panelTab,
+      channel: activeChannel,
+      identity: self?.identity ?? "",
+    };
+  }, [panelOpen, panelTab, activeChannel, self?.identity]);
+
+  // Fetch a channel the first time it is opened, and clear its badge.
+  useEffect(() => {
+    if (!selfId) return;
+    if (!loadedRef.current.has(activeChannel)) {
+      loadedRef.current.add(activeChannel);
+      clientRef.current?.requestHistory(activeChannel);
+    }
+    if (panelOpen && panelTab === "chat") {
+      setUnread((prev) => (prev[activeChannel] ? { ...prev, [activeChannel]: 0 } : prev));
+    }
+  }, [activeChannel, selfId, panelOpen, panelTab]);
+
+  const sendChat = useCallback(
+    (body: string) => clientRef.current?.sendChat(activeChannel, body),
+    [activeChannel],
+  );
+
+  const loadOlder = useCallback(() => {
+    const oldest = threads[activeChannel]?.[0]?.id;
+    if (oldest !== undefined) clientRef.current?.requestHistory(activeChannel, oldest);
+  }, [threads, activeChannel]);
+
+  const updatePresence = useCallback((status: PresenceStatus, note: string) => {
+    clientRef.current?.sendStatus(status, note);
+  }, []);
+
+  /** Where somebody is, in words — a room name, an area, or just the floor. */
+  const locationOf = useCallback(
+    (p: PlayerState) => {
+      if (!floor) return "the floor";
+      if (p.zoneId) return floor.zones.find((z) => z.id === p.zoneId)?.name ?? "a room";
+      return floor.areas.find((a) => pointInRect(p.x, p.y, a))?.label ?? "the floor";
+    },
+    [floor],
+  );
+
+  /* Auto-away, and back again on the first sign of life. */
+  useEffect(() => {
+    if (!self) return;
+
+    let lastActive = Date.now();
+    let autoAway = false;
+
+    const onActivity = () => {
+      lastActive = Date.now();
+      if (autoAway) {
+        autoAway = false;
+        clientRef.current?.sendStatus("available", "");
+      }
+    };
+
+    const timer = window.setInterval(() => {
+      if (autoAway || Date.now() - lastActive < IDLE_MS) return;
+      // Never override a status the person chose deliberately.
+      if (self.status !== "available") return;
+      autoAway = true;
+      clientRef.current?.sendStatus("away", self.note);
+    }, 20_000);
+
+    const events = ["mousemove", "keydown", "pointerdown", "wheel"] as const;
+    for (const e of events) window.addEventListener(e, onActivity, { passive: true });
+
+    return () => {
+      window.clearInterval(timer);
+      for (const e of events) window.removeEventListener(e, onActivity);
+    };
+  }, [self]);
+
   const toggleBroadcast = useCallback(() => {
     setBroadcasting((was) => {
       const next = !was;
@@ -275,6 +406,11 @@ function Stage({ name }: { name: string }) {
       if (e.key.toLowerCase() === "i") {
         e.preventDefault();
         setDiagnostics((shown) => (shown ? null : (mediaRef.current?.getDiagnostics() ?? [])));
+        return;
+      }
+      if (e.key.toLowerCase() === "c") {
+        e.preventDefault();
+        setPanelOpen((open) => !open);
       }
     };
     window.addEventListener("keydown", onKey);
@@ -314,8 +450,10 @@ function Stage({ name }: { name: string }) {
     unavailable: "No microphone",
   };
 
+  const totalUnread = Object.values(unread).reduce((a, b) => a + b, 0);
+
   return (
-    <div className="office">
+    <div className={`office${panelOpen ? " with-panel" : ""}`}>
       <div className="stage" ref={hostRef} />
 
       {sharer && (
@@ -395,7 +533,37 @@ function Stage({ name }: { name: string }) {
         >
           {broadcasting ? "Stop broadcast" : "Broadcast"}
         </button>
+
+        <button
+          type="button"
+          className={`hud-btn${panelOpen ? " active" : ""}`}
+          onClick={() => setPanelOpen((open) => !open)}
+          aria-pressed={panelOpen}
+        >
+          Chat
+          {!panelOpen && totalUnread > 0 && <span className="pip">{totalUnread}</span>}
+        </button>
       </div>
+
+      {panelOpen && (
+        <SidePanel
+          players={players}
+          self={self}
+          tab={panelTab}
+          onTab={setPanelTab}
+          onClose={() => setPanelOpen(false)}
+          activeChannel={activeChannel}
+          onChannel={setActiveChannel}
+          messages={threads[activeChannel] ?? []}
+          hasMore={hasMore[activeChannel] ?? false}
+          unread={unread}
+          onSend={sendChat}
+          onLoadOlder={loadOlder}
+          onStatus={updatePresence}
+          onFind={(id) => sceneRef.current?.walkToPlayer(id)}
+          locationOf={locationOf}
+        />
+      )}
 
       {broadcasting && (
         <div className="broadcast-bar">

@@ -7,7 +7,10 @@
 import WebSocket from "ws";
 import {
   woventexFloor as floor,
+  TEAM_CHANNEL,
   audioGain,
+  dmChannel,
+  toIdentity,
   doorAt,
   resolveMove,
   videoVisible,
@@ -376,6 +379,100 @@ async function run(): Promise<void> {
     released?.t === "doors" && !released.shut.includes("meeting-door"),
     "otherwise the room would be sealed forever",
   );
+
+  // Alice has now gone, so check the departure here rather than at the end.
+  check(
+    "departure is broadcast",
+    bob.inbox.some((m) => m.t === "left" && m.id === alice.id),
+  );
+
+  /* ── Chat ──────────────────────────────────────────────────────── */
+
+  console.log("\nChat\n");
+
+  // Fresh clients: Alice was disconnected above to prove the room release.
+  const ann = await connect("Ann");
+  const ben = await connect("Ben");
+  const eve = await connect("Eve");
+  await wait(250);
+
+  const dm = dmChannel(toIdentity("Ann"), toIdentity("Ben"));
+  const stamp = `smoke-${Date.now()}`;
+
+  for (const c of [ann, ben, eve]) c.inbox.length = 0;
+  ann.socket.send(JSON.stringify({ t: "chat", channel: TEAM_CHANNEL, body: `team ${stamp}` }));
+  await wait(300);
+
+  const teamMsg = (c: Client) =>
+    c.inbox.find((m) => m.t === "chat" && m.message.body === `team ${stamp}`);
+  check("team messages reach the sender", !!teamMsg(ann));
+  check("team messages reach everyone else", !!teamMsg(ben) && !!teamMsg(eve));
+
+  for (const c of [ann, ben, eve]) c.inbox.length = 0;
+  ann.socket.send(JSON.stringify({ t: "chat", channel: dm, body: `dm ${stamp}` }));
+  await wait(300);
+
+  const dmMsg = (c: Client) => c.inbox.find((m) => m.t === "chat" && m.message.body === `dm ${stamp}`);
+  check("a DM reaches both participants", !!dmMsg(ann) && !!dmMsg(ben));
+  check("a DM reaches nobody else", !dmMsg(eve), "Eve is not in the thread");
+
+  // Eve must not be able to post into someone else's thread either.
+  for (const c of [ann, ben]) c.inbox.length = 0;
+  eve.socket.send(JSON.stringify({ t: "chat", channel: dm, body: `intrusion ${stamp}` }));
+  await wait(300);
+  check(
+    "an outsider cannot post into a DM",
+    !ann.inbox.some((m) => m.t === "chat" && m.message.body.startsWith("intrusion")),
+  );
+
+  // Nor read it.
+  eve.inbox.length = 0;
+  eve.socket.send(JSON.stringify({ t: "history", channel: dm }));
+  await wait(300);
+  check("an outsider cannot read a DM", !eve.inbox.some((m) => m.t === "history"));
+
+  // Empty and whitespace-only messages are not messages.
+  ben.inbox.length = 0;
+  ann.socket.send(JSON.stringify({ t: "chat", channel: TEAM_CHANNEL, body: "   " }));
+  await wait(250);
+  check("blank messages are dropped", !ben.inbox.some((m) => m.t === "chat"));
+
+  // History is persisted, not just relayed.
+  ben.inbox.length = 0;
+  ben.socket.send(JSON.stringify({ t: "history", channel: TEAM_CHANNEL }));
+  await wait(300);
+  const history = ben.inbox.find((m) => m.t === "history");
+  check("history comes back for a channel", !!history);
+  check(
+    "history contains the message we just sent",
+    history?.t === "history" && history.messages.some((m) => m.body === `team ${stamp}`),
+  );
+  check(
+    "history is oldest-first",
+    history?.t === "history" &&
+      history.messages.every((m, i, all) => i === 0 || all[i - 1].id < m.id),
+  );
+
+  /* ── Status ────────────────────────────────────────────────────── */
+
+  ben.socket.send(JSON.stringify({ t: "status", status: "focusing", note: "  heads down  " }));
+  await wait(300);
+  const benStatus = playerIn(ann, ben.id);
+  check("status propagates", benStatus?.status === "focusing");
+  check("the note is trimmed", benStatus?.note === "heads down", `note = ${benStatus?.note}`);
+
+  ben.socket.send(JSON.stringify({ t: "status", status: "nonsense", note: "" }));
+  await wait(300);
+  check("an unknown status is ignored", playerIn(ann, ben.id)?.status === "focusing");
+
+  check(
+    "identity is derived from the name",
+    playerIn(ann, ben.id)?.identity === "ben",
+    `identity = ${playerIn(ann, ben.id)?.identity}`,
+  );
+
+  eve.socket.close();
+  await wait(200);
 
   /* ── Teardown ──────────────────────────────────────────────────── */
 

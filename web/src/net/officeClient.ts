@@ -5,7 +5,15 @@
  * messages to the scene. All simulation lives in the scene.
  */
 
-import type { ClientMessage, Floor, PlayerState, ServerMessage, SignalData } from "@wtoffice/shared";
+import type {
+  ChatMessage,
+  ClientMessage,
+  Floor,
+  PlayerState,
+  PresenceStatus,
+  ServerMessage,
+  SignalData,
+} from "@wtoffice/shared";
 
 export interface OfficeClientHandlers {
   onWelcome(selfId: string, floor: Floor, players: PlayerState[], shutDoors: string[]): void;
@@ -17,6 +25,8 @@ export interface OfficeClientHandlers {
   onSignal(from: string, data: SignalData): void;
   onDoors(shut: string[]): void;
   onKnock(doorId: string, name: string): void;
+  onChat(message: ChatMessage): void;
+  onHistory(channel: string, messages: ChatMessage[], hasMore: boolean): void;
 }
 
 export type ConnectionStatus = "connecting" | "online" | "reconnecting" | "offline";
@@ -75,6 +85,12 @@ export class OfficeClient {
           break;
         case "knock":
           this.handlers.onKnock(msg.doorId, msg.name);
+          break;
+        case "chat":
+          this.handlers.onChat(msg.message);
+          break;
+        case "history":
+          this.handlers.onHistory(msg.channel, msg.messages, msg.hasMore);
           break;
         case "state":
           this.handlers.onState(msg.players);
@@ -147,6 +163,18 @@ export class OfficeClient {
 
   sendKnock(doorId: string): void {
     this.send({ t: "knock", doorId });
+  }
+
+  sendStatus(status: PresenceStatus, note: string): void {
+    this.send({ t: "status", status, note });
+  }
+
+  sendChat(channel: string, body: string): void {
+    this.send({ t: "chat", channel, body });
+  }
+
+  requestHistory(channel: string, before?: number): void {
+    this.send({ t: "history", channel, before });
   }
 
   disconnect(): void {

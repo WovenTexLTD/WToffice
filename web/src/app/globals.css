@@ -9,6 +9,13 @@
   --accent: #1d5d86;
   --good: #2f6b4f;
   --warn: #b9622a;
+  --panel-w: 330px;
+}
+
+@media (max-width: 760px) {
+  :root {
+    --panel-w: 100%;
+  }
 }
 
 * {
@@ -135,6 +142,18 @@ body {
 .stage {
   position: absolute;
   inset: 0;
+  right: 0;
+  transition: right 140ms ease-out;
+}
+
+.office.with-panel .stage {
+  right: var(--panel-w);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .stage {
+    transition: none;
+  }
 }
 
 .stage canvas {
@@ -509,4 +528,427 @@ body {
 .entry-note {
   font-size: 13px !important;
   color: var(--ink-faint) !important;
+}
+
+/* ── Side panel ────────────────────────────────────────────────── */
+
+.panel {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: var(--panel-w);
+  display: flex;
+  flex-direction: column;
+  background: var(--surface);
+  border-left: 1px solid var(--rule);
+  min-height: 0;
+}
+
+.panel-tabs {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 8px 8px 0;
+  border-bottom: 1px solid var(--rule);
+  flex: none;
+}
+
+.panel-tabs button {
+  font: inherit;
+  font-size: 13px;
+  font-weight: 500;
+  padding: 8px 14px 9px;
+  border: none;
+  border-bottom: 2px solid transparent;
+  background: none;
+  color: var(--ink-soft);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.panel-tabs button.on {
+  color: var(--ink);
+  border-bottom-color: var(--accent);
+}
+
+.panel-tabs button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+
+.panel-spacer {
+  flex: 1;
+}
+
+.panel-close {
+  font-size: 19px !important;
+  line-height: 1;
+  color: var(--ink-faint) !important;
+  padding: 4px 8px 8px !important;
+}
+
+.panel-body {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.pip {
+  display: inline-grid;
+  place-items: center;
+  min-width: 17px;
+  height: 17px;
+  padding: 0 5px;
+  border-radius: 9px;
+  background: var(--accent);
+  color: #fff;
+  font-size: 10.5px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── Channels ──────────────────────────────────────────────────── */
+
+.channels {
+  display: flex;
+  gap: 4px;
+  padding: 9px 10px;
+  overflow-x: auto;
+  border-bottom: 1px solid var(--rule);
+  flex: none;
+}
+
+.channel {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font: inherit;
+  font-size: 12.5px;
+  padding: 5px 11px;
+  border-radius: 13px;
+  border: 1px solid var(--rule);
+  background: transparent;
+  color: var(--ink-soft);
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.channel.on {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+
+.channel.on .pip {
+  background: rgba(255, 255, 255, 0.28);
+}
+
+.channel:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.channel-hash {
+  color: var(--ink-faint);
+  font-weight: 600;
+}
+
+.channel.on .channel-hash {
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.swatch {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  flex: none;
+}
+
+/* ── Messages ──────────────────────────────────────────────────── */
+
+.messages {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 14px 14px 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.messages .empty {
+  margin: auto 0;
+  text-align: center;
+  color: var(--ink-faint);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.load-older {
+  font: inherit;
+  font-size: 12px;
+  padding: 5px 12px;
+  align-self: center;
+  border-radius: 12px;
+  border: 1px solid var(--rule);
+  background: transparent;
+  color: var(--ink-soft);
+  cursor: pointer;
+  flex: none;
+}
+
+.msg.grouped {
+  margin-top: -6px;
+}
+
+.msg-head {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin-bottom: 2px;
+}
+
+.msg-head strong {
+  font-size: 13px;
+  font-weight: 650;
+}
+
+.msg-head time {
+  font-size: 11px;
+  color: var(--ink-faint);
+  font-variant-numeric: tabular-nums;
+}
+
+.msg-body {
+  font-size: 13.5px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+/* ── Composer ──────────────────────────────────────────────────── */
+
+.composer {
+  display: flex;
+  gap: 8px;
+  align-items: flex-end;
+  padding: 10px 12px 12px;
+  border-top: 1px solid var(--rule);
+  flex: none;
+}
+
+.composer textarea {
+  flex: 1;
+  min-width: 0;
+  font: inherit;
+  font-size: 13.5px;
+  line-height: 1.45;
+  padding: 8px 10px;
+  border: 1px solid var(--rule);
+  border-radius: 4px;
+  background: #fff;
+  color: var(--ink);
+  resize: none;
+}
+
+.composer textarea:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -1px;
+  border-color: transparent;
+}
+
+.composer button {
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  padding: 9px 14px;
+  border: none;
+  border-radius: 4px;
+  background: var(--accent);
+  color: #fff;
+  cursor: pointer;
+  flex: none;
+}
+
+.composer button:disabled {
+  background: var(--rule);
+  color: var(--ink-faint);
+  cursor: not-allowed;
+}
+
+/* ── People ────────────────────────────────────────────────────── */
+
+.you {
+  padding: 13px 14px;
+  border-bottom: 1px solid var(--rule);
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  flex: none;
+}
+
+.you-head {
+  font-size: 10.5px;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+}
+
+.status-picker {
+  display: flex;
+  gap: 5px;
+}
+
+.status-btn {
+  flex: 1;
+  font: inherit;
+  font-size: 12px;
+  padding: 6px 4px;
+  border-radius: 4px;
+  border: 1px solid var(--rule);
+  background: transparent;
+  color: var(--ink-soft);
+  cursor: pointer;
+}
+
+.status-btn.on.available {
+  background: var(--good);
+  border-color: var(--good);
+  color: #fff;
+}
+
+.status-btn.on.focusing {
+  background: #c08a2e;
+  border-color: #c08a2e;
+  color: #fff;
+}
+
+.status-btn.on.away {
+  background: #8c9ea6;
+  border-color: #8c9ea6;
+  color: #fff;
+}
+
+.status-btn:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.note-input {
+  font: inherit;
+  font-size: 13px;
+  padding: 7px 10px;
+  border: 1px solid var(--rule);
+  border-radius: 4px;
+  background: #fff;
+  color: var(--ink);
+  width: 100%;
+}
+
+.note-input:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -1px;
+  border-color: transparent;
+}
+
+.roster {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 6px 0;
+}
+
+.person {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 14px;
+}
+
+.person-main {
+  flex: 1;
+  min-width: 0;
+}
+
+.person-name {
+  font-size: 13.5px;
+  font-weight: 600;
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+}
+
+.you-tag {
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+}
+
+.person-meta {
+  font-size: 11.5px;
+  color: var(--ink-soft);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 1px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.status-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  flex: none;
+}
+
+.status-dot.available {
+  background: var(--good);
+}
+
+.status-dot.focusing {
+  background: #c08a2e;
+}
+
+.status-dot.away {
+  background: #8c9ea6;
+}
+
+.person-actions {
+  display: flex;
+  gap: 5px;
+  flex: none;
+}
+
+.person-actions button {
+  font: inherit;
+  font-size: 11.5px;
+  padding: 4px 9px;
+  border-radius: 3px;
+  border: 1px solid var(--rule);
+  background: transparent;
+  color: var(--ink-soft);
+  cursor: pointer;
+}
+
+.person-actions button:hover {
+  background: var(--surface-alt);
+  color: var(--ink);
+}
+
+.person-actions button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+/* Knocks sit clear of the side panel when it is open. */
+.office.with-panel .knocks {
+  right: calc(var(--panel-w) + 16px);
 }

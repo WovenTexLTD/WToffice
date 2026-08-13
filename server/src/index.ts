@@ -10,8 +10,11 @@
 
 import { createServer } from "node:http";
 import { WebSocketServer, WebSocket } from "ws";
+import { MessageStore } from "./store";
 import {
   woventexFloor,
+  canAccessChannel,
+  toIdentity,
   resolveMove,
   wallsWithShutDoors,
   zoneAt,
@@ -23,8 +26,13 @@ import {
   TICK_HZ,
   type ClientMessage,
   type PlayerState,
+  type PresenceStatus,
   type ServerMessage,
 } from "@wtoffice/shared";
+
+const store = new MessageStore();
+
+const STATUSES: PresenceStatus[] = ["available", "focusing", "away"];
 
 const PORT = Number(process.env.PORT ?? 3001);
 const floor = woventexFloor;
@@ -148,9 +156,13 @@ wss.on("connection", (socket) => {
     if (msg.t === "join") {
       if (conn.player) return; // Already joined; ignore duplicates.
 
+      const name = sanitiseName(msg.name);
       const player: PlayerState = {
         id,
-        name: sanitiseName(msg.name),
+        name,
+        identity: toIdentity(name),
+        status: "available",
+        note: "",
         color: AVATAR_COLORS[(nextId - 2) % AVATAR_COLORS.length],
         x: floor.spawn.x,
         y: floor.spawn.y,
@@ -257,6 +269,47 @@ wss.on("connection", (socket) => {
           name: player.name,
         });
       }
+      return;
+    }
+
+    if (msg.t === "status") {
+      const player = conn.player;
+      if (!player) return;
+      if (STATUSES.includes(msg.status)) player.status = msg.status;
+      player.note = typeof msg.note === "string" ? msg.note.trim().slice(0, 80) : "";
+      return;
+    }
+
+    if (msg.t === "chat") {
+      const player = conn.player;
+      if (!player) return;
+
+      const body = typeof msg.body === "string" ? msg.body.trim() : "";
+      if (!body) return;
+
+      const channel = String(msg.channel);
+      // A DM you are not part of is not yours to post in.
+      if (!canAccessChannel(channel, player.identity)) return;
+
+      const message = store.append(channel, player.name, player.identity, body);
+      for (const other of connections.values()) {
+        if (!other.player) continue;
+        if (!canAccessChannel(channel, other.player.identity)) continue;
+        send(other.socket, { t: "chat", message });
+      }
+      return;
+    }
+
+    if (msg.t === "history") {
+      const player = conn.player;
+      if (!player) return;
+
+      const channel = String(msg.channel);
+      if (!canAccessChannel(channel, player.identity)) return;
+
+      const before = typeof msg.before === "number" ? msg.before : undefined;
+      const { messages, hasMore } = store.history(channel, before);
+      send(socket, { t: "history", channel, messages, hasMore });
       return;
     }
 
