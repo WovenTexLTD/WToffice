@@ -89,16 +89,26 @@ function seatsAround(cx: number, cy: number, spread: number, offset: number, per
   return out;
 }
 
-/** Sofa, two armchairs and a table around a rug. */
+/**
+ * Sofa, two armchairs and a table around a rug.
+ *
+ * Pulled in tight on purpose. A conversation group only works if everyone can
+ * talk without raising their voice — about two metres across — and the rug has
+ * to reach under the front of every seat, or the furniture reads as floating
+ * around a doormat rather than as one arrangement.
+ */
 function loungeSet(cx: number, cy: number, rug: string, sofa?: string): Furniture[] {
   return [
     { kind: "rug", x: cx, y: cy, model: rug },
-    { kind: "sofa", x: cx, y: cy - 120, solid: true, model: sofa },
-    { kind: "pillow", x: cx - 50, y: cy - 118 },
-    { kind: "pillow", x: cx + 50, y: cy - 118 },
-    { kind: "armchair", x: cx - 140, y: cy + 40, rotation: deg(70), solid: true },
-    { kind: "armchair", x: cx + 140, y: cy + 40, rotation: deg(-70), solid: true, model: "armchair-b" },
-    { kind: "coffeeTable", x: cx, y: cy + 30, solid: true },
+
+    { kind: "sofa", x: cx, y: cy - 82, solid: true, model: sofa },
+    { kind: "pillow", x: cx - 46, y: cy - 80 },
+    { kind: "pillow", x: cx + 46, y: cy - 80 },
+
+    { kind: "armchair", x: cx - 108, y: cy + 32, rotation: deg(62), solid: true },
+    { kind: "armchair", x: cx + 108, y: cy + 32, rotation: deg(-62), solid: true },
+
+    { kind: "coffeeTable", x: cx, y: cy + 8, solid: true },
   ];
 }
 
@@ -207,22 +217,27 @@ export const woventexFloor: Floor = {
     // whole trick with an open plan.
     { kind: "shelf", x: 1080, y: 800, solid: true },
     { kind: "shelf", x: 1280, y: 800, solid: true, model: "shelf-b" },
-    { kind: "plant", x: 1180, y: 790, model: "plant-c" },
+    { kind: "plant", x: 1180, y: 795, model: "plant-big" },
 
     // Sofa, two armchairs and a table around a rug — a closed conversation
     // group, everything facing in.
-    ...loungeSet(1180, 1070, "rug"),
+    ...loungeSet(1180, 1070, "rug-round"),
 
-    // Soft seating on the open side, where a chair would feel too formal.
-    { kind: "beanbag", x: 970, y: 1215, rotation: deg(38) },
-    { kind: "beanbag", x: 1390, y: 1215, rotation: deg(-38) },
-    { kind: "pouffe", x: 1180, y: 1230 },
-    { kind: "daybed", x: 1600, y: 1150, rotation: deg(-90), solid: true },
+    // Informal seating on the open side, where a chair would feel too formal.
+    // The pack has no bean bags; soft cubes and a floor cushion are the nearest
+    // thing, and they sit better with the rest of the group than a novelty
+    // shape would.
+    { kind: "softCube", x: 1055, y: 1185, rotation: deg(24) },
+    { kind: "softCube", x: 1305, y: 1185, rotation: deg(-24) },
+    { kind: "floorCushion", x: 1180, y: 1210 },
 
-    { kind: "lamp", x: 900, y: 950 },
-    { kind: "console", x: 1610, y: 900, rotation: deg(90), solid: true },
-    { kind: "plant", x: 760, y: 1250, model: "plant-big" },
-    { kind: "plant", x: 1610, y: 810, model: "tree" },
+    // Beside the sofa, where a lamp belongs. On its own in the middle of the
+    // floor it just reads as an object.
+    { kind: "lamp", x: 1058, y: 962 },
+    { kind: "console", x: 1610, y: 940, rotation: deg(90), solid: true },
+    { kind: "plant", x: 1610, y: 850, model: "plant-big" },
+    { kind: "plant", x: 780, y: 1230, model: "tree" },
+    { kind: "plant", x: 1560, y: 1250, model: "plant-b" },
 
     /* ── Meeting room ─────────────────────────────────────────────── */
     { kind: "meetingTable", x: 2180, y: 300, solid: true },

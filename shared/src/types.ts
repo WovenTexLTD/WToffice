@@ -111,9 +111,8 @@ export type FurnitureKind =
   | "roundTable"
   | "benchDesk"
   | "monitor"
-  | "beanbag"
-  | "pouffe"
-  | "daybed";
+  | "softCube"
+  | "floorCushion";
 
 export interface Furniture {
   kind: FurnitureKind;
@@ -183,16 +182,16 @@ export const FURNITURE_SIZE: Record<FurnitureKind, { w: number; h: number }> = {
   desk: { w: 134, h: 56 }, //          1.58 × 0.66 m
   chair: { w: 52, h: 56 }, //          0.61 × 0.66 m
   sofa: { w: 174, h: 74 }, //          2.05 × 0.87 m
-  armchair: { w: 73, h: 74 }, //       0.86 × 0.87 m
+  armchair: { w: 56, h: 60 }, //       0.66 × 0.70 m
   meetingTable: { w: 163, h: 121 }, // 1.92 × 1.42 m
-  coffeeTable: { w: 85, h: 50 }, //    1.00 × 0.59 m
+  coffeeTable: { w: 99, h: 73 }, //    1.17 × 0.86 m
   stool: { w: 30, h: 30 }, //          0.35 × 0.35 m
   counter: { w: 281, h: 48 }, //       3.30 × 0.57 m
-  plant: { w: 39, h: 39 }, //          0.46 × 0.46 m
+  plant: { w: 58, h: 49 }, //          0.68 × 0.58 m
   rug: { w: 252, h: 172 }, //          2.97 × 2.02 m
   shelf: { w: 112, h: 20 }, //         1.32 × 0.23 m
   whiteboard: { w: 170, h: 14 }, //    still a primitive
-  lamp: { w: 37, h: 37 }, //           0.44 × 0.44 m
+  lamp: { w: 49, h: 48 }, //           0.58 × 0.56 m
   bench: { w: 82, h: 31 }, //          0.97 × 0.36 m
   console: { w: 105, h: 30 }, //       1.24 × 0.35 m
   partition: { w: 161, h: 5 }, //      1.89 × 0.06 m
@@ -206,9 +205,8 @@ export const FURNITURE_SIZE: Record<FurnitureKind, { w: number; h: number }> = {
   roundTable: { w: 184, h: 173 }, //   2.17 × 2.03 m
   benchDesk: { w: 313, h: 65 }, //     3.68 × 0.77 m
   monitor: { w: 57, h: 16 }, //        0.67 × 0.19 m
-  beanbag: { w: 61, h: 57 }, //        0.72 × 0.67 m
-  pouffe: { w: 49, h: 49 }, //         0.58 × 0.58 m
-  daybed: { w: 58, h: 151 }, //        0.68 × 1.78 m
+  softCube: { w: 48, h: 36 }, //       0.56 × 0.42 m
+  floorCushion: { w: 57, h: 65 }, //   0.67 × 0.77 m
 };
 
 export type PresenceStatus = "available" | "focusing" | "away";
