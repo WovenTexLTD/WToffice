@@ -40,7 +40,14 @@ function rand(seed: number): number {
 
 /* ── Oak ──────────────────────────────────────────────────────────── */
 
-function oakCanvas(): HTMLCanvasElement {
+/**
+ * Boards, staggered row to row, each shaded slightly differently.
+ *
+ * Lightness is a parameter because "wood flooring" covers everything from pale
+ * ash to dark walnut, and it is the one value worth tuning by eye. Grain and
+ * seams are derived from it so the whole board darkens together.
+ */
+function oakCanvas(base = 47, sat = 33, hue = 30): HTMLCanvasElement {
   return surface((ctx, size) => {
     const rows = 6;
     const rowH = size / rows;
@@ -51,11 +58,11 @@ function oakCanvas(): HTMLCanvasElement {
         const x = stagger + i * (size / 2);
         const shade = rand(row * 13 + i * 7);
 
-        ctx.fillStyle = `hsl(32, 34%, ${58 + shade * 8}%)`;
+        ctx.fillStyle = `hsl(${hue}, ${sat}%, ${base + shade * 8}%)`;
         ctx.fillRect(x, row * rowH, size / 2, rowH);
 
         // Grain: long, low-contrast strokes along the board.
-        ctx.strokeStyle = `hsla(30, 32%, ${44 + shade * 6}%, 0.28)`;
+        ctx.strokeStyle = `hsla(${hue - 2}, ${sat - 2}%, ${base - 13 + shade * 6}%, 0.3)`;
         ctx.lineWidth = 1;
         for (let g = 0; g < 7; g++) {
           const gy = row * rowH + (rand(row * 31 + i * 17 + g) * rowH);
@@ -70,7 +77,7 @@ function oakCanvas(): HTMLCanvasElement {
         }
 
         // Board seam.
-        ctx.strokeStyle = "hsla(28, 30%, 32%, 0.55)";
+        ctx.strokeStyle = `hsla(${hue - 4}, ${sat - 4}%, ${base - 22}%, 0.6)`;
         ctx.lineWidth = 1.5;
         ctx.strokeRect(x, row * rowH, size / 2, rowH);
       }
@@ -176,7 +183,9 @@ export function surfaces(): Record<SurfaceName, SurfaceMaps> {
   const rough = (b: number, v: number, repeat: number) => toTexture(roughnessCanvas(b, v), repeat);
 
   cache = {
-    oak: { map: toTexture(oakCanvas(), 6), roughnessMap: rough(0.55, 0.25, 6) },
+    // Mid-tone boards. Raise the first argument for a paler floor, lower it for
+    // walnut — it is the one number worth adjusting by eye.
+    oak: { map: toTexture(oakCanvas(47), 6), roughnessMap: rough(0.55, 0.25, 6) },
     tile: { map: toTexture(tileCanvas(), 8), roughnessMap: rough(0.28, 0.16, 8) },
     // Warm beige.
     carpet: { map: toTexture(carpetCanvas(36, 14, 62, 12), 10), roughnessMap: rough(0.95, 0.1, 10) },
