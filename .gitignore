@@ -11,3 +11,4 @@ npm-debug.log*
 data/
 web/public/models/*.glb.orig
 web/public/catalogue/
+shots/

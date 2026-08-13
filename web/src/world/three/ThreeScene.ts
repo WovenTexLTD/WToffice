@@ -122,6 +122,14 @@ export class ThreeScene {
   private surface: AvatarSurface | null = null;
   private selfBroadcasting = false;
 
+  /**
+   * Aims the camera somewhere other than at the player.
+   *
+   * Only used by the screenshot tool, so the floor can be photographed from
+   * anywhere without walking there first.
+   */
+  private cameraOverride: { x: number; y: number; distance: number } | null = null;
+
   private shutDoors = new Set<string>();
   private walls: Rect[] = [];
 
@@ -878,9 +886,28 @@ export class ThreeScene {
   }
 
   private updateCamera(): void {
-    const target = new THREE.Vector3(this.local.x, 60, this.local.y);
-    this.camera.position.copy(target).addScaledVector(VIEW_DIR, this.distance);
+    const view = this.cameraOverride;
+    const target = view
+      ? new THREE.Vector3(view.x, 60, view.y)
+      : new THREE.Vector3(this.local.x, 60, this.local.y);
+
+    this.camera.position.copy(target).addScaledVector(VIEW_DIR, view?.distance ?? this.distance);
     this.camera.lookAt(target);
+  }
+
+  /** Point the camera at a spot on the plan. For the screenshot tool. */
+  lookAtPoint(x: number, y: number, distance: number): void {
+    this.cameraOverride = { x, y, distance };
+    // Fog is set for a person standing on the floor; from a wide shot it greys
+    // out everything past the middle of the room.
+    this.scene.fog = null;
+  }
+
+  /** Pull back far enough to see the whole floor. */
+  frameAll(): void {
+    const floor = this.floor;
+    if (!floor) return;
+    this.lookAtPoint(floor.width / 2, floor.height / 2, Math.max(floor.width, floor.height) * 1.25);
   }
 
   /**

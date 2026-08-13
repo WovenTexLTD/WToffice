@@ -16,12 +16,14 @@
     "typecheck": "tsc -p shared --noEmit && tsc -p server --noEmit && tsc -p web --noEmit",
     "verify:floor": "tsx tools/verify-floor.ts",
     "smoke": "tsx tools/smoke-test.ts",
-    "models:optimise": "node tools/optimise-models.mjs"
+    "models:optimise": "node tools/optimise-models.mjs",
+    "shoot": "node tools/shoot.mjs"
   },
   "devDependencies": {
     "@gltf-transform/core": "^4.4.2",
     "concurrently": "^9.1.2",
     "fbx2gltf": "^0.9.7-p1",
+    "playwright": "^1.62.1",
     "typescript": "^5.7.3"
   },
   "engines": {

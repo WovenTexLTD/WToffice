@@ -166,6 +166,12 @@ function Stage({ name }: { name: string }) {
     });
     sceneRef.current = scene;
 
+    // Reachable from the screenshot tool. Development only — it exists so the
+    // office can be looked at, not driven.
+    if (process.env.NODE_ENV !== "production") {
+      (window as unknown as { __officeScene?: OfficeScene }).__officeScene = scene;
+    }
+
     const client = new OfficeClient(WS_URL, name, {
       onWelcome: (id, f, list, shutDoors) => {
         setSelfId(id);
