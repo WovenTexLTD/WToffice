@@ -163,9 +163,39 @@ async function run(): Promise<void> {
   const bobMuted = afterMute?.t === "state" ? afterMute.players.find((p) => p.id === bob.id) : undefined;
   check("mute propagates", bobMuted?.muted === true && bobMuted?.speaking === false);
 
+  // Camera and screen stream ids are published so receivers can tell a face
+  // from a shared screen.
+  bob.socket.send(
+    JSON.stringify({ t: "media", cameraStreamId: "cam-abc", screenStreamId: "scr-xyz" }),
+  );
+  await wait(250);
+  const withMedia = latestState(alice);
+  const bobMedia = withMedia?.t === "state" ? withMedia.players.find((p) => p.id === bob.id) : undefined;
+  check("camera stream id propagates", bobMedia?.cameraStreamId === "cam-abc");
+  check("screen stream id propagates", bobMedia?.screenStreamId === "scr-xyz");
+
+  bob.socket.send(JSON.stringify({ t: "media", cameraStreamId: null, screenStreamId: null }));
+  await wait(250);
+  const cleared = latestState(alice);
+  const bobCleared = cleared?.t === "state" ? cleared.players.find((p) => p.id === bob.id) : undefined;
+  check(
+    "stopping publication clears both ids",
+    bobCleared?.cameraStreamId === null && bobCleared?.screenStreamId === null,
+  );
+
+  // Non-string ids must not survive into player state.
+  bob.socket.send(JSON.stringify({ t: "media", cameraStreamId: 42, screenStreamId: {} }));
+  await wait(250);
+  const junk = latestState(alice);
+  const bobJunk = junk?.t === "state" ? junk.players.find((p) => p.id === bob.id) : undefined;
+  check(
+    "malformed stream ids are rejected",
+    bobJunk?.cameraStreamId === null && bobJunk?.screenStreamId === null,
+  );
+
   // The server relays signalling verbatim and never joins the call.
   bob.inbox.length = 0;
-  const offer = { kind: "offer", sdp: "v=0\r\ns=smoke\r\n" };
+  const offer = { kind: "description", type: "offer", sdp: "v=0\r\ns=smoke\r\n" };
   alice.socket.send(JSON.stringify({ t: "signal", to: bob.id, data: offer }));
   await wait(200);
 
@@ -178,7 +208,10 @@ async function run(): Promise<void> {
   );
   check(
     "signal payload is relayed untouched",
-    relayed?.t === "signal" && relayed.data.kind === "offer" && relayed.data.sdp === offer.sdp,
+    relayed?.t === "signal" &&
+      relayed.data.kind === "description" &&
+      relayed.data.type === "offer" &&
+      relayed.data.sdp === offer.sdp,
   );
 
   // A signal aimed at nobody must not crash the server or leak to others.

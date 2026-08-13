@@ -3,7 +3,8 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { OfficeScene } from "@/world/OfficeScene";
 import { OfficeClient, type ConnectionStatus } from "@/net/officeClient";
-import { VoiceEngine, type MicState } from "@/audio/VoiceEngine";
+import { MediaEngine, type MicState, type ShareState } from "@/media/MediaEngine";
+import { VideoOverlay } from "@/video/VideoOverlay";
 import type { Floor, PlayerState } from "@wtoffice/shared";
 
 const WS_URL = process.env.NEXT_PUBLIC_WS_URL ?? "ws://localhost:3001";
@@ -45,8 +46,8 @@ function Entry({
           <h1>The Office</h1>
         </div>
         <p>
-          Walk with <strong>WASD</strong> or click where you want to go. You will hear people as
-          you get close to them, and the meeting rooms are sealed.
+          Walk with <strong>WASD</strong> or click where you want to go. You hear and see people
+          as you get close to them, and the meeting rooms are sealed.
         </p>
         <p className="entry-note">Your browser will ask for microphone access when you walk in.</p>
         <div>
@@ -75,20 +76,31 @@ function Stage({ name }: { name: string }) {
   const hostRef = useRef<HTMLDivElement>(null);
   const sceneRef = useRef<OfficeScene | null>(null);
   const clientRef = useRef<OfficeClient | null>(null);
-  const voiceRef = useRef<VoiceEngine | null>(null);
+  const mediaRef = useRef<MediaEngine | null>(null);
+  const overlayRef = useRef<VideoOverlay | null>(null);
+
+  /** Peers currently within earshot. A ref because it updates at frame rate. */
+  const audibleRef = useRef<Set<string>>(new Set());
 
   const [status, setStatus] = useState<ConnectionStatus>("connecting");
   const [micState, setMicState] = useState<MicState>("idle");
+  const [cameraState, setCameraState] = useState<ShareState>("off");
+  const [screenState, setScreenState] = useState<ShareState>("off");
   const [muted, setMuted] = useState(false);
+
   const [players, setPlayers] = useState<PlayerState[]>([]);
+  const [selfId, setSelfId] = useState("");
   const [zone, setZone] = useState<string | null>(null);
   const [floor, setFloor] = useState<Floor | null>(null);
+
+  /** Bumped when remote tracks arrive or earshot membership changes. */
+  const [mediaVersion, setMediaVersion] = useState(0);
+  const bumpMedia = useCallback(() => setMediaVersion((v) => v + 1), []);
 
   useEffect(() => {
     const host = hostRef.current;
     if (!host) return;
 
-    // Presence is only sent on change — an idle office costs no traffic.
     let lastSpeaking = false;
     let lastMuted = false;
     const pushPresence = (speaking: boolean, isMuted: boolean) => {
@@ -99,64 +111,122 @@ function Stage({ name }: { name: string }) {
       sceneRef.current?.setSelfVoice(speaking, isMuted);
     };
 
-    const voice = new VoiceEngine({
+    const media = new MediaEngine({
       onSignal: (to, data) => clientRef.current?.sendSignal(to, data),
-      onSpeakingChange: (speaking) => pushPresence(speaking, voice.isMuted()),
+      onSpeakingChange: (speaking) => pushPresence(speaking, media.isMuted()),
       onMicState: setMicState,
+      onCameraState: setCameraState,
+      onScreenState: setScreenState,
+      onLocalMediaChange: (cameraStreamId, screenStreamId) =>
+        clientRef.current?.sendMedia(cameraStreamId, screenStreamId),
+      onRemoteMediaChange: bumpMedia,
     });
-    voiceRef.current = voice;
+    mediaRef.current = media;
 
     const scene = new OfficeScene(host, {
       onPositionChange: (x, y) => clientRef.current?.sendPosition(x, y),
       onZoneChange: setZone,
-      onGain: (peerId, gain) => voice.setGain(peerId, gain),
+      onGain: (peerId, gain) => {
+        media.setGain(peerId, gain);
+
+        // Earshot membership gates the screenshare viewer. Only react when it
+        // actually crosses the boundary, not on every frame of a fade.
+        const wasAudible = audibleRef.current.has(peerId);
+        const isAudible = gain > 0;
+        if (wasAudible !== isAudible) {
+          if (isAudible) audibleRef.current.add(peerId);
+          else audibleRef.current.delete(peerId);
+          bumpMedia();
+        }
+      },
     });
     sceneRef.current = scene;
 
     const client = new OfficeClient(WS_URL, name, {
-      onWelcome: (selfId, f, list) => {
+      onWelcome: (id, f, list) => {
+        setSelfId(id);
         setFloor(f);
         setPlayers(list);
-        scene.setFloor(f, selfId, list);
-        // Start the mic once we know who we are; peers connect as they appear.
-        void voice.start(selfId).then(() => voice.syncPeers(list.map((p) => p.id)));
+        scene.setFloor(f, id, list);
+        void media.start(id).then(() => media.syncPeers(list.map((p) => p.id)));
       },
       onState: (list) => {
         setPlayers(list);
         scene.applyState(list);
-        voice.syncPeers(list.map((p) => p.id));
+        media.syncPeers(list.map((p) => p.id));
       },
       onJoined: (player) => scene.addPlayer(player),
-      onLeft: (id) => scene.removePlayer(id),
+      onLeft: (id) => {
+        scene.removePlayer(id);
+        audibleRef.current.delete(id);
+      },
       onCorrect: (x, y) => scene.correctPosition(x, y),
       onStatus: setStatus,
-      onSignal: (from, data) => void voice.handleSignal(from, data),
+      onSignal: (from, data) => void media.handleSignal(from, data),
     });
     clientRef.current = client;
 
-    void scene.init().then(() => client.connect());
+    void scene.init().then(() => {
+      // Created after init so it stacks above the canvas the scene appended.
+      const overlay = new VideoOverlay(host);
+      overlayRef.current = overlay;
+      scene.setSurface(overlay);
+      client.connect();
+    });
 
     return () => {
       client.disconnect();
-      voice.stop();
+      media.stop();
+      scene.setSurface(null);
+      overlayRef.current?.destroy();
       scene.destroy();
       sceneRef.current = null;
       clientRef.current = null;
-      voiceRef.current = null;
+      mediaRef.current = null;
+      overlayRef.current = null;
     };
-  }, [name]);
+  }, [name, bumpMedia]);
+
+  /* Bind each player's camera stream to their circle. */
+  useEffect(() => {
+    const overlay = overlayRef.current;
+    const media = mediaRef.current;
+    if (!overlay || !media) return;
+
+    for (const p of players) {
+      const isSelf = p.id === selfId;
+      const stream = isSelf
+        ? media.getLocalCameraStream()
+        : media.getRemoteStream(p.cameraStreamId);
+      // Your own face is mirrored, the way a mirror behaves; everyone else's is not.
+      overlay.setStream(p.id, stream, isSelf);
+    }
+  }, [players, selfId, mediaVersion]);
+
+  /* ── Controls ──────────────────────────────────────────────────── */
 
   const toggleMute = useCallback(() => {
-    const voice = voiceRef.current;
-    if (!voice) return;
-    const next = !voice.isMuted();
-    voice.setMuted(next);
+    const media = mediaRef.current;
+    if (!media) return;
+    const next = !media.isMuted();
+    media.setMuted(next);
     setMuted(next);
     clientRef.current?.sendPresence(false, next);
     sceneRef.current?.setSelfVoice(false, next);
   }, []);
 
-  // Space bar is the natural mute key, but only when nothing is focused.
+  const toggleCamera = useCallback(() => {
+    const media = mediaRef.current;
+    if (!media) return;
+    void media.setCamera(media.getCameraState() !== "on");
+  }, []);
+
+  const toggleScreen = useCallback(() => {
+    const media = mediaRef.current;
+    if (!media) return;
+    void media.setScreen(media.getScreenState() !== "on");
+  }, []);
+
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.code !== "Space") return;
@@ -171,6 +241,11 @@ function Stage({ name }: { name: string }) {
   const zoneName = useCallback(
     (id: string | null) => floor?.zones.find((z) => z.id === id)?.name ?? null,
     [floor],
+  );
+
+  /* Only shares from people you could hear — the same rule as voice. */
+  const sharer = players.find(
+    (p) => p.screenStreamId && (p.id === selfId || audibleRef.current.has(p.id)),
   );
 
   const statusLabel: Record<ConnectionStatus, string> = {
@@ -191,6 +266,19 @@ function Stage({ name }: { name: string }) {
   return (
     <div className="office">
       <div className="stage" ref={hostRef} />
+
+      {sharer && (
+        <SharePanel
+          sharer={sharer}
+          isSelf={sharer.id === selfId}
+          getStream={() =>
+            sharer.id === selfId
+              ? (mediaRef.current?.getLocalScreenStream() ?? null)
+              : (mediaRef.current?.getRemoteStream(sharer.screenStreamId) ?? null)
+          }
+          version={mediaVersion}
+        />
+      )}
 
       <div className="hud">
         <span className="hud-status mono">
@@ -217,7 +305,7 @@ function Stage({ name }: { name: string }) {
 
         <button
           type="button"
-          className={`mic-btn${muted ? " muted" : ""}`}
+          className={`hud-btn${muted ? " warn" : ""}`}
           onClick={toggleMute}
           disabled={micState !== "live"}
           aria-pressed={muted}
@@ -226,7 +314,25 @@ function Stage({ name }: { name: string }) {
           {micLabel[micState]}
         </button>
 
-        <span className="hud-hint">WASD to move · space to mute</span>
+        <button
+          type="button"
+          className={`hud-btn${cameraState === "on" ? " active" : ""}`}
+          onClick={toggleCamera}
+          disabled={cameraState === "starting"}
+          aria-pressed={cameraState === "on"}
+        >
+          {cameraState === "denied" ? "Camera blocked" : cameraState === "on" ? "Camera on" : "Camera"}
+        </button>
+
+        <button
+          type="button"
+          className={`hud-btn${screenState === "on" ? " active" : ""}`}
+          onClick={toggleScreen}
+          disabled={screenState === "starting"}
+          aria-pressed={screenState === "on"}
+        >
+          {screenState === "on" ? "Stop sharing" : "Share screen"}
+        </button>
       </div>
 
       {micState === "denied" && (
@@ -235,6 +341,49 @@ function Stage({ name }: { name: string }) {
           still walk around, but nobody will hear you.
         </div>
       )}
+    </div>
+  );
+}
+
+/* ── Screenshare viewer ────────────────────────────────────────── */
+
+function SharePanel({
+  sharer,
+  isSelf,
+  getStream,
+  version,
+}: {
+  sharer: PlayerState;
+  isSelf: boolean;
+  getStream: () => MediaStream | null;
+  version: number;
+}) {
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const [expanded, setExpanded] = useState(false);
+
+  useEffect(() => {
+    const el = videoRef.current;
+    if (!el) return;
+    const stream = getStream();
+    if (el.srcObject !== stream) {
+      el.srcObject = stream;
+      void el.play().catch(() => undefined);
+    }
+  }, [getStream, version]);
+
+  return (
+    <div className={`share-panel${expanded ? " expanded" : ""}`}>
+      <div className="share-bar">
+        <span className="share-who">
+          {isSelf ? "You are sharing your screen" : `${sharer.name} is sharing`}
+        </span>
+        <button type="button" className="share-toggle" onClick={() => setExpanded((v) => !v)}>
+          {expanded ? "Shrink" : "Expand"}
+        </button>
+      </div>
+      {/* Muted: screenshare audio is not captured, and an unmuted element
+          would fight the proximity audio path. */}
+      <video ref={videoRef} autoPlay playsInline muted />
     </div>
   );
 }

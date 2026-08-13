@@ -144,6 +144,8 @@ wss.on("connection", (socket) => {
         zoneId: zoneAt(floor.spawn.x, floor.spawn.y, floor.zones),
         speaking: false,
         muted: false,
+        cameraStreamId: null,
+        screenStreamId: null,
       };
       conn.player = player;
       conn.lastMoveAt = Date.now();
@@ -174,6 +176,15 @@ wss.on("connection", (socket) => {
       if (!conn.player) return;
       conn.player.speaking = Boolean(msg.speaking);
       conn.player.muted = Boolean(msg.muted);
+      return;
+    }
+
+    if (msg.t === "media") {
+      // Which stream id carries the face and which carries the screen. Relayed
+      // in state so receivers can route incoming tracks to the right surface.
+      if (!conn.player) return;
+      conn.player.cameraStreamId = typeof msg.cameraStreamId === "string" ? msg.cameraStreamId : null;
+      conn.player.screenStreamId = typeof msg.screenStreamId === "string" ? msg.screenStreamId : null;
       return;
     }
 

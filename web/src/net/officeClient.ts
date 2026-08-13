@@ -115,6 +115,11 @@ export class OfficeClient {
     this.send({ t: "presence", speaking, muted });
   }
 
+  /** Publish which stream id carries our face and which carries our screen. */
+  sendMedia(cameraStreamId: string | null, screenStreamId: string | null): void {
+    this.send({ t: "media", cameraStreamId, screenStreamId });
+  }
+
   disconnect(): void {
     this.closedByUs = true;
     if (this.reconnectTimer !== null) {

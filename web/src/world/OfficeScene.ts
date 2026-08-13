@@ -59,6 +59,16 @@ export interface OfficeSceneCallbacks {
   onGain(peerId: string, gain: number): void;
 }
 
+/**
+ * Anything that draws on top of an avatar in screen space — currently the video
+ * circles. Kept as an interface so the scene owns no opinion about the DOM.
+ */
+export interface AvatarSurface {
+  beginFrame(): void;
+  place(id: string, screenX: number, screenY: number, diameter: number): void;
+  endFrame(): void;
+}
+
 export class OfficeScene {
   private app: Application | null = null;
   private world = new Container();
@@ -72,6 +82,7 @@ export class OfficeScene {
   private zoom = 1;
   private lastZoneId: string | null = null;
   private elapsed = 0;
+  private surface: AvatarSurface | null = null;
 
   private keys = new Set<string>();
   private sendAccumulator = 0;
@@ -364,7 +375,41 @@ export class OfficeScene {
     this.updateAudio(floor);
     this.updateSpeakingRings();
     this.updateCamera(app, floor);
+    this.placeSurface(app);
     this.reportPosition(step);
+  }
+
+  /** Attach the video overlay. Optional — the scene runs fine without one. */
+  setSurface(surface: AvatarSurface | null): void {
+    this.surface = surface;
+  }
+
+  /**
+   * Project every avatar into screen space for the video overlay. Runs after
+   * the camera so the two can never disagree by a frame, which would show as
+   * video circles lagging behind their avatars.
+   */
+  private placeSurface(app: Application): void {
+    const surface = this.surface;
+    if (!surface) return;
+
+    surface.beginFrame();
+
+    const diameter = PLAYER_RADIUS * 2 * this.zoom;
+    const margin = diameter;
+
+    for (const [id, avatar] of this.avatars) {
+      const sx = this.world.x + avatar.cur.x * this.zoom;
+      const sy = this.world.y + avatar.cur.y * this.zoom;
+
+      // Skip offscreen avatars; endFrame hides whatever wasn't placed.
+      if (sx < -margin || sy < -margin || sx > app.screen.width + margin || sy > app.screen.height + margin) {
+        continue;
+      }
+      surface.place(id, sx, sy, diameter);
+    }
+
+    surface.endFrame();
   }
 
   /**

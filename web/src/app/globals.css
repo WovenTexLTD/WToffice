@@ -228,12 +228,13 @@ body {
   box-shadow: 0 0 0 3px rgba(111, 191, 149, 0.65);
 }
 
-/* ── Mic ───────────────────────────────────────────────────────── */
+/* ── HUD buttons ───────────────────────────────────────────────── */
 
-.mic-btn {
+.hud-btn {
   display: flex;
   align-items: center;
   gap: 8px;
+  flex: none;
   font: inherit;
   font-size: 12px;
   padding: 6px 13px;
@@ -242,25 +243,127 @@ body {
   background: rgba(222, 231, 233, 0.08);
   color: #dee7e9;
   cursor: pointer;
+  white-space: nowrap;
 }
 
-.mic-btn:hover:not(:disabled) {
+.hud-btn:hover:not(:disabled) {
   background: rgba(222, 231, 233, 0.16);
 }
 
-.mic-btn.muted {
+.hud-btn.warn {
   border-color: rgba(214, 169, 74, 0.5);
   color: #e5c583;
 }
 
-.mic-btn:disabled {
+.hud-btn.active {
+  border-color: rgba(111, 191, 149, 0.55);
+  background: rgba(111, 191, 149, 0.16);
+  color: #a9dcc2;
+}
+
+.hud-btn:disabled {
   opacity: 0.55;
   cursor: default;
 }
 
-.mic-btn:focus-visible {
+.hud-btn:focus-visible {
   outline: 2px solid #9fd0ee;
   outline-offset: 2px;
+}
+
+/* ── Video circles ─────────────────────────────────────────────── */
+
+.video-layer {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.video-circle {
+  position: absolute;
+  top: 0;
+  left: 0;
+  border-radius: 50%;
+  overflow: hidden;
+  border: 3px solid #f8fafa;
+  background: #2b3b43;
+  box-shadow: 0 2px 8px -2px rgba(21, 34, 42, 0.4);
+  will-change: transform;
+}
+
+.video-circle video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+/* ── Screenshare ───────────────────────────────────────────────── */
+
+.share-panel {
+  position: absolute;
+  right: 18px;
+  bottom: 62px;
+  width: min(420px, 42vw);
+  background: #15222a;
+  border: 1px solid rgba(222, 231, 233, 0.18);
+  border-radius: 6px;
+  overflow: hidden;
+  box-shadow: 0 12px 32px -12px rgba(0, 0, 0, 0.55);
+}
+
+.share-panel.expanded {
+  right: 50%;
+  bottom: 50%;
+  transform: translate(50%, 50%);
+  width: min(1100px, 88vw);
+}
+
+.share-bar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 12px;
+  background: rgba(222, 231, 233, 0.06);
+}
+
+.share-who {
+  font-size: 12px;
+  color: #dee7e9;
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.share-toggle {
+  font: inherit;
+  font-size: 11px;
+  padding: 4px 10px;
+  border-radius: 3px;
+  border: 1px solid rgba(222, 231, 233, 0.25);
+  background: transparent;
+  color: #dee7e9;
+  cursor: pointer;
+  flex: none;
+}
+
+.share-toggle:hover {
+  background: rgba(222, 231, 233, 0.12);
+}
+
+.share-toggle:focus-visible {
+  outline: 2px solid #9fd0ee;
+  outline-offset: 2px;
+}
+
+.share-panel video {
+  display: block;
+  width: 100%;
+  max-height: 70vh;
+  background: #000;
 }
 
 .banner {

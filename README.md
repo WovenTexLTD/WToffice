@@ -10,14 +10,15 @@ products like Kumospace.
 
 ## Status
 
-**Phase 2 complete** — you can walk up to someone and talk to them.
+**Phase 3 complete** — walk up to someone and you see and hear them, and you can
+share a screen.
 
 | Phase | | |
 |---|---|---|
 | 1 | World, movement, presence | ✅ done |
 | 2 | Proximity audio | ✅ done |
-| 3 | Video circles + screenshare | ← next |
-| 4 | Doors, broadcast | |
+| 3 | Video circles + screenshare | ✅ done |
+| 4 | Doors, broadcast | ← next |
 | 5 | Chat, status | |
 | 6 | Art pass | |
 | 7 | Auth, deploy, harden | |
@@ -103,17 +104,49 @@ distance, because a sealed room overrides proximity in both directions:
 
 ### Mesh peer-to-peer, not an SFU
 
-At five people, audio-only, mesh is correct. Opus is ~32kbps, so four outbound
-streams is ~128kbps. In exchange: lowest possible latency, no media server, no
-account, no API key — the world socket is already a fine signalling channel, and
-it relays signalling verbatim without ever joining the call.
+Video looked like the point where an SFU takes over. Two things changed the
+arithmetic:
 
-**Revisit at Phase 3.** Video is ~600kbps per stream, so four outbound becomes
-~2.4Mbps up and weak uplinks suffer. That is where an SFU (self-hosted LiveKit)
-starts paying for itself. Not here.
+- **Faces render in a ~44px circle.** Capture is 320×320 at 24fps, capped at
+  250kbps — not the ~600 a naive 720p stream costs. 720p would just be thrown
+  away by the scaler.
+- **`audioGain` is symmetric.** If you cannot hear someone, they cannot hear
+  you, so a sender already knows which peers its camera is not worth sending to
+  and stops with `replaceTrack(null)`. That is the same bandwidth strategy
+  Kumospace needs an SFU for, applied at the sender.
+
+Typical load is one or two active video streams, not four.
+
+**The real SFU trigger** is several people watching one screenshare at once,
+which fans out at ~1.5Mbps per copy. If that becomes routine, move to
+self-hosted LiveKit.
 
 STUN alone covers the same LAN and most home NATs. Production needs TURN for the
 ~10–20% of connections behind symmetric NAT — that lands in Phase 7.
+
+### Negotiation
+
+Turning a camera on mid-call changes the session, and two people can change it
+at once. `MediaEngine` implements the standard **perfect negotiation** pattern:
+one side of each pair is "polite" and yields on collision, the other ignores the
+colliding offer. Without it, two people enabling video simultaneously wedges the
+connection.
+
+Senders are created once and then fed with `replaceTrack`, so toggling a camera
+or walking in and out of earshot costs **no renegotiation at all**.
+
+### Video is DOM, not canvas
+
+Faces are real `<video>` elements positioned over the Pixi canvas with a
+transform. Drawing video into WebGL costs a texture upload per frame per peer,
+and the browser already composites video on the GPU for free. `OfficeScene`
+projects avatars into screen space each frame and hands positions to
+`VideoOverlay`, which writes to the DOM directly — React state at 60fps would be
+absurd.
+
+Every video element is `muted`. Voice arrives on a separate `<audio>` element
+with proximity volume applied; an unmuted video element would play it a second
+time at full volume, defeating the whole model.
 
 ### The echo trap, and why there isn't one
 

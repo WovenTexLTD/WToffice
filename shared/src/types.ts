@@ -57,6 +57,18 @@ export interface PlayerState {
   /** Voice activity, detected locally and broadcast. Drives the speaking ring. */
   speaking: boolean;
   muted: boolean;
+
+  /**
+   * MediaStream ids for this player's published video, or null when off.
+   *
+   * A peer connection carries several video tracks and the receiver has no
+   * inherent way to tell a face from a shared screen. WebRTC signals stream
+   * ids in the SDP, so `event.streams[0].id` on the receiving end matches the
+   * sender's — publishing the mapping here is what lets a receiver route each
+   * incoming track to the right surface.
+   */
+  cameraStreamId: string | null;
+  screenStreamId: string | null;
 }
 
 /* ── Wire protocol ───────────────────────────────────────────────── */
@@ -66,8 +78,12 @@ export interface PlayerState {
  * never inspects them — it is a post box, not a participant in the call.
  */
 export type SignalData =
-  | { kind: "offer"; sdp: string }
-  | { kind: "answer"; sdp: string }
+  /**
+   * A session description, offer or answer. Carried as one variant rather than
+   * two because perfect negotiation treats them uniformly — the receiver
+   * decides what to do based on `type` and its own signalling state.
+   */
+  | { kind: "description"; type: "offer" | "answer"; sdp: string }
   | { kind: "ice"; candidate: RTCIceCandidateInitLike };
 
 /** Structural copy of RTCIceCandidateInit so shared/ stays free of DOM lib types. */
@@ -82,6 +98,7 @@ export type ClientMessage =
   | { t: "join"; name: string }
   | { t: "move"; x: number; y: number }
   | { t: "presence"; speaking: boolean; muted: boolean }
+  | { t: "media"; cameraStreamId: string | null; screenStreamId: string | null }
   | { t: "signal"; to: string; data: SignalData };
 
 export type ServerMessage =
@@ -124,6 +141,24 @@ export const SPEAKING_ON = 0.045;
 
 /** RMS below which it stops. The gap is hysteresis, so the ring doesn't flicker. */
 export const SPEAKING_OFF = 0.028;
+
+/**
+ * Camera capture size.
+ *
+ * Faces render inside a ~44px circle, so 720p would be thrown away by the
+ * scaler. At this size a stream costs roughly 200kbps instead of 600 — which is
+ * what keeps mesh viable for video at this team size.
+ */
+export const CAMERA_WIDTH = 320;
+export const CAMERA_HEIGHT = 320;
+export const CAMERA_FPS = 24;
+
+/**
+ * Screen capture. Low framerate, high resolution — the opposite trade to a
+ * face, because what matters is that text stays readable.
+ */
+export const SCREEN_MAX_WIDTH = 1920;
+export const SCREEN_FPS = 8;
 
 /** World pixels per second. Tuned so crossing the open floor takes ~5s. */
 export const MOVE_SPEED = 240;
