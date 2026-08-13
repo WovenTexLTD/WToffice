@@ -11,20 +11,24 @@
  * Video is gated by zone, not distance: only a sealed room hides it. See
  * videoVisible() for why.
  *
- * ── Transceivers, not addTrack ─────────────────────────────────────────────
- * Three transceivers are created per peer at connection time in a fixed order —
- * audio, camera, screen — identically on both sides, so the m-lines line up.
- * Two things fall out of that:
+ * ── Transceivers, and only one offerer ─────────────────────────────────────
+ * Each connection carries exactly three m-lines in a fixed order — audio,
+ * camera, screen — and position is the routing key. That means routing needs no
+ * signalling at all, and toggling a camera never renegotiates, because
+ * replaceTrack does not change the session. Matching on MediaStream id instead
+ * is fragile: replaceTrack does not renegotiate, so a receiver may never learn
+ * the msid it was asked to match.
  *
- *  - Routing needs no signalling. A track's position identifies it as a face or
- *    a screen. Matching on MediaStream id instead is fragile, because
- *    replaceTrack does not renegotiate and the receiver may never learn the
- *    msid at all.
- *  - Toggling a camera never renegotiates. replaceTrack on an existing
- *    transceiver does not change the session.
+ * Only the side with the lower id creates those transceivers. Creating them on
+ * both sides means both fire negotiationneeded and offer simultaneously; the
+ * polite side rolls back, and its own transceivers are not reliably re-matched
+ * to the offer's m-lines. It then reads a transceiver that was never associated
+ * with the sender's — permanently muted, while the sender cheerfully reports
+ * that it is sending. That is a genuinely hard failure to see from the outside,
+ * which is what the diagnostics panel is for.
  *
- * Perfect negotiation still guards the initial handshake, where both sides may
- * offer at once.
+ * Both sides re-derive the mapping from the negotiated session in rebind(), so
+ * the answerer — which created none of them — agrees with the offerer.
  *
  * ── Playback ───────────────────────────────────────────────────────────────
  * Audio still plays through <audio> elements rather than a Web Audio graph, so
@@ -60,6 +64,9 @@ export interface PeerDiagnostic {
   ice: RTCIceConnectionState;
   gain: number;
   sendingVideo: boolean;
+  /** m-line the camera negotiated onto, and the direction it settled on. */
+  mid: string;
+  direction: string;
   outbound: "sending" | "idle";
   inbound: "none" | "muted" | "live";
 }
@@ -93,13 +100,14 @@ interface Peer {
   settingRemoteAnswer: boolean;
 
   /**
-   * Created once at connection time in a fixed order, then fed with
-   * replaceTrack. Their position in the m-line list is what identifies a face
-   * from a screen on the receiving end — no signalling required.
+   * Bound to the negotiated m-lines, in order: audio, camera, screen.
+   *
+   * Only the offering side creates these. The answering side binds to whatever
+   * the offer produced — see rebind(). Null until negotiation associates them.
    */
-  audioTx: RTCRtpTransceiver;
-  cameraTx: RTCRtpTransceiver;
-  screenTx: RTCRtpTransceiver;
+  audioTx: RTCRtpTransceiver | null;
+  cameraTx: RTCRtpTransceiver | null;
+  screenTx: RTCRtpTransceiver | null;
 
   /** Cached wrappers so srcObject isn't reassigned every render. */
   remoteCamera: MediaStream | null;
@@ -251,7 +259,7 @@ export class MediaEngine {
       this.cameraStream = null;
       // Keep the sender: dropping it would force a renegotiation on every
       // toggle. A null track simply stops the bytes.
-      for (const peer of this.peers.values()) void peer.cameraTx.sender.replaceTrack(null);
+      for (const peer of this.peers.values()) this.attachCamera(peer);
       this.cameraState = "off";
       this.callbacks.onCameraState("off");
     }
@@ -290,7 +298,7 @@ export class MediaEngine {
       if (!this.screenStream) return;
       this.screenStream.getTracks().forEach((t) => t.stop());
       this.screenStream = null;
-      for (const peer of this.peers.values()) void peer.screenTx.sender.replaceTrack(null);
+      for (const peer of this.peers.values()) this.attachScreen(peer);
       this.screenState = "off";
       this.callbacks.onScreenState("off");
     }
@@ -330,13 +338,18 @@ export class MediaEngine {
     audioEl.autoplay = true;
     audioEl.volume = 0;
 
-    // Fixed order, created identically on both sides so the m-lines line up:
-    // audio, then camera, then screen. Position is the routing key, which
-    // means turning a camera on or off never renegotiates — replaceTrack on an
-    // existing transceiver does not change the session.
-    const audioTx = pc.addTransceiver("audio", { direction: "sendrecv" });
-    const cameraTx = pc.addTransceiver("video", { direction: "sendrecv" });
-    const screenTx = pc.addTransceiver("video", { direction: "sendrecv" });
+    // Only the offering side creates transceivers.
+    //
+    // Creating them on both sides means both fire negotiationneeded and offer
+    // at once. The polite side then rolls back — and its own transceivers are
+    // not reliably re-matched to the offer's m-lines, so it ends up reading one
+    // that was never associated with the sender's. It stays muted forever while
+    // the sender happily reports that it is sending.
+    //
+    // One offerer means exactly three m-lines, in a known order: audio, camera,
+    // screen. Position is the routing key, so turning a camera on or off never
+    // renegotiates — replaceTrack does not change the session.
+    const initiator = this.isInitiator(peerId);
 
     const peer: Peer = {
       pc,
@@ -352,23 +365,27 @@ export class MediaEngine {
       makingOffer: false,
       ignoreOffer: false,
       settingRemoteAnswer: false,
-      audioTx,
-      cameraTx,
-      screenTx,
+      audioTx: null,
+      cameraTx: null,
+      screenTx: null,
       remoteCamera: null,
       remoteScreen: null,
       sendingVideo: this.desiredVideo.get(peerId) ?? true,
     };
     this.peers.set(peerId, peer);
 
-    const micTrack = this.micStream?.getAudioTracks()[0] ?? null;
-    if (micTrack) void audioTx.sender.replaceTrack(micTrack);
+    if (initiator) {
+      peer.audioTx = pc.addTransceiver("audio", { direction: "sendrecv" });
+      peer.cameraTx = pc.addTransceiver("video", { direction: "sendrecv" });
+      peer.screenTx = pc.addTransceiver("video", { direction: "sendrecv" });
+      this.applyLocalTracks(peer);
+    }
 
-    void this.capBitrate(cameraTx.sender, CAMERA_MAX_BITRATE);
-    void this.capBitrate(screenTx.sender, SCREEN_MAX_BITRATE);
-
-    if (this.cameraStream) this.attachCamera(peer);
-    if (this.screenStream) this.attachScreen(peer);
+    // Both sides re-derive the mapping from the negotiated session, so they
+    // always agree on which m-line is the face and which is the screen.
+    pc.onsignalingstatechange = () => {
+      if (pc.signalingState === "stable") this.rebind(peer);
+    };
 
     pc.onnegotiationneeded = async () => {
       try {
@@ -434,15 +451,69 @@ export class MediaEngine {
     this.callbacks.onRemoteMediaChange();
   }
 
+  /**
+   * Re-derive which negotiated m-line is audio, camera and screen.
+   *
+   * Runs on both sides whenever signalling settles, reading only associated
+   * transceivers in m-line order — so the answerer, which created none of them,
+   * ends up with the same mapping as the offerer.
+   */
+  private rebind(peer: Peer): void {
+    const kindOf = (t: RTCRtpTransceiver) => t.receiver.track?.kind ?? t.sender.track?.kind ?? null;
+
+    const associated = peer.pc
+      .getTransceivers()
+      // currentDirection null means the transceiver was stopped.
+      .filter((t) => t.mid !== null && t.currentDirection !== null);
+
+    const audio = associated.filter((t) => kindOf(t) === "audio");
+    const video = associated.filter((t) => kindOf(t) === "video");
+
+    peer.audioTx = audio[0] ?? peer.audioTx;
+    peer.cameraTx = video[0] ?? peer.cameraTx;
+    peer.screenTx = video[1] ?? peer.screenTx;
+
+    this.applyLocalTracks(peer);
+    this.callbacks.onRemoteMediaChange();
+  }
+
+  /** Put our current mic, camera and screen onto this peer's senders. */
+  private applyLocalTracks(peer: Peer): void {
+    const mic = this.micStream?.getAudioTracks()[0] ?? null;
+    if (peer.audioTx) {
+      // The answerer's transceivers arrive recvonly; it must opt in to sending.
+      if (peer.audioTx.direction !== "sendrecv") peer.audioTx.direction = "sendrecv";
+      if (peer.audioTx.sender.track !== mic) void peer.audioTx.sender.replaceTrack(mic);
+    }
+
+    if (peer.cameraTx) {
+      if (peer.cameraTx.direction !== "sendrecv") peer.cameraTx.direction = "sendrecv";
+      void this.capBitrate(peer.cameraTx.sender, CAMERA_MAX_BITRATE);
+    }
+    if (peer.screenTx) {
+      if (peer.screenTx.direction !== "sendrecv") peer.screenTx.direction = "sendrecv";
+      void this.capBitrate(peer.screenTx.sender, SCREEN_MAX_BITRATE);
+    }
+
+    this.attachCamera(peer);
+    this.attachScreen(peer);
+  }
+
   /** Feed (or starve) this peer's camera transceiver. Never renegotiates. */
   private attachCamera(peer: Peer): void {
+    const sender = peer.cameraTx?.sender;
+    if (!sender) return;
     const track = this.cameraStream?.getVideoTracks()[0] ?? null;
-    void peer.cameraTx.sender.replaceTrack(peer.sendingVideo ? track : null);
+    const wanted = peer.sendingVideo ? track : null;
+    if (sender.track !== wanted) void sender.replaceTrack(wanted);
   }
 
   private attachScreen(peer: Peer): void {
+    const sender = peer.screenTx?.sender;
+    if (!sender) return;
     const track = this.screenStream?.getVideoTracks()[0] ?? null;
-    void peer.screenTx.sender.replaceTrack(peer.sendingVideo ? track : null);
+    const wanted = peer.sendingVideo ? track : null;
+    if (sender.track !== wanted) void sender.replaceTrack(wanted);
   }
 
   private async capBitrate(sender: RTCRtpSender, maxBitrate: number): Promise<void> {
@@ -561,7 +632,8 @@ export class MediaEngine {
     const peer = this.peers.get(peerId);
     if (!peer) return null;
 
-    const track = (role === "camera" ? peer.cameraTx : peer.screenTx).receiver.track;
+    const tx = role === "camera" ? peer.cameraTx : peer.screenTx;
+    const track = tx?.receiver.track;
     if (!track) return null;
 
     const cached = role === "camera" ? peer.remoteCamera : peer.remoteScreen;
@@ -624,14 +696,17 @@ export class MediaEngine {
     const out: PeerDiagnostic[] = [];
 
     for (const [id, peer] of this.peers) {
-      const inboundTrack = peer.cameraTx.receiver.track;
+      const cameraTx = peer.cameraTx;
+      const inboundTrack = cameraTx?.receiver.track ?? null;
       out.push({
         id,
         connection: peer.pc.connectionState,
         ice: peer.pc.iceConnectionState,
         gain: peer.renderedGain,
         sendingVideo: peer.sendingVideo,
-        outbound: peer.cameraTx.sender.track ? "sending" : "idle",
+        mid: cameraTx?.mid ?? "-",
+        direction: cameraTx?.currentDirection ?? "unbound",
+        outbound: cameraTx?.sender.track ? "sending" : "idle",
         inbound: !inboundTrack ? "none" : inboundTrack.muted ? "muted" : "live",
       });
     }

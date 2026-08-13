@@ -433,6 +433,8 @@ function Stage({ name }: { name: string }) {
                   <th>conn</th>
                   <th>ice</th>
                   <th>gain</th>
+                  <th>mid</th>
+                  <th>direction</th>
                   <th>out</th>
                   <th>in</th>
                 </tr>
@@ -446,6 +448,8 @@ function Stage({ name }: { name: string }) {
                       {d.ice}
                     </td>
                     <td>{d.gain.toFixed(2)}</td>
+                    <td className={d.mid === "-" ? "bad" : "ok"}>{d.mid}</td>
+                    <td className={d.direction === "sendrecv" ? "ok" : "bad"}>{d.direction}</td>
                     <td className={d.outbound === "sending" ? "ok" : "bad"}>{d.outbound}</td>
                     <td className={d.inbound === "live" ? "ok" : "bad"}>{d.inbound}</td>
                   </tr>
