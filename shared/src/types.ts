@@ -184,7 +184,7 @@ export const FURNITURE_SIZE: Record<FurnitureKind, { w: number; h: number }> = {
   sofa: { w: 174, h: 74 }, //          2.05 × 0.87 m
   armchair: { w: 56, h: 60 }, //       0.66 × 0.70 m
   meetingTable: { w: 163, h: 121 }, // 1.92 × 1.42 m
-  coffeeTable: { w: 99, h: 73 }, //    1.17 × 0.86 m
+  coffeeTable: { w: 77, h: 77 }, //    0.90 × 0.90 m
   stool: { w: 30, h: 30 }, //          0.35 × 0.35 m
   counter: { w: 281, h: 48 }, //       3.30 × 0.57 m
   plant: { w: 58, h: 49 }, //          0.68 × 0.58 m

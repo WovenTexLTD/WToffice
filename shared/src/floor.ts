@@ -92,23 +92,29 @@ function seatsAround(cx: number, cy: number, spread: number, offset: number, per
 /**
  * Sofa, two armchairs and a table around a rug.
  *
- * Pulled in tight on purpose. A conversation group only works if everyone can
- * talk without raising their voice — about two metres across — and the rug has
- * to reach under the front of every seat, or the furniture reads as floating
- * around a doormat rather than as one arrangement.
+ * Two things worth stating, because both were wrong first time.
+ *
+ * The rotation sign: the renderer applies `rotation.y = -rotation`, so a
+ * positive angle turns a chair *away* from the centre. The armchairs flank the
+ * table, so the left one turns negative and the right one positive.
+ *
+ * The spacing: tight enough to talk across, loose enough to walk between. The
+ * first pass was a showroom and the second was a huddle — a seat needs about
+ * half a metre of clearance from the table, not none.
  */
 function loungeSet(cx: number, cy: number, rug: string, sofa?: string): Furniture[] {
   return [
     { kind: "rug", x: cx, y: cy, model: rug },
 
-    { kind: "sofa", x: cx, y: cy - 82, solid: true, model: sofa },
-    { kind: "pillow", x: cx - 46, y: cy - 80 },
-    { kind: "pillow", x: cx + 46, y: cy - 80 },
+    { kind: "sofa", x: cx, y: cy - 96, solid: true, model: sofa },
+    { kind: "pillow", x: cx - 46, y: cy - 94 },
+    { kind: "pillow", x: cx + 46, y: cy - 94 },
 
-    { kind: "armchair", x: cx - 108, y: cy + 32, rotation: deg(62), solid: true },
-    { kind: "armchair", x: cx + 108, y: cy + 32, rotation: deg(-62), solid: true },
+    // Negative turns left-hand seating toward the middle; positive turns right.
+    { kind: "armchair", x: cx - 118, y: cy + 20, rotation: deg(-68), solid: true },
+    { kind: "armchair", x: cx + 118, y: cy + 20, rotation: deg(68), solid: true },
 
-    { kind: "coffeeTable", x: cx, y: cy + 8, solid: true },
+    { kind: "coffeeTable", x: cx, y: cy + 2, solid: true },
   ];
 }
 
@@ -216,7 +222,7 @@ export const woventexFloor: Floor = {
     // it separates the two without walling either of them in — which is the
     // whole trick with an open plan.
     { kind: "shelf", x: 1080, y: 800, solid: true },
-    { kind: "shelf", x: 1280, y: 800, solid: true, model: "shelf-b" },
+    { kind: "shelf", x: 1280, y: 800, solid: true },
     { kind: "plant", x: 1180, y: 795, model: "plant-big" },
 
     // Sofa, two armchairs and a table around a rug — a closed conversation
@@ -227,9 +233,12 @@ export const woventexFloor: Floor = {
     // The pack has no bean bags; soft cubes and a floor cushion are the nearest
     // thing, and they sit better with the rest of the group than a novelty
     // shape would.
-    { kind: "softCube", x: 1055, y: 1185, rotation: deg(24) },
-    { kind: "softCube", x: 1305, y: 1185, rotation: deg(-24) },
-    { kind: "floorCushion", x: 1180, y: 1210 },
+    // A pair pulled up on one side and a cushion on the other. Spaced evenly in
+    // a symmetric arc they read as three abandoned boxes; grouped unevenly they
+    // read as seats someone moved.
+    { kind: "softCube", x: 1042, y: 1196, rotation: deg(-22) },
+    { kind: "softCube", x: 1108, y: 1224, rotation: deg(-8) },
+    { kind: "softCube", x: 1312, y: 1192, rotation: deg(26) },
 
     // Beside the sofa, where a lamp belongs. On its own in the middle of the
     // floor it just reads as an object.

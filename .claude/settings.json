@@ -8,7 +8,8 @@
       "Bash(rm -f web/public/models/task-chair.glb.orig web/public/models/desk-topper.glb*)",
       "Bash(node tools/inspect-models.mjs ~/Downloads/Separate_assets_glb Partitions_048 --zup)",
       "Bash(node tools/inspect-models.mjs ~/Downloads/Separate_assets_glb Partitions_005 --zup)",
-      "Bash(cd /Users/karimsabbagh/Documents/GitHub/WToffice *)"
+      "Bash(cd /Users/karimsabbagh/Documents/GitHub/WToffice *)",
+      "Bash(node tools/inspect-models.mjs --zup \"shelf_0\")"
     ],
     "additionalDirectories": [
       "/Users/karimsabbagh/Downloads/Separate_assets_glb"
