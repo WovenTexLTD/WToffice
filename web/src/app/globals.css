@@ -291,6 +291,66 @@ body {
   text-align: center;
 }
 
+/* ── Diagnostics ───────────────────────────────────────────────── */
+
+.diag {
+  position: absolute;
+  left: 16px;
+  top: 16px;
+  padding: 12px 14px;
+  border-radius: 5px;
+  background: rgba(21, 34, 42, 0.95);
+  color: #dee7e9;
+  font-size: 11.5px;
+  line-height: 1.6;
+  border: 1px solid rgba(222, 231, 233, 0.2);
+  box-shadow: 0 8px 24px -10px rgba(0, 0, 0, 0.5);
+  max-width: 90vw;
+  overflow-x: auto;
+}
+
+.diag-head {
+  display: flex;
+  gap: 16px;
+  align-items: baseline;
+  margin-bottom: 6px;
+}
+
+.diag-head span {
+  color: #7c929c;
+  font-size: 10.5px;
+}
+
+.diag table {
+  border-collapse: collapse;
+  margin-top: 8px;
+}
+
+.diag th,
+.diag td {
+  text-align: left;
+  padding: 2px 12px 2px 0;
+  white-space: nowrap;
+}
+
+.diag th {
+  color: #7c929c;
+  font-weight: 500;
+}
+
+.diag .ok {
+  color: #6fbf95;
+}
+
+.diag .bad {
+  color: #d6a94a;
+}
+
+.diag-empty {
+  color: #d6a94a;
+  margin-top: 6px;
+}
+
 /* ── Knocks ────────────────────────────────────────────────────── */
 
 .knocks {

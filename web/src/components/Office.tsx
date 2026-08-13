@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { OfficeScene } from "@/world/OfficeScene";
 import { OfficeClient, type ConnectionStatus } from "@/net/officeClient";
-import { MediaEngine, type MicState, type ShareState } from "@/media/MediaEngine";
+import { MediaEngine, type MicState, type PeerDiagnostic, type ShareState } from "@/media/MediaEngine";
 import { VideoOverlay } from "@/video/VideoOverlay";
 import type { Floor, PlayerState } from "@wtoffice/shared";
 
@@ -99,6 +99,7 @@ function Stage({ name }: { name: string }) {
 
   const [broadcasting, setBroadcasting] = useState(false);
   const [knocks, setKnocks] = useState<{ id: number; name: string; doorId: string }[]>([]);
+  const [diagnostics, setDiagnostics] = useState<PeerDiagnostic[] | null>(null);
 
   useEffect(() => {
     const host = hostRef.current;
@@ -260,14 +261,31 @@ function Stage({ name }: { name: string }) {
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.code !== "Space") return;
       if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
-      e.preventDefault();
-      toggleMute();
+
+      if (e.code === "Space") {
+        e.preventDefault();
+        toggleMute();
+        return;
+      }
+      if (e.key.toLowerCase() === "i") {
+        e.preventDefault();
+        setDiagnostics((shown) => (shown ? null : (mediaRef.current?.getDiagnostics() ?? [])));
+      }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [toggleMute]);
+
+  // Keep the panel current while it is open.
+  useEffect(() => {
+    if (!diagnostics) return;
+    const timer = window.setInterval(
+      () => setDiagnostics(mediaRef.current?.getDiagnostics() ?? []),
+      500,
+    );
+    return () => window.clearInterval(timer);
+  }, [diagnostics === null]);
 
   const zoneName = useCallback(
     (id: string | null) => floor?.zones.find((z) => z.id === id)?.name ?? null,
@@ -393,6 +411,48 @@ function Stage({ name }: { name: string }) {
               </button>
             </div>
           ))}
+        </div>
+      )}
+
+      {diagnostics && (
+        <div className="diag mono">
+          <div className="diag-head">
+            <strong>Media diagnostics</strong>
+            <span>press I to close</span>
+          </div>
+          <div>
+            you: {selfId || "—"} · mic {micState} · camera {cameraState} · screen {screenState}
+          </div>
+          {diagnostics.length === 0 ? (
+            <div className="diag-empty">No peer connections.</div>
+          ) : (
+            <table>
+              <thead>
+                <tr>
+                  <th>peer</th>
+                  <th>conn</th>
+                  <th>ice</th>
+                  <th>gain</th>
+                  <th>out</th>
+                  <th>in</th>
+                </tr>
+              </thead>
+              <tbody>
+                {diagnostics.map((d) => (
+                  <tr key={d.id}>
+                    <td>{d.id}</td>
+                    <td className={d.connection === "connected" ? "ok" : "bad"}>{d.connection}</td>
+                    <td className={d.ice === "connected" || d.ice === "completed" ? "ok" : "bad"}>
+                      {d.ice}
+                    </td>
+                    <td>{d.gain.toFixed(2)}</td>
+                    <td className={d.outbound === "sending" ? "ok" : "bad"}>{d.outbound}</td>
+                    <td className={d.inbound === "live" ? "ok" : "bad"}>{d.inbound}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
         </div>
       )}
 

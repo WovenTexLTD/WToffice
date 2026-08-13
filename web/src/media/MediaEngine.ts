@@ -54,6 +54,16 @@ const SCREEN_MAX_BITRATE = 1_500_000;
 export type MicState = "idle" | "requesting" | "live" | "denied" | "unavailable";
 export type ShareState = "off" | "starting" | "on" | "denied";
 
+export interface PeerDiagnostic {
+  id: string;
+  connection: RTCPeerConnectionState;
+  ice: RTCIceConnectionState;
+  gain: number;
+  sendingVideo: boolean;
+  outbound: "sending" | "idle";
+  inbound: "none" | "muted" | "live";
+}
+
 export interface MediaEngineCallbacks {
   onSignal(to: string, data: SignalData): void;
   onSpeakingChange(speaking: boolean): void;
@@ -105,6 +115,19 @@ export class MediaEngine {
   private cameraStream: MediaStream | null = null;
   private screenStream: MediaStream | null = null;
   private peers = new Map<string, Peer>();
+
+  /**
+   * Desired per-peer state, held independently of whether the peer exists yet.
+   *
+   * The scene starts emitting proximity updates as soon as it has a floor, but
+   * peers are not created until getUserMedia resolves — which waits on the
+   * microphone permission prompt. Anything applied only to a live peer is
+   * dropped during that window. Gain survives because it re-fires on every
+   * movement; a boolean that only changes on zone transitions does not, and is
+   * lost for the rest of the session.
+   */
+  private desiredGain = new Map<string, number>();
+  private desiredVideo = new Map<string, boolean>();
 
   private audioCtx: AudioContext | null = null;
   private analyser: AnalyserNode | null = null;
@@ -283,7 +306,13 @@ export class MediaEngine {
 
     const wanted = new Set(ids.filter((id) => id !== this.selfId));
     for (const id of wanted) if (!this.peers.has(id)) this.createPeer(id);
-    for (const id of [...this.peers.keys()]) if (!wanted.has(id)) this.removePeer(id);
+    for (const id of [...this.peers.keys()]) {
+      if (wanted.has(id)) continue;
+      this.removePeer(id);
+      // They actually left; drop their desired state so it cannot go stale.
+      this.desiredGain.delete(id);
+      this.desiredVideo.delete(id);
+    }
   }
 
   /**
@@ -312,7 +341,10 @@ export class MediaEngine {
     const peer: Peer = {
       pc,
       audioEl,
-      targetGain: 0,
+      // Adopt whatever the scene already decided while we were waiting on the
+      // microphone. Default to sending: same-floor is the common case, and the
+      // scene corrects it on the next zone change either way.
+      targetGain: this.desiredGain.get(peerId) ?? 0,
       renderedGain: 0,
       pendingIce: [],
       remoteReady: false,
@@ -325,7 +357,7 @@ export class MediaEngine {
       screenTx,
       remoteCamera: null,
       remoteScreen: null,
-      sendingVideo: false,
+      sendingVideo: this.desiredVideo.get(peerId) ?? true,
     };
     this.peers.set(peerId, peer);
 
@@ -490,9 +522,11 @@ export class MediaEngine {
 
   /** How loudly we hear this peer. */
   setGain(peerId: string, gain: number): void {
+    const value = Math.min(1, Math.max(0, gain));
+    this.desiredGain.set(peerId, value);
+
     const peer = this.peers.get(peerId);
-    if (!peer) return;
-    peer.targetGain = Math.min(1, Math.max(0, gain));
+    if (peer) peer.targetGain = value;
   }
 
   /**
@@ -504,6 +538,10 @@ export class MediaEngine {
    * call as people walk around.
    */
   setVideoEnabled(peerId: string, enabled: boolean): void {
+    // Recorded first, so a peer created later picks it up. The caller only
+    // sends edges, so dropping one here loses it permanently.
+    this.desiredVideo.set(peerId, enabled);
+
     const peer = this.peers.get(peerId);
     if (!peer || enabled === peer.sendingVideo) return;
 
@@ -572,6 +610,32 @@ export class MediaEngine {
 
   gainFor(peerId: string): number {
     return this.peers.get(peerId)?.renderedGain ?? 0;
+  }
+
+  /**
+   * Per-peer media state, for the in-app diagnostics panel.
+   *
+   * `inbound` is the one that usually answers "why can't I see them":
+   *  - none      the transceiver never negotiated a receiving track
+   *  - muted     negotiated, but the sender is publishing nothing
+   *  - live      frames are arriving
+   */
+  getDiagnostics(): PeerDiagnostic[] {
+    const out: PeerDiagnostic[] = [];
+
+    for (const [id, peer] of this.peers) {
+      const inboundTrack = peer.cameraTx.receiver.track;
+      out.push({
+        id,
+        connection: peer.pc.connectionState,
+        ice: peer.pc.iceConnectionState,
+        gain: peer.renderedGain,
+        sendingVideo: peer.sendingVideo,
+        outbound: peer.cameraTx.sender.track ? "sending" : "idle",
+        inbound: !inboundTrack ? "none" : inboundTrack.muted ? "muted" : "live",
+      });
+    }
+    return out;
   }
 
   /* ── Loop ──────────────────────────────────────────────────────── */
