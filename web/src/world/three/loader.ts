@@ -142,8 +142,22 @@ export async function modelFor(item: Furniture): Promise<THREE.Group | null> {
  * stretch on a floor texture is not.
  */
 export async function groundTiles(width: number, height: number): Promise<THREE.Group | null> {
+  return tileFloor(GROUND.url, { x: 0, y: 0, w: width, h: height });
+}
+
+/**
+ * Tile a floor model across a rectangle.
+ *
+ * Tiles are sized to divide the rectangle evenly rather than overhanging it —
+ * an overhang crosses into the next room, and a few percent of stretch on a
+ * floor texture is invisible.
+ */
+export async function tileFloor(
+  url: string,
+  area: { x: number; y: number; w: number; h: number },
+): Promise<THREE.Group | null> {
   try {
-    const source = await loadOnce(GROUND.url);
+    const source = await loadOnce(url);
 
     const oriented = new THREE.Group();
     if (GROUND.upAxis === "z") oriented.rotation.x = Math.PI / 2;
@@ -156,10 +170,10 @@ export async function groundTiles(width: number, height: number): Promise<THREE.
     if (size.x <= 0 || size.z <= 0) return null;
 
     const nominal = GROUND.tileMetres * (GROUND.scale ?? 1);
-    const cols = Math.max(1, Math.round(width / nominal));
-    const rows = Math.max(1, Math.round(height / nominal));
-    const tileW = width / cols;
-    const tileH = height / rows;
+    const cols = Math.max(1, Math.round(area.w / nominal));
+    const rows = Math.max(1, Math.round(area.h / nominal));
+    const tileW = area.w / cols;
+    const tileH = area.h / rows;
 
     const group = new THREE.Group();
     for (let row = 0; row < rows; row++) {
@@ -167,9 +181,9 @@ export async function groundTiles(width: number, height: number): Promise<THREE.
         const tile = oriented.clone(true);
         tile.scale.set(tileW / size.x, (tileW / size.x + tileH / size.z) / 2, tileH / size.z);
         tile.position.set(
-          col * tileW + tileW / 2 - (bounds.min.x + size.x / 2) * (tileW / size.x),
+          area.x + col * tileW + tileW / 2 - (bounds.min.x + size.x / 2) * (tileW / size.x),
           -bounds.min.y,
-          row * tileH + tileH / 2 - (bounds.min.z + size.z / 2) * (tileH / size.z),
+          area.y + row * tileH + tileH / 2 - (bounds.min.z + size.z / 2) * (tileH / size.z),
         );
         tile.traverse((child) => {
           if (child instanceof THREE.Mesh) child.receiveShadow = true;
@@ -179,7 +193,7 @@ export async function groundTiles(width: number, height: number): Promise<THREE.
     }
     return group;
   } catch (error) {
-    console.warn("[office] could not load the ground tile, keeping the plain slab", error);
+    console.warn(`[office] could not tile ${url}, keeping the procedural floor`, error);
     return null;
   }
 }

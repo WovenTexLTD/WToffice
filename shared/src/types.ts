@@ -46,7 +46,15 @@ export type Material = "oak" | "carpet" | "tile" | "concrete";
 export interface Area extends Rect {
   id: string;
   label: string;
+  /** Procedural covering, used when no `model` is named. */
   material: Material;
+  /**
+   * A floor model from the pack, tiled across the area instead.
+   *
+   * Packs ship floors as a square tile meant to repeat; naming one here tiles
+   * it over this area only. Falls back to `material` if it cannot be loaded.
+   */
+  model?: string;
 }
 
 /**

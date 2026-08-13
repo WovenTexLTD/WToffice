@@ -144,7 +144,7 @@ export const woventexFloor: Floor = {
     { id: "entrance", label: "Entrance", x: 40, y: 700, w: 400, h: 320, material: "tile" },
     { id: "kitchen", label: "Kitchen", x: 60, y: 60, w: 520, h: 380, material: "tile" },
     { id: "lounge", label: "Lounge", x: 60, y: 1160, w: 520, h: 480, material: "carpet" },
-    { id: "studio", label: "Studio Floor", x: 660, y: 280, w: 1040, h: 1140, material: "oak" },
+    { id: "studio", label: "Studio Floor", x: 660, y: 280, w: 1040, h: 1140, material: "carpet" },
   ],
 
   furniture: [

@@ -33,7 +33,7 @@ import {
 } from "@wtoffice/shared";
 
 import { buildFurniture } from "./models";
-import { groundTiles, modelFor } from "./loader";
+import { groundTiles, modelFor, tileFloor } from "./loader";
 import { labelSprite, surfaces } from "./textures";
 
 /* ── Scale ────────────────────────────────────────────────────────── */
@@ -339,11 +339,20 @@ export class ThreeScene {
       const tone = { oak: "#C09A6B", tile: "#E6E3DA", carpet: "#BCAF9E", concrete: "#B9B2A6" }[
         area.material
       ];
+      // The procedural covering goes down either way: it is what shows while a
+      // model tile loads, and what remains if one is not named or fails.
       patch(
         area,
         new THREE.MeshStandardMaterial({ ...maps[area.material], color: tone }),
         0.4,
       );
+
+      if (!area.model) continue;
+      void tileFloor(`/models/${area.model}.glb`, area).then((tiles) => {
+        if (!tiles || this.floor !== floor) return;
+        tiles.position.y = 0.6;
+        this.worldGroup.add(tiles);
+      });
     }
 
     for (const zone of floor.zones) {
