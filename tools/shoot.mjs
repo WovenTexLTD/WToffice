@@ -108,10 +108,12 @@ await page.evaluate(
   },
   { at, dist },
 );
-// Hide the interface. These shots are for judging the room, and a chat panel
-// down one side is both a distraction and a third of the frame.
+// Hide the interface, but not the people. A chat panel down one side is a
+// third of the frame and a distraction; the avatars are the subject, and
+// judging a room's composition without them is how furniture ends up sized
+// against nothing.
 await page.addStyleTag({
-  content: ".hud, .panel, .banner, .knocks, .diag, .video-layer { display: none !important; }",
+  content: ".hud, .panel, .banner, .knocks, .diag { display: none !important; }",
 });
 
 await page.waitForTimeout(700);
