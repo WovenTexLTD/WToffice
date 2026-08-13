@@ -210,8 +210,8 @@ export const woventexFloor: Floor = {
     { kind: "plant", x: 90, y: 420, model: "plant-b" },
 
     /* ── Studio floor: two desk banks, eight workstations ─────────── */
-    ...deskBank(900, 520),
-    ...deskBank(1400, 520),
+    ...deskBank(900, 650),
+    ...deskBank(1400, 650),
 
     { kind: "wallArt", x: 1000, y: 30 },
     { kind: "wallArt", x: 1400, y: 30, model: "wall-art-b" },
@@ -259,29 +259,28 @@ export const woventexFloor: Floor = {
     //
     // The third rail is turned ten degrees out of line. A perfect row of three
     // reads as a shop; one off-angle reads as someone working through it.
-    { kind: "garmentRail", x: 1280, y: 1000, solid: true },
-    { kind: "garmentRail", x: 1428, y: 1000, solid: true, model: "rail-b" },
-    { kind: "garmentRail", x: 1578, y: 1000, rotation: deg(-10), solid: true, model: "rail-c" },
+    { kind: "benchDesk", x: 1400, y: 990, solid: true },
+    { kind: "chair", x: 1330, y: 1076, rotation: deg(180) },
+    { kind: "chair", x: 1462, y: 1076, rotation: deg(180) },
+    { kind: "fabricRoll", x: 1310, y: 978, rotation: deg(18), elevation: 62 },
+    { kind: "fabricRoll", x: 1352, y: 992, rotation: deg(-12), elevation: 62, model: "fabric-roll-b" },
+    { kind: "fabricRoll", x: 1394, y: 976, rotation: deg(32), elevation: 62, model: "fabric-roll-c" },
+    { kind: "fabricStack", x: 1470, y: 990, rotation: deg(-8), elevation: 62 },
+    { kind: "fabricStack", x: 1516, y: 994, rotation: deg(14), elevation: 62, model: "fabric-stack-c" },
 
-    // A long bench rather than a table: cutting and laying out fabric wants a
-    // run of flat surface. Everything on it sits at 62 — the height of the
-    // bench top, measured off the model rather than guessed, which is the
-    // difference between a roll lying on a table and one hovering above it.
-    { kind: "benchDesk", x: 1400, y: 1180, solid: true },
-    { kind: "chair", x: 1330, y: 1266, rotation: deg(180) },
-    { kind: "chair", x: 1462, y: 1266, rotation: deg(180) },
-    { kind: "fabricRoll", x: 1310, y: 1168, rotation: deg(18), elevation: 62 },
-    { kind: "fabricRoll", x: 1352, y: 1182, rotation: deg(-12), elevation: 62, model: "fabric-roll-b" },
-    { kind: "fabricRoll", x: 1394, y: 1166, rotation: deg(32), elevation: 62, model: "fabric-roll-c" },
-    { kind: "fabricStack", x: 1470, y: 1180, rotation: deg(-8), elevation: 62 },
-    { kind: "fabricStack", x: 1516, y: 1184, rotation: deg(14), elevation: 62, model: "fabric-stack-c" },
+    // The rails behind the bench, against the bottom of the studio. The third
+    // is turned ten degrees out of line: a perfect row of three reads as a
+    // shop, one off-angle reads as someone working through it.
+    { kind: "garmentRail", x: 1280, y: 1210, solid: true },
+    { kind: "garmentRail", x: 1428, y: 1210, solid: true, model: "rail-b" },
+    { kind: "garmentRail", x: 1578, y: 1210, rotation: deg(-10), solid: true, model: "rail-c" },
 
     // Stock crates on the floor, one with a bolt left on top of it.
-    { kind: "crate", x: 1605, y: 1158, rotation: deg(8), solid: true },
-    { kind: "fabricStack", x: 1605, y: 1158, rotation: deg(-14), elevation: 29 },
-    { kind: "crate", x: 1598, y: 1238, rotation: deg(-6), solid: true, model: "crate-b" },
-    { kind: "crate", x: 1258, y: 1292, rotation: deg(14), solid: true, model: "crate-b" },
-    { kind: "fabricStack", x: 1258, y: 1292, rotation: deg(24), elevation: 29, model: "fabric-stack-c" },
+    { kind: "crate", x: 1608, y: 985, rotation: deg(8), solid: true },
+    { kind: "fabricStack", x: 1608, y: 985, rotation: deg(-14), elevation: 29 },
+    { kind: "crate", x: 1600, y: 1062, rotation: deg(-6), solid: true, model: "crate-b" },
+    { kind: "crate", x: 1250, y: 1078, rotation: deg(14), solid: true, model: "crate-b" },
+    { kind: "fabricStack", x: 1250, y: 1078, rotation: deg(24), elevation: 29, model: "fabric-stack-c" },
 
     /* ── Meeting room ─────────────────────────────────────────────── */
     { kind: "meetingTable", x: 2180, y: 300, solid: true },
