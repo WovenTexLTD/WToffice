@@ -119,5 +119,9 @@ export const MODELS: Partial<Record<FurnitureKind, ModelSpec>> = {
   monitor: { url: "/models/monitor.glb", scale: M, upAxis: "z" },
   softCube: { url: "/models/soft-cube.glb", scale: M, upAxis: "z" },
   sideChair: { url: "/models/side-chair.glb", scale: M, upAxis: "z" },
+  garmentRail: { url: "/models/garment-rail.glb", scale: M, upAxis: "z" },
+  fabricRoll: { url: "/models/fabric-roll.glb", scale: M, upAxis: "z" },
+  fabricStack: { url: "/models/fabric-stack.glb", scale: M, upAxis: "z" },
+  crate: { url: "/models/crate.glb", scale: M, upAxis: "z" },
   floorCushion: { url: "/models/floor-cushion.glb", scale: M, upAxis: "z" },
 };

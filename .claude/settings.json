@@ -12,7 +12,12 @@
       "Bash(node tools/inspect-models.mjs --zup \"shelf_0\")",
       "Read(//Users/karimsabbagh/Documents/GitHub/WToffice/web/public/**)",
       "Bash(node tools/inspect-models.mjs web/public/catalogue)",
-      "Bash(node tools/inspect-models.mjs /tmp/pick --zup)"
+      "Bash(node tools/inspect-models.mjs /tmp/pick --zup)",
+      "Bash(cp ../catalogue/clothes_034.glb garment-rail.glb)",
+      "Bash(cp ../catalogue/clothes_035.glb rail-b.glb)",
+      "Bash(cp ../catalogue/clothes_036.glb rail-c.glb)",
+      "Bash(cp ../catalogue/shop_032.glb fabric-roll.glb)",
+      "Bash(cp ../catalogue/shop_033.glb fabric-roll-b.glb)"
     ],
     "additionalDirectories": [
       "/Users/karimsabbagh/Downloads/Separate_assets_glb"

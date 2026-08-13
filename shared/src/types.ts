@@ -114,7 +114,11 @@ export type FurnitureKind =
   | "softCube"
   | "floorCushion"
   | "sideChair"
-  | "areaRug";
+  | "areaRug"
+  | "garmentRail"
+  | "fabricRoll"
+  | "fabricStack"
+  | "crate";
 
 export interface Furniture {
   kind: FurnitureKind;
@@ -212,6 +216,10 @@ export const FURNITURE_SIZE: Record<FurnitureKind, { w: number; h: number }> = {
   sideChair: { w: 75, h: 71 }, //      0.88 × 0.84 m
   // Drawn rather than loaded, so this is the real size, not a model's.
   areaRug: { w: 417, h: 417 }, //      4.90 m square
+  garmentRail: { w: 133, h: 145 }, //  1.56 × 1.71 m
+  fabricRoll: { w: 26, h: 33 }, //     0.30 × 0.39 m
+  fabricStack: { w: 35, h: 35 }, //    0.41 × 0.41 m
+  crate: { w: 36, h: 56 }, //          0.42 × 0.66 m
 };
 
 export type PresenceStatus = "available" | "focusing" | "away";

@@ -246,6 +246,43 @@ export const woventexFloor: Floor = {
     // a metre clear of the furniture reads as an object, not as a lamp.
     { kind: "lamp", x: 752, y: 946 },
 
+    /* ── Sample bay: where the fabric actually lives ──────────────── */
+
+    // WovenTex makes textiles and the studio had nowhere to put them, which is
+    // the sort of gap you only notice once the rest of the floor is furnished.
+    //
+    // The row sits at y 1000, not 880. At 880 the rails sealed the east-west
+    // lane across the studio: you could still reach the meeting room by going
+    // around, so `verify:floor` passed, and it took the smoke test actually
+    // walking the route to find it. Everything here stays below y 917 so that
+    // lane keeps a clear metre.
+    //
+    // The third rail is turned ten degrees out of line. A perfect row of three
+    // reads as a shop; one off-angle reads as someone working through it.
+    { kind: "garmentRail", x: 1280, y: 1000, solid: true },
+    { kind: "garmentRail", x: 1428, y: 1000, solid: true, model: "rail-b" },
+    { kind: "garmentRail", x: 1578, y: 1000, rotation: deg(-10), solid: true, model: "rail-c" },
+
+    // A long bench rather than a table: cutting and laying out fabric wants a
+    // run of flat surface. Everything on it sits at 62 — the height of the
+    // bench top, measured off the model rather than guessed, which is the
+    // difference between a roll lying on a table and one hovering above it.
+    { kind: "benchDesk", x: 1400, y: 1180, solid: true },
+    { kind: "chair", x: 1330, y: 1266, rotation: deg(180) },
+    { kind: "chair", x: 1462, y: 1266, rotation: deg(180) },
+    { kind: "fabricRoll", x: 1310, y: 1168, rotation: deg(18), elevation: 62 },
+    { kind: "fabricRoll", x: 1352, y: 1182, rotation: deg(-12), elevation: 62, model: "fabric-roll-b" },
+    { kind: "fabricRoll", x: 1394, y: 1166, rotation: deg(32), elevation: 62, model: "fabric-roll-c" },
+    { kind: "fabricStack", x: 1470, y: 1180, rotation: deg(-8), elevation: 62 },
+    { kind: "fabricStack", x: 1516, y: 1184, rotation: deg(14), elevation: 62, model: "fabric-stack-c" },
+
+    // Stock crates on the floor, one with a bolt left on top of it.
+    { kind: "crate", x: 1605, y: 1158, rotation: deg(8), solid: true },
+    { kind: "fabricStack", x: 1605, y: 1158, rotation: deg(-14), elevation: 29 },
+    { kind: "crate", x: 1598, y: 1238, rotation: deg(-6), solid: true, model: "crate-b" },
+    { kind: "crate", x: 1258, y: 1292, rotation: deg(14), solid: true, model: "crate-b" },
+    { kind: "fabricStack", x: 1258, y: 1292, rotation: deg(24), elevation: 29, model: "fabric-stack-c" },
+
     /* ── Meeting room ─────────────────────────────────────────────── */
     { kind: "meetingTable", x: 2180, y: 300, solid: true },
     ...seatsAround(2180, 300, 200, 105, 3),
