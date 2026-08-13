@@ -259,14 +259,19 @@ export const woventexFloor: Floor = {
     //
     // The third rail is turned ten degrees out of line. A perfect row of three
     // reads as a shop; one off-angle reads as someone working through it.
-    { kind: "benchDesk", x: 1400, y: 990, solid: true },
-    { kind: "chair", x: 1330, y: 1076, rotation: deg(180) },
-    { kind: "chair", x: 1462, y: 1076, rotation: deg(180) },
-    { kind: "fabricRoll", x: 1310, y: 978, rotation: deg(18), elevation: 62 },
-    { kind: "fabricRoll", x: 1352, y: 992, rotation: deg(-12), elevation: 62, model: "fabric-roll-b" },
-    { kind: "fabricRoll", x: 1394, y: 976, rotation: deg(32), elevation: 62, model: "fabric-roll-c" },
-    { kind: "fabricStack", x: 1470, y: 990, rotation: deg(-8), elevation: 62 },
-    { kind: "fabricStack", x: 1516, y: 994, rotation: deg(14), elevation: 62, model: "fabric-stack-c" },
+    // Chairs on the north side, so whoever is working faces the rails rather
+    // than turning their back on them. The bench drops 20 to buy the room:
+    // tucked in above it, the chairs would otherwise crowd the east-west lane
+    // at y 850. Rotation 0 faces south, which is what the desk banks use for
+    // the seat above a desk.
+    { kind: "benchDesk", x: 1400, y: 1010, solid: true },
+    { kind: "chair", x: 1330, y: 937 },
+    { kind: "chair", x: 1462, y: 937 },
+    { kind: "fabricRoll", x: 1310, y: 998, rotation: deg(18), elevation: 62 },
+    { kind: "fabricRoll", x: 1352, y: 1012, rotation: deg(-12), elevation: 62, model: "fabric-roll-b" },
+    { kind: "fabricRoll", x: 1394, y: 996, rotation: deg(32), elevation: 62, model: "fabric-roll-c" },
+    { kind: "fabricStack", x: 1470, y: 1010, rotation: deg(-8), elevation: 62 },
+    { kind: "fabricStack", x: 1516, y: 1014, rotation: deg(14), elevation: 62, model: "fabric-stack-c" },
 
     // The rails behind the bench, against the bottom of the studio. The third
     // is turned ten degrees out of line: a perfect row of three reads as a
