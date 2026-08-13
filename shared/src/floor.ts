@@ -217,14 +217,10 @@ export const woventexFloor: Floor = {
     { kind: "armchair", x: 120, y: 990, rotation: deg(-30), solid: true },
     { kind: "plant", x: 400, y: 1000, model: "tree" },
     { kind: "plant", x: 90, y: 720, model: "plant-c" },
-    { kind: "wallArt", x: 240, y: 30, model: "wall-art" },
 
     /* ── Studio floor: two desk banks, eight workstations ─────────── */
     ...deskBank(900, 650),
     ...deskBank(1400, 650),
-
-    { kind: "wallArt", x: 1620, y: 30 },
-    { kind: "wallArt", x: 1400, y: 30, model: "wall-art-b" },
 
     /* ── Hangout, filling the lower half of the studio ────────────── */
 
@@ -334,7 +330,6 @@ export const woventexFloor: Floor = {
     { kind: "console", x: 2450, y: 500, solid: true },
     { kind: "plant", x: 2530, y: 130, model: "plant-big" },
     { kind: "plant", x: 1900, y: 480, model: "tree" },
-    { kind: "wallArt", x: 1980, y: 96, model: "wall-art-b" },
 
     /* ── Focus room: quiet desks along the far wall ───────────────── */
     { kind: "desk", x: 1980, y: 760, solid: true, model: "desk-c" },
