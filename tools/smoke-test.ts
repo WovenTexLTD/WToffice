@@ -54,9 +54,12 @@ check("touching is full volume", audioGain(open(500, 500), open(500, 500), EARSH
 check("half earshot is half volume", near(audioGain(open(500, 500), open(500 + EARSHOT / 2, 500), EARSHOT), 0.5));
 check("beyond earshot is silent", audioGain(open(500, 500), open(500 + EARSHOT + 1, 500), EARSHOT) === 0);
 
-// Sliding: pushing diagonally into a vertical wall should preserve vertical motion.
-const slid = resolveMove({ x: 40, y: 500 }, { x: 10, y: 540 }, PLAYER_RADIUS, floor.walls, floor);
-check("sliding along a wall preserves the free axis", slid.y > 500, `y moved to ${slid.y.toFixed(1)}`);
+// Sliding: pushing diagonally into a vertical wall should preserve vertical
+// motion. Probed at y 600, which is bare west wall — y 500 used to be, until
+// Karim's office put its south wall through it, and a probe that starts inside
+// a wall tests nothing.
+const slid = resolveMove({ x: 40, y: 600 }, { x: 10, y: 640 }, PLAYER_RADIUS, floor.walls, floor);
+check("sliding along a wall preserves the free axis", slid.y > 600, `y moved to ${slid.y.toFixed(1)}`);
 check("sliding along a wall blocks the blocked axis", slid.x >= 34, `x held at ${slid.x.toFixed(1)}`);
 
 /* ── Broadcast and doors ─────────────────────────────────────────── */
