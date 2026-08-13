@@ -178,23 +178,10 @@ export const woventexFloor: Floor = {
     { kind: "waterCooler", x: 545, y: 400 },
     { kind: "plant", x: 90, y: 420, model: "plant-b" },
 
-    /* ── Studio floor: four desk banks ────────────────────────────── */
+    /* ── Studio floor: two desk banks, eight workstations ─────────── */
     ...deskBank(900, 520),
     ...deskBank(1400, 520),
-    ...deskBank(900, 1050),
-    ...deskBank(1400, 1050),
 
-    { kind: "printer", x: 730, y: 400, solid: true },
-    { kind: "shelf", x: 1150, y: 300, solid: true },
-    { kind: "shelf", x: 1150, y: 1400, rotation: deg(180), solid: true, model: "shelf-b" },
-    { kind: "waterCooler", x: 1655, y: 430 },
-    { kind: "plant", x: 700, y: 1390, model: "tree" },
-    { kind: "plant", x: 1650, y: 320, model: "plant-big" },
-    { kind: "plant", x: 700, y: 800, model: "plant-c" },
-    { kind: "plant", x: 1650, y: 1390, model: "plant-b" },
-    // Against the east edge, clear of both the desk banks and the cross
-    // corridor between them.
-    { kind: "benchDesk", x: 1618, y: 836, rotation: deg(90), solid: true },
     { kind: "wallArt", x: 1000, y: 30 },
     { kind: "wallArt", x: 1400, y: 30, model: "wall-art-b" },
 
