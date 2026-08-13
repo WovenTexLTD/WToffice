@@ -8,13 +8,15 @@
 import type { ClientMessage, Floor, PlayerState, ServerMessage, SignalData } from "@wtoffice/shared";
 
 export interface OfficeClientHandlers {
-  onWelcome(selfId: string, floor: Floor, players: PlayerState[]): void;
+  onWelcome(selfId: string, floor: Floor, players: PlayerState[], shutDoors: string[]): void;
   onState(players: PlayerState[]): void;
   onJoined(player: PlayerState): void;
   onLeft(id: string): void;
   onCorrect(x: number, y: number): void;
   onStatus(status: ConnectionStatus): void;
   onSignal(from: string, data: SignalData): void;
+  onDoors(shut: string[]): void;
+  onKnock(doorId: string, name: string): void;
 }
 
 export type ConnectionStatus = "connecting" | "online" | "reconnecting" | "offline";
@@ -57,7 +59,13 @@ export class OfficeClient {
 
       switch (msg.t) {
         case "welcome":
-          this.handlers.onWelcome(msg.selfId, msg.floor, msg.players);
+          this.handlers.onWelcome(msg.selfId, msg.floor, msg.players, msg.shutDoors);
+          break;
+        case "doors":
+          this.handlers.onDoors(msg.shut);
+          break;
+        case "knock":
+          this.handlers.onKnock(msg.doorId, msg.name);
           break;
         case "state":
           this.handlers.onState(msg.players);
@@ -118,6 +126,18 @@ export class OfficeClient {
   /** Publish which stream id carries our face and which carries our screen. */
   sendMedia(cameraStreamId: string | null, screenStreamId: string | null): void {
     this.send({ t: "media", cameraStreamId, screenStreamId });
+  }
+
+  sendBroadcast(on: boolean): void {
+    this.send({ t: "broadcast", on });
+  }
+
+  sendDoor(id: string, open: boolean): void {
+    this.send({ t: "door", id, open });
+  }
+
+  sendKnock(doorId: string): void {
+    this.send({ t: "knock", doorId });
   }
 
   disconnect(): void {

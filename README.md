@@ -10,16 +10,16 @@ products like Kumospace.
 
 ## Status
 
-**Phase 3 complete** — walk up to someone and you see and hear them, and you can
-share a screen.
+**Phase 4 complete** — rooms you can shut yourself into, and a way to address
+the whole floor.
 
 | Phase | | |
 |---|---|---|
 | 1 | World, movement, presence | ✅ done |
 | 2 | Proximity audio | ✅ done |
 | 3 | Video circles + screenshare | ✅ done |
-| 4 | Doors, broadcast | ← next |
-| 5 | Chat, status | |
+| 4 | Doors, broadcast | ✅ done |
+| 5 | Chat, status | ← next |
 | 6 | Art pass | |
 | 7 | Auth, deploy, harden | |
 
@@ -92,13 +92,39 @@ If those two ever disagree, players rubber-band — so there is only one copy.
 
 ### The audio rule
 
-`audioGain()` in `shared/src/geometry.ts` is already the real rule; Phase 2 just
-connects it to a `GainNode`. Order matters — zone membership is checked before
-distance, because a sealed room overrides proximity in both directions:
+`audioGain()` in `shared/src/geometry.ts` is the whole model. Precedence, and
+the order matters:
 
-- same room → full volume, distance irrelevant
-- either party in a room the other isn't → silent, both ways
-- both on the open floor → linear falloff to zero at `EARSHOT` (300px)
+1. **Broadcast** → full volume, through walls, shut doors and distance alike
+2. **Same room** → full volume, distance irrelevant
+3. **Either party in a room the other isn't** → silent, both ways
+4. **Both on the open floor** → linear falloff to zero at `EARSHOT` (300px)
+
+**It is not symmetric.** Everyone hears a broadcaster; the broadcaster still
+hears only the room around them. Anything deciding whether to *send* media must
+evaluate the reverse direction rather than reusing the result — which is exactly
+what `onGain` and `onSendVideo` are, two calls instead of one.
+
+### Doors
+
+An open door is a gap in the wall; a shut one is wall, derived identically on
+both sides by `wallsWithShutDoors`. Doors do not affect audio at all — the zone
+already seals it. What a door adds is control over *entry*: you cannot walk into
+a shut room, only knock.
+
+Doors can only be worked from inside, so a room whose last occupant left while
+it was shut would be sealed permanently. The server reopens empty rooms every
+tick to remove that dead end.
+
+### Movement is swept, not sampled
+
+`resolveMove` advances in substeps of at most 8px — below the thinnest wall
+(14px) — and each substep advances from the body's **actual** position, never
+along the original ray. Stepping along the ray lets a blocked body leapfrog: it
+gets stuck at a wall, but a later ray point on the far side is free, and the
+endpoint check jumps straight to it. Frame-to-frame movement is ~4px so this
+never shows in play, but the server accepts bursts of a few hundred pixels after
+network jitter — which a modified client could aim at a shut door.
 
 ## Voice
 

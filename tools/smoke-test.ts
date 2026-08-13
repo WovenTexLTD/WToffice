@@ -8,7 +8,9 @@ import WebSocket from "ws";
 import {
   woventexFloor as floor,
   audioGain,
+  doorAt,
   resolveMove,
+  wallsWithShutDoors,
   zoneAt,
   EARSHOT,
   PLAYER_RADIUS,
@@ -53,6 +55,53 @@ const slid = resolveMove({ x: 40, y: 500 }, { x: 10, y: 540 }, PLAYER_RADIUS, fl
 check("sliding along a wall preserves the free axis", slid.y > 500, `y moved to ${slid.y.toFixed(1)}`);
 check("sliding along a wall blocks the blocked axis", slid.x >= 34, `x held at ${slid.x.toFixed(1)}`);
 
+/* ── Broadcast and doors ─────────────────────────────────────────── */
+
+console.log("\nBroadcast and doors\n");
+
+const shouting = { x: 1300, y: 250, zoneId: "meeting", broadcasting: true };
+check("a broadcast pierces a sealed room", audioGain(open(300, 520), shouting, EARSHOT) === 1);
+check("a broadcast pierces distance", audioGain(open(60, 960), shouting, EARSHOT) === 1);
+check(
+  "broadcast is one-way",
+  audioGain(shouting, open(300, 520), EARSHOT) === 0,
+  "the broadcaster still only hears their own room",
+);
+
+const doorId = floor.doors[0].id;
+check(
+  "an open door is not collision geometry",
+  wallsWithShutDoors(floor, []).length === floor.walls.length,
+);
+check(
+  "a shut door becomes collision geometry",
+  wallsWithShutDoors(floor, [doorId]).length === floor.walls.length + 1,
+);
+
+const d0 = floor.doors[0];
+check("doorAt finds a door under the pointer", doorAt(d0.x + 5, d0.y + 40, floor.doors)?.id === doorId);
+check("doorAt returns null away from any door", doorAt(300, 520, floor.doors) === null);
+
+// A shut door must actually stop someone walking through the gap.
+const shutWalls = wallsWithShutDoors(floor, [doorId]);
+const blocked = resolveMove(
+  { x: 1000, y: 255 },
+  { x: 1100, y: 255 },
+  PLAYER_RADIUS,
+  shutWalls,
+  floor,
+);
+check("a shut door blocks passage", blocked.x < d0.x - PLAYER_RADIUS + 1, `stopped at x = ${blocked.x.toFixed(1)}`);
+
+const throughOpen = resolveMove(
+  { x: 1000, y: 255 },
+  { x: 1100, y: 255 },
+  PLAYER_RADIUS,
+  floor.walls,
+  floor,
+);
+check("an open door allows passage", throughOpen.x > d0.x + d0.w, `reached x = ${throughOpen.x.toFixed(1)}`);
+
 /* ── Part B: live server ─────────────────────────────────────────── */
 
 interface Client {
@@ -87,6 +136,34 @@ function connect(name: string): Promise<Client> {
 const move = (c: Client, x: number, y: number) => c.socket.send(JSON.stringify({ t: "move", x, y }));
 const wait = (ms: number) => new Promise((r) => setTimeout(r, ms));
 const latestState = (c: Client) => [...c.inbox].reverse().find((m) => m.t === "state");
+const latestDoors = (c: Client) => [...c.inbox].reverse().find((m) => m.t === "doors");
+const playerIn = (c: Client, id: string) => {
+  const s = latestState(c);
+  return s?.t === "state" ? s.players.find((p) => p.id === id) : undefined;
+};
+
+/**
+ * Walk a client through waypoints in server-legal steps.
+ *
+ * The server caps travel per update, so a straight jump would be rejected as a
+ * teleport — reaching a room means actually walking there.
+ */
+async function walkTo(c: Client, from: { x: number; y: number }, waypoints: { x: number; y: number }[]) {
+  let pos = { ...from };
+  for (const target of waypoints) {
+    while (Math.hypot(target.x - pos.x, target.y - pos.y) > 4) {
+      const dx = target.x - pos.x;
+      const dy = target.y - pos.y;
+      const dist = Math.hypot(dx, dy);
+      const step = Math.min(55, dist);
+      pos = { x: pos.x + (dx / dist) * step, y: pos.y + (dy / dist) * step };
+      move(c, pos.x, pos.y);
+      await wait(110);
+    }
+  }
+  await wait(200);
+  return pos;
+}
 
 async function run(): Promise<void> {
   console.log("\nServer\n");
@@ -221,16 +298,89 @@ async function run(): Promise<void> {
   check("signal to an unknown peer is dropped", !bob.inbox.some((m) => m.t === "signal"));
   check("server still alive after a bad signal", !!latestState(alice));
 
+  /* ── Doors: authority and the empty-room release ───────────────── */
+
+  console.log("\nDoors\n");
+
+  // Walk Alice into the meeting room: right along the floor, up to the
+  // doorway, then through it. Start from where the server actually thinks she
+  // is — the rejected teleport left her partway across the floor.
+  const before = playerIn(alice, alice.id);
+  const arrived = await walkTo(
+    alice,
+    { x: before?.x ?? floor.spawn.x, y: before?.y ?? floor.spawn.y },
+    [
+      { x: 1000, y: 520 },
+      { x: 1000, y: 255 },
+      { x: 1180, y: 255 },
+    ],
+  );
+  const aliceInside = playerIn(alice, alice.id);
+  check(
+    "walking through the doorway puts you in the room",
+    aliceInside?.zoneId === "meeting",
+    `at (${arrived.x.toFixed(0)}, ${arrived.y.toFixed(0)}), zone = ${aliceInside?.zoneId ?? "null"}`,
+  );
+
+  alice.inbox.length = 0;
+  bob.inbox.length = 0;
+  alice.socket.send(JSON.stringify({ t: "door", id: "meeting-door", open: false }));
+  await wait(300);
+
+  const shutMsg = latestDoors(bob);
+  check(
+    "someone inside can shut the door",
+    shutMsg?.t === "doors" && shutMsg.shut.includes("meeting-door"),
+  );
+
+  // Bob is outside. He must not be able to open it.
+  bob.inbox.length = 0;
+  bob.socket.send(JSON.stringify({ t: "door", id: "meeting-door", open: true }));
+  await wait(300);
+  check(
+    "someone outside cannot open the door",
+    !bob.inbox.some((m) => m.t === "doors" && !m.shut.includes("meeting-door")),
+  );
+
+  // Knocking is the sanctioned way in, and reaches only the room.
+  alice.inbox.length = 0;
+  bob.inbox.length = 0;
+  bob.socket.send(JSON.stringify({ t: "knock", doorId: "meeting-door" }));
+  await wait(300);
+
+  const knock = alice.inbox.find((m) => m.t === "knock");
+  check("a knock reaches the people inside", !!knock);
+  check(
+    "the knock names who is asking",
+    knock?.t === "knock" && knock.name === "Bob",
+    `name = ${knock?.t === "knock" ? knock.name : "none"}`,
+  );
+  check("the knocker does not hear their own knock", !bob.inbox.some((m) => m.t === "knock"));
+
+  // The deadlock guard: a shut room with nobody in it must release itself,
+  // because only people inside can work the door.
+  bob.inbox.length = 0;
+  alice.socket.close();
+  await wait(600);
+
+  const released = latestDoors(bob);
+  check(
+    "an empty room reopens its own door",
+    released?.t === "doors" && !released.shut.includes("meeting-door"),
+    "otherwise the room would be sealed forever",
+  );
+
   /* ── Teardown ──────────────────────────────────────────────────── */
 
   console.log("\nTeardown\n");
 
-  alice.inbox.length = 0;
-  bob.socket.close();
-  await wait(300);
-  check("departure is broadcast", alice.inbox.some((m) => m.t === "left"));
+  // Alice already disconnected above, which is what released the room.
+  check(
+    "departure is broadcast",
+    bob.inbox.some((m) => m.t === "left" && m.id === alice.id),
+  );
 
-  alice.socket.close();
+  bob.socket.close();
 }
 
 run()

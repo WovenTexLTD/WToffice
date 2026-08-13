@@ -266,7 +266,72 @@ body {
   cursor: default;
 }
 
+.hud-btn.live {
+  border-color: rgba(194, 86, 79, 0.6);
+  background: rgba(194, 86, 79, 0.22);
+  color: #f0b3ad;
+}
+
 .hud-btn:focus-visible {
+  outline: 2px solid #9fd0ee;
+  outline-offset: 2px;
+}
+
+/* ── Broadcast ─────────────────────────────────────────────────── */
+
+.broadcast-bar {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  padding: 8px 18px;
+  background: #8a3d38;
+  color: #fff;
+  font-size: 12.5px;
+  text-align: center;
+}
+
+/* ── Knocks ────────────────────────────────────────────────────── */
+
+.knocks {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.knock {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 10px 12px 10px 15px;
+  border-radius: 5px;
+  background: #15222a;
+  border: 1px solid rgba(222, 231, 233, 0.2);
+  color: #dee7e9;
+  font-size: 13px;
+  box-shadow: 0 8px 24px -10px rgba(0, 0, 0, 0.5);
+}
+
+.knock button {
+  font: inherit;
+  font-size: 12px;
+  padding: 5px 11px;
+  border-radius: 3px;
+  border: none;
+  background: #1d5d86;
+  color: #fff;
+  cursor: pointer;
+  flex: none;
+}
+
+.knock button:hover {
+  background: #24709f;
+}
+
+.knock button:focus-visible {
   outline: 2px solid #9fd0ee;
   outline-offset: 2px;
 }

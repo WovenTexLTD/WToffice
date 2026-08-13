@@ -18,10 +18,13 @@ import {
   PLAYER_RADIUS,
   SEND_HZ,
   audioGain,
+  doorAt,
   resolveMove,
+  wallsWithShutDoors,
   zoneAt,
   type Floor,
   type PlayerState,
+  type Rect,
 } from "@wtoffice/shared";
 
 const COLORS = {
@@ -32,6 +35,7 @@ const COLORS = {
   label: "#7C929C",
   nameText: "#15222A",
   earshot: "#1D5D86",
+  doorHandle: "#C08A2E",
 } as const;
 
 const MIN_ZOOM = 0.55;
@@ -47,8 +51,10 @@ interface Avatar {
   /** Rendered position, smoothed toward `target`. */
   cur: { x: number; y: number };
   target: { x: number; y: number };
-  /** Last gain reported to the voice engine, to avoid redundant updates. */
+  /** Last gain reported to the media engine, to avoid redundant updates. */
   lastGain: number;
+  /** Last outbound-video decision, likewise. */
+  lastSendVideo: boolean | null;
 }
 
 export interface OfficeSceneCallbacks {
@@ -57,6 +63,14 @@ export interface OfficeSceneCallbacks {
   onZoneChange(zoneId: string | null): void;
   /** How loudly this peer should be heard, 0–1, from the proximity rule. */
   onGain(peerId: string, gain: number): void;
+  /**
+   * Whether this peer can hear *us* — the reverse direction, which is what
+   * decides if sending them video is worth the bytes. Separate from onGain
+   * because broadcast makes the two directions differ.
+   */
+  onSendVideo(peerId: string, enabled: boolean): void;
+  onDoorToggle(doorId: string, open: boolean): void;
+  onKnock(doorId: string): void;
 }
 
 /**
@@ -83,6 +97,12 @@ export class OfficeScene {
   private lastZoneId: string | null = null;
   private elapsed = 0;
   private surface: AvatarSurface | null = null;
+
+  private shutDoors = new Set<string>();
+  /** Collision geometry including shut doors. Recomputed only when doors move. */
+  private walls: Rect[] = [];
+  private doorGfx: Graphics | null = null;
+  private selfBroadcasting = false;
 
   private keys = new Set<string>();
   private sendAccumulator = 0;
@@ -130,9 +150,11 @@ export class OfficeScene {
 
   /* ── World construction ────────────────────────────────────────── */
 
-  setFloor(floor: Floor, selfId: string, players: PlayerState[]): void {
+  setFloor(floor: Floor, selfId: string, players: PlayerState[], shutDoors: string[] = []): void {
     this.floor = floor;
     this.selfId = selfId;
+    this.shutDoors = new Set(shutDoors);
+    this.walls = wallsWithShutDoors(floor, this.shutDoors);
 
     const self = players.find((p) => p.id === selfId);
     this.local = { x: self?.x ?? floor.spawn.x, y: self?.y ?? floor.spawn.y };
@@ -199,14 +221,44 @@ export class OfficeScene {
     walls.fill(COLORS.wall);
     layer.addChild(walls);
 
-    // Doorways: a dashed threshold so the opening reads as a door, not a gap.
-    const doors = new Graphics();
-    for (const d of floor.doors) {
-      doors.rect(d.x, d.y, d.w, d.h).fill({ color: COLORS.wall, alpha: 0.18 });
-    }
-    layer.addChild(doors);
+    // Redrawn whenever a door opens or shuts, so it lives on its own layer.
+    this.doorGfx = new Graphics();
+    layer.addChild(this.doorGfx);
+    this.redrawDoors();
 
     return layer;
+  }
+
+  /** Apply an authoritative door update from the server. */
+  setDoors(shut: string[]): void {
+    this.shutDoors = new Set(shut);
+    if (this.floor) this.walls = wallsWithShutDoors(this.floor, this.shutDoors);
+    this.redrawDoors();
+  }
+
+  isDoorShut(doorId: string): boolean {
+    return this.shutDoors.has(doorId);
+  }
+
+  private redrawDoors(): void {
+    const g = this.doorGfx;
+    const floor = this.floor;
+    if (!g || !floor) return;
+
+    g.clear();
+
+    for (const door of floor.doors) {
+      if (this.shutDoors.has(door.id)) {
+        // Shut: reads as wall, with a handle so it's obviously a door.
+        g.rect(door.x, door.y, door.w, door.h).fill(COLORS.wall);
+        const cx = door.x + door.w / 2;
+        const cy = door.y + door.h / 2;
+        g.circle(cx, cy, 3.5).fill(COLORS.doorHandle);
+      } else {
+        // Open: a faint threshold across the gap.
+        g.rect(door.x, door.y, door.w, door.h).fill({ color: COLORS.wall, alpha: 0.16 });
+      }
+    }
   }
 
   /* ── Avatars ───────────────────────────────────────────────────── */
@@ -272,6 +324,7 @@ export class OfficeScene {
       cur: { x: state.x, y: state.y },
       target: { x: state.x, y: state.y },
       lastGain: -1,
+      lastSendVideo: null,
     });
   }
 
@@ -329,12 +382,32 @@ export class OfficeScene {
   private onBlur = () => this.keys.clear();
 
   private onPointerDown = (e: PointerEvent) => {
-    if (!this.app || !this.floor) return;
+    const floor = this.floor;
+    if (!this.app || !floor) return;
+
     const rect = this.app.canvas.getBoundingClientRect();
-    this.moveTarget = {
-      x: (e.clientX - rect.left - this.world.x) / this.zoom,
-      y: (e.clientY - rect.top - this.world.y) / this.zoom,
-    };
+    const worldX = (e.clientX - rect.left - this.world.x) / this.zoom;
+    const worldY = (e.clientY - rect.top - this.world.y) / this.zoom;
+
+    const door = doorAt(worldX, worldY, floor.doors);
+    if (door) {
+      const myZone = zoneAt(this.local.x, this.local.y, floor.zones);
+      const shut = this.shutDoors.has(door.id);
+
+      if (myZone === door.zoneId) {
+        // Inside: the door is yours to work.
+        this.callbacks.onDoorToggle(door.id, shut);
+        return;
+      }
+      if (shut) {
+        // Outside a shut door: ask, don't barge.
+        this.callbacks.onKnock(door.id);
+        return;
+      }
+      // Outside an open door: just walk through it.
+    }
+
+    this.moveTarget = { x: worldX, y: worldY };
   };
 
   private onWheel = (e: WheelEvent) => {
@@ -422,7 +495,12 @@ export class OfficeScene {
    */
   private updateAudio(floor: Floor): void {
     const selfZone = zoneAt(this.local.x, this.local.y, floor.zones);
-    const listener = { x: this.local.x, y: this.local.y, zoneId: selfZone };
+    const me = {
+      x: this.local.x,
+      y: this.local.y,
+      zoneId: selfZone,
+      broadcasting: this.selfBroadcasting,
+    };
 
     if (selfZone !== this.lastZoneId) {
       this.lastZoneId = selfZone;
@@ -432,21 +510,39 @@ export class OfficeScene {
     for (const [id, avatar] of this.avatars) {
       if (id === this.selfId) continue;
 
-      // Uses the smoothed render position, so what you hear matches what you see.
-      const gain = audioGain(
-        listener,
-        { x: avatar.cur.x, y: avatar.cur.y, zoneId: avatar.state.zoneId },
-        EARSHOT,
-      );
+      // Smoothed render position, so what you hear matches what you see.
+      const them = {
+        x: avatar.cur.x,
+        y: avatar.cur.y,
+        zoneId: avatar.state.zoneId,
+        broadcasting: avatar.state.broadcasting,
+      };
 
-      if (Math.abs(gain - avatar.lastGain) > 0.004) {
-        avatar.lastGain = gain;
-        this.callbacks.onGain(id, gain);
+      const hear = audioGain(me, them, EARSHOT);
+      if (Math.abs(hear - avatar.lastGain) > 0.004) {
+        avatar.lastGain = hear;
+        this.callbacks.onGain(id, hear);
+      }
+
+      // Evaluated in reverse: whether *they* hear *us* decides if our camera is
+      // worth sending. Broadcast makes the two directions differ, so reusing
+      // `hear` here would send video to a broadcaster who cannot see us.
+      const theyHearMe = audioGain(them, me, EARSHOT) > 0;
+      if (theyHearMe !== avatar.lastSendVideo) {
+        avatar.lastSendVideo = theyHearMe;
+        this.callbacks.onSendVideo(id, theyHearMe);
       }
 
       // Fade the name with audibility, so you can see who is in earshot.
-      avatar.nameLabel.alpha = 0.3 + gain * 0.7;
+      avatar.nameLabel.alpha = 0.3 + hear * 0.7;
     }
+  }
+
+  /** Local broadcast state, applied without waiting for the server round trip. */
+  setSelfBroadcast(on: boolean): void {
+    this.selfBroadcasting = on;
+    const self = this.avatars.get(this.selfId);
+    if (self) self.state.broadcasting = on;
   }
 
   private updateSpeakingRings(): void {
@@ -496,8 +592,8 @@ export class OfficeScene {
       y: this.local.y + (dy / len) * MOVE_SPEED * dt,
     };
 
-    // Same resolver the server uses, so predictions agree.
-    this.local = resolveMove(this.local, next, PLAYER_RADIUS, floor.walls, floor);
+    // Same resolver and same geometry the server uses, so predictions agree.
+    this.local = resolveMove(this.local, next, PLAYER_RADIUS, this.walls, floor);
 
     const self = this.avatars.get(this.selfId);
     if (self) {

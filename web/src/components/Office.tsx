@@ -97,6 +97,9 @@ function Stage({ name }: { name: string }) {
   const [mediaVersion, setMediaVersion] = useState(0);
   const bumpMedia = useCallback(() => setMediaVersion((v) => v + 1), []);
 
+  const [broadcasting, setBroadcasting] = useState(false);
+  const [knocks, setKnocks] = useState<{ id: number; name: string; doorId: string }[]>([]);
+
   useEffect(() => {
     const host = hostRef.current;
     if (!host) return;
@@ -139,16 +142,25 @@ function Stage({ name }: { name: string }) {
           bumpMedia();
         }
       },
+      onSendVideo: (peerId, enabled) => media.setVideoEnabled(peerId, enabled),
+      onDoorToggle: (doorId, open) => clientRef.current?.sendDoor(doorId, open),
+      onKnock: (doorId) => clientRef.current?.sendKnock(doorId),
     });
     sceneRef.current = scene;
 
     const client = new OfficeClient(WS_URL, name, {
-      onWelcome: (id, f, list) => {
+      onWelcome: (id, f, list, shutDoors) => {
         setSelfId(id);
         setFloor(f);
         setPlayers(list);
-        scene.setFloor(f, id, list);
+        scene.setFloor(f, id, list, shutDoors);
         void media.start(id).then(() => media.syncPeers(list.map((p) => p.id)));
+      },
+      onDoors: (shut) => scene.setDoors(shut),
+      onKnock: (doorId, knockerName) => {
+        const id = Date.now() + Math.random();
+        setKnocks((prev) => [...prev, { id, name: knockerName, doorId }]);
+        window.setTimeout(() => setKnocks((prev) => prev.filter((k) => k.id !== id)), 8000);
       },
       onState: (list) => {
         setPlayers(list);
@@ -225,6 +237,21 @@ function Stage({ name }: { name: string }) {
     const media = mediaRef.current;
     if (!media) return;
     void media.setScreen(media.getScreenState() !== "on");
+  }, []);
+
+  const toggleBroadcast = useCallback(() => {
+    setBroadcasting((was) => {
+      const next = !was;
+      clientRef.current?.sendBroadcast(next);
+      sceneRef.current?.setSelfBroadcast(next);
+      return next;
+    });
+  }, []);
+
+  /** Open the door someone is knocking on, and clear the notice. */
+  const answerKnock = useCallback((knockId: number, doorId: string) => {
+    clientRef.current?.sendDoor(doorId, true);
+    setKnocks((prev) => prev.filter((k) => k.id !== knockId));
   }, []);
 
   useEffect(() => {
@@ -333,7 +360,39 @@ function Stage({ name }: { name: string }) {
         >
           {screenState === "on" ? "Stop sharing" : "Share screen"}
         </button>
+
+        <button
+          type="button"
+          className={`hud-btn${broadcasting ? " live" : ""}`}
+          onClick={toggleBroadcast}
+          disabled={micState !== "live"}
+          aria-pressed={broadcasting}
+          title="Everyone on the floor hears you, through walls and shut doors"
+        >
+          {broadcasting ? "Stop broadcast" : "Broadcast"}
+        </button>
       </div>
+
+      {broadcasting && (
+        <div className="broadcast-bar">
+          Broadcasting to the whole floor — everyone hears you, through walls and shut doors.
+        </div>
+      )}
+
+      {knocks.length > 0 && (
+        <div className="knocks">
+          {knocks.map((k) => (
+            <div key={k.id} className="knock">
+              <span>
+                <strong>{k.name}</strong> is knocking
+              </span>
+              <button type="button" onClick={() => answerKnock(k.id, k.doorId)}>
+                Let them in
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
 
       {micState === "denied" && (
         <div className="banner">

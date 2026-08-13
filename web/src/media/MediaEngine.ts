@@ -423,9 +423,8 @@ export class MediaEngine {
     if (!peer.screenSender) {
       peer.screenSender = peer.pc.addTrack(track, this.screenStream);
       void this.capBitrate(peer.screenSender, SCREEN_MAX_BITRATE);
-    } else {
-      void peer.screenSender.replaceTrack(track);
     }
+    void peer.screenSender.replaceTrack(peer.sendingVideo ? track : null);
   }
 
   private async capBitrate(sender: RTCRtpSender, maxBitrate: number): Promise<void> {
@@ -503,25 +502,33 @@ export class MediaEngine {
 
   /* ── Proximity ─────────────────────────────────────────────────── */
 
-  /**
-   * Set the proximity volume for one peer, and gate outbound video on it.
-   *
-   * Gain is symmetric, so if we cannot hear them they cannot hear us — which
-   * makes this the right place to decide whether our camera is worth sending.
-   * replaceTrack costs no renegotiation, so this is safe to call as people walk.
-   */
+  /** How loudly we hear this peer. */
   setGain(peerId: string, gain: number): void {
     const peer = this.peers.get(peerId);
     if (!peer) return;
-
     peer.targetGain = Math.min(1, Math.max(0, gain));
+  }
 
-    const shouldSend = gain > 0;
-    if (shouldSend === peer.sendingVideo) return;
-    peer.sendingVideo = shouldSend;
+  /**
+   * Whether our camera and screen are worth sending to this peer.
+   *
+   * Driven by whether *they* can hear *us*, which is not the same question as
+   * setGain answers — a broadcaster is heard by everyone but hears only the
+   * room around them. replaceTrack costs no renegotiation, so this is safe to
+   * call as people walk around.
+   */
+  setVideoEnabled(peerId: string, enabled: boolean): void {
+    const peer = this.peers.get(peerId);
+    if (!peer || enabled === peer.sendingVideo) return;
+
+    peer.sendingVideo = enabled;
 
     const cameraTrack = this.cameraStream?.getVideoTracks()[0] ?? null;
-    if (peer.cameraSender) void peer.cameraSender.replaceTrack(shouldSend ? cameraTrack : null);
+    if (peer.cameraSender) void peer.cameraSender.replaceTrack(enabled ? cameraTrack : null);
+
+    // A screenshare follows the same rule: only people who could hear you see it.
+    const screenTrack = this.screenStream?.getVideoTracks()[0] ?? null;
+    if (peer.screenSender) void peer.screenSender.replaceTrack(enabled ? screenTrack : null);
   }
 
   setMuted(muted: boolean): void {

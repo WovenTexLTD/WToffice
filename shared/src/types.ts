@@ -69,6 +69,13 @@ export interface PlayerState {
    */
   cameraStreamId: string | null;
   screenStreamId: string | null;
+
+  /**
+   * Addressing the whole floor. Overrides distance and sealed rooms in one
+   * direction only — everyone hears the broadcaster, the broadcaster still
+   * hears the room around them normally.
+   */
+  broadcasting: boolean;
 }
 
 /* ── Wire protocol ───────────────────────────────────────────────── */
@@ -99,10 +106,19 @@ export type ClientMessage =
   | { t: "move"; x: number; y: number }
   | { t: "presence"; speaking: boolean; muted: boolean }
   | { t: "media"; cameraStreamId: string | null; screenStreamId: string | null }
+  | { t: "broadcast"; on: boolean }
+  /** Open or shut a door. Only permitted from inside the room it belongs to. */
+  | { t: "door"; id: string; open: boolean }
+  /** Ask to be let in. Only meaningful from outside a shut door. */
+  | { t: "knock"; doorId: string }
   | { t: "signal"; to: string; data: SignalData };
 
 export type ServerMessage =
-  | { t: "welcome"; selfId: string; floor: Floor; players: PlayerState[] }
+  | { t: "welcome"; selfId: string; floor: Floor; players: PlayerState[]; shutDoors: string[] }
+  /** Door state changed. Sent on change only — doors move rarely. */
+  | { t: "doors"; shut: string[] }
+  /** Somebody outside wants in. Delivered only to people inside that room. */
+  | { t: "knock"; doorId: string; from: string; name: string }
   | { t: "state"; players: PlayerState[] }
   | { t: "joined"; player: PlayerState }
   | { t: "left"; id: string }

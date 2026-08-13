@@ -13,6 +13,7 @@ import { WebSocketServer, WebSocket } from "ws";
 import {
   woventexFloor,
   resolveMove,
+  wallsWithShutDoors,
   zoneAt,
   distance,
   AVATAR_COLORS,
@@ -27,6 +28,18 @@ import {
 
 const PORT = Number(process.env.PORT ?? 3001);
 const floor = woventexFloor;
+
+/**
+ * Doors that are currently shut. Authoritative here so a modified client cannot
+ * walk through one, and so collision geometry is identical on both sides.
+ */
+const shutDoors = new Set<string>();
+
+/** Collision geometry for right now. Recomputed only when a door moves. */
+let activeWalls = floor.walls;
+function refreshWalls(): void {
+  activeWalls = wallsWithShutDoors(floor, shutDoors);
+}
 
 interface Connection {
   socket: WebSocket;
@@ -94,7 +107,7 @@ function validateMove(
   }
 
   // Same collision resolution the client ran, so results agree.
-  const resolved = resolveMove(from, target, PLAYER_RADIUS, floor.walls, floor);
+  const resolved = resolveMove(from, target, PLAYER_RADIUS, activeWalls, floor);
 
   // Only correct on a meaningful divergence; sub-pixel drift is not worth a packet.
   const corrected = distance(resolved, requested) > 2;
@@ -146,11 +159,18 @@ wss.on("connection", (socket) => {
         muted: false,
         cameraStreamId: null,
         screenStreamId: null,
+        broadcasting: false,
       };
       conn.player = player;
       conn.lastMoveAt = Date.now();
 
-      send(socket, { t: "welcome", selfId: id, floor, players: livePlayers() });
+      send(socket, {
+        t: "welcome",
+        selfId: id,
+        floor,
+        players: livePlayers(),
+        shutDoors: [...shutDoors],
+      });
       broadcast({ t: "joined", player }, id);
       console.log(`[join]  ${player.name} (${id}) — ${livePlayers().length} online`);
       return;
@@ -188,6 +208,58 @@ wss.on("connection", (socket) => {
       return;
     }
 
+    if (msg.t === "broadcast") {
+      if (!conn.player) return;
+      conn.player.broadcasting = Boolean(msg.on);
+      return;
+    }
+
+    if (msg.t === "door") {
+      const player = conn.player;
+      if (!player) return;
+
+      const door = floor.doors.find((d) => d.id === msg.id);
+      if (!door) return;
+
+      // Only from inside. Otherwise anyone could shut a room's door on the
+      // people in it, or open it on a private conversation from the corridor.
+      if (player.zoneId !== door.zoneId) return;
+
+      const shouldShut = !msg.open;
+      if (shutDoors.has(door.id) === shouldShut) return;
+
+      if (shouldShut) shutDoors.add(door.id);
+      else shutDoors.delete(door.id);
+
+      refreshWalls();
+      broadcast({ t: "doors", shut: [...shutDoors] });
+      console.log(`[door]  ${door.id} ${shouldShut ? "shut" : "opened"} by ${player.name}`);
+      return;
+    }
+
+    if (msg.t === "knock") {
+      const player = conn.player;
+      if (!player) return;
+
+      const door = floor.doors.find((d) => d.id === msg.doorId);
+      if (!door) return;
+
+      // Knocking only makes sense from outside the room you want into.
+      if (player.zoneId === door.zoneId) return;
+
+      // Delivered only to the people who could answer it.
+      for (const other of connections.values()) {
+        if (other.player?.zoneId !== door.zoneId) continue;
+        send(other.socket, {
+          t: "knock",
+          doorId: door.id,
+          from: player.id,
+          name: player.name,
+        });
+      }
+      return;
+    }
+
     if (msg.t === "signal") {
       // Relay WebRTC signalling verbatim. The server never inspects the payload
       // and never joins the call — media is peer-to-peer.
@@ -213,10 +285,45 @@ wss.on("connection", (socket) => {
 
 /* ── Loops ───────────────────────────────────────────────────────── */
 
+/**
+ * Reopen doors on empty rooms.
+ *
+ * Doors can only be worked from inside, so a room whose last occupant left or
+ * disconnected while it was shut would be sealed permanently — nobody outside
+ * can open it, and nobody can get in to try. Releasing empty rooms removes that
+ * dead end entirely.
+ */
+function reopenEmptyRooms(): void {
+  if (shutDoors.size === 0) return;
+
+  const players = livePlayers();
+  let changed = false;
+
+  for (const doorId of [...shutDoors]) {
+    const door = floor.doors.find((d) => d.id === doorId);
+    if (!door) {
+      shutDoors.delete(doorId);
+      changed = true;
+      continue;
+    }
+    if (!players.some((p) => p.zoneId === door.zoneId)) {
+      shutDoors.delete(doorId);
+      changed = true;
+      console.log(`[door]  ${door.id} reopened — room empty`);
+    }
+  }
+
+  if (changed) {
+    refreshWalls();
+    broadcast({ t: "doors", shut: [...shutDoors] });
+  }
+}
+
 // Broadcast world state. Remote avatars are interpolated client-side between these.
 setInterval(() => {
   const players = livePlayers();
   if (players.length > 0) broadcast({ t: "state", players });
+  reopenEmptyRooms();
 }, 1000 / TICK_HZ);
 
 // Reap connections that stopped responding (laptop lid closed, network dropped).
