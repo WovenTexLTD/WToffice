@@ -109,29 +109,33 @@ export const woventexFloor: Floor = {
   entrance: { x: 0, y: 760, w: WALL, h: 220 },
 
   walls: [
-    // Shell.
-    { x: 0, y: 0, w: W, h: WALL },
+    // Shell. The north elevation is fully glazed — it is the long face of the
+    // building, and glass there is most of what stops the plan feeling sealed.
+    { x: 0, y: 0, w: W, h: WALL, glass: true },
     { x: 0, y: H - WALL, w: W, h: WALL },
     { x: 0, y: 0, w: WALL, h: H },
     { x: W - WALL, y: 0, w: WALL, h: H },
 
+    // The three rooms are glazed partitions, so the floor stays legible
+    // from anywhere and you can see whether a room is occupied before you walk
+    // over. They still seal audio.
     // Meeting room, door on its left wall.
-    { x: ROOM_LEFT, y: 60, w: W - ROOM_LEFT - WALL, h: WALL },
-    { x: ROOM_LEFT, y: 546, w: W - ROOM_LEFT - WALL, h: WALL },
-    { x: ROOM_LEFT, y: 60, w: WALL, h: 190 },
-    { x: ROOM_LEFT, y: 350, w: WALL, h: 210 },
+    { x: ROOM_LEFT, y: 60, w: W - ROOM_LEFT - WALL, h: WALL, glass: true },
+    { x: ROOM_LEFT, y: 546, w: W - ROOM_LEFT - WALL, h: WALL, glass: true },
+    { x: ROOM_LEFT, y: 60, w: WALL, h: 190, glass: true },
+    { x: ROOM_LEFT, y: 350, w: WALL, h: 210, glass: true },
 
     // Focus room.
-    { x: ROOM_LEFT, y: 660, w: W - ROOM_LEFT - WALL, h: WALL },
-    { x: ROOM_LEFT, y: 1046, w: W - ROOM_LEFT - WALL, h: WALL },
-    { x: ROOM_LEFT, y: 660, w: WALL, h: 140 },
-    { x: ROOM_LEFT, y: 900, w: WALL, h: 160 },
+    { x: ROOM_LEFT, y: 660, w: W - ROOM_LEFT - WALL, h: WALL, glass: true },
+    { x: ROOM_LEFT, y: 1046, w: W - ROOM_LEFT - WALL, h: WALL, glass: true },
+    { x: ROOM_LEFT, y: 660, w: WALL, h: 140, glass: true },
+    { x: ROOM_LEFT, y: 900, w: WALL, h: 160, glass: true },
 
     // Breakout room.
-    { x: ROOM_LEFT, y: 1160, w: W - ROOM_LEFT - WALL, h: WALL },
-    { x: ROOM_LEFT, y: 1626, w: W - ROOM_LEFT - WALL, h: WALL },
-    { x: ROOM_LEFT, y: 1160, w: WALL, h: 150 },
-    { x: ROOM_LEFT, y: 1410, w: WALL, h: 230 },
+    { x: ROOM_LEFT, y: 1160, w: W - ROOM_LEFT - WALL, h: WALL, glass: true },
+    { x: ROOM_LEFT, y: 1626, w: W - ROOM_LEFT - WALL, h: WALL, glass: true },
+    { x: ROOM_LEFT, y: 1160, w: WALL, h: 150, glass: true },
+    { x: ROOM_LEFT, y: 1410, w: WALL, h: 230, glass: true },
   ],
 
   zones: [

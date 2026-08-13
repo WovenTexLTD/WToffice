@@ -28,6 +28,17 @@ export interface Door extends Rect {
   zoneId: string;
 }
 
+/**
+ * A wall.
+ *
+ * Glazing is purely a matter of how it is drawn — a glass wall still blocks
+ * movement, and a glass meeting room still seals audio, exactly as a solid one
+ * does. Real glazed partitions are sound-isolated too.
+ */
+export interface Wall extends Rect {
+  glass?: boolean;
+}
+
 /** Ground covering. Purely visual, but it is most of what makes a room read. */
 export type Material = "oak" | "carpet" | "tile" | "concrete";
 
@@ -117,7 +128,7 @@ export interface Floor {
   width: number;
   height: number;
   spawn: Vec2;
-  walls: Rect[];
+  walls: Wall[];
   zones: Zone[];
   doors: Door[];
   areas: Area[];

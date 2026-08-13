@@ -29,6 +29,7 @@ import {
   type Floor,
   type PlayerState,
   type Rect,
+  type Wall,
 } from "@wtoffice/shared";
 
 import { buildFurniture } from "./models";
@@ -355,6 +356,11 @@ export class ThreeScene {
     const skirting = new THREE.MeshStandardMaterial({ color: "#D8D0C4", roughness: 0.8 });
 
     for (const w of floor.walls) {
+      if (w.glass) {
+        this.buildGlazedWall(w);
+        continue;
+      }
+
       const mesh = new THREE.Mesh(new THREE.BoxGeometry(w.w, WALL_H, w.h), material);
       mesh.position.set(w.x + w.w / 2, WALL_H / 2, w.y + w.h / 2);
       mesh.castShadow = true;
@@ -394,6 +400,67 @@ export class ThreeScene {
     const daylight = new THREE.PointLight(0xdcecff, 2.4, 900, 1.4);
     daylight.position.set(e.x + e.w + 70, WALL_H * 0.5, e.y + e.h / 2);
     this.worldGroup.add(daylight);
+  }
+
+  /**
+   * A glazed partition: panel, floor and head rails, and mullions.
+   *
+   * The framing is what sells it. A bare transparent box reads as a rendering
+   * mistake; rails and posts at a believable spacing read as architecture.
+   *
+   * Deliberately cheap glass — tinted and transparent, with no `transmission`.
+   * Real refraction costs an extra render pass per frame, and at this camera
+   * distance, through a 2cm pane, it buys nothing you can see.
+   *
+   * The panel casts no shadow, or every glass room would sit in a dark
+   * rectangle. The framing still does, which keeps them grounded.
+   */
+  private buildGlazedWall(w: Wall): void {
+    const glass = new THREE.MeshPhysicalMaterial({
+      color: "#CBDEE0",
+      roughness: 0.06,
+      metalness: 0,
+      transparent: true,
+      opacity: 0.24,
+      side: THREE.DoubleSide,
+    });
+    const frame = new THREE.MeshStandardMaterial({ color: "#454B50", roughness: 0.4, metalness: 0.6 });
+
+    const cx = w.x + w.w / 2;
+    const cz = w.y + w.h / 2;
+    const alongX = w.w >= w.h;
+    const span = alongX ? w.w : w.h;
+
+    const panel = new THREE.Mesh(
+      new THREE.BoxGeometry(alongX ? w.w : w.w * 0.4, WALL_H - 26, alongX ? w.h * 0.4 : w.h),
+      glass,
+    );
+    panel.position.set(cx, (WALL_H - 26) / 2 + 13, cz);
+    this.worldGroup.add(panel);
+
+    const rail = (y: number, height: number) => {
+      const mesh = new THREE.Mesh(new THREE.BoxGeometry(w.w, height, w.h), frame);
+      mesh.position.set(cx, y, cz);
+      mesh.castShadow = true;
+      mesh.receiveShadow = true;
+      this.worldGroup.add(mesh);
+    };
+    rail(6.5, 13);
+    rail(WALL_H - 6.5, 13);
+
+    // A post roughly every 1.2m, which is how real glazing is divided.
+    const posts = Math.max(1, Math.round(span / 102));
+    for (let i = 1; i < posts; i++) {
+      const t = i / posts;
+      const post = new THREE.Mesh(new THREE.BoxGeometry(alongX ? 7 : w.w, WALL_H - 26, alongX ? w.h : 7), frame);
+      post.position.set(
+        alongX ? w.x + t * w.w : cx,
+        (WALL_H - 26) / 2 + 13,
+        alongX ? cz : w.y + t * w.h,
+      );
+      post.castShadow = true;
+      this.worldGroup.add(post);
+    }
   }
 
   private buildDoors(floor: Floor): void {
