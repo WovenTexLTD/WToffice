@@ -117,4 +117,7 @@ export const MODELS: Partial<Record<FurnitureKind, ModelSpec>> = {
   roundTable: { url: "/models/round-table.glb", scale: M, upAxis: "z" },
   benchDesk: { url: "/models/bench-desk.glb", scale: M, upAxis: "z" },
   monitor: { url: "/models/monitor.glb", scale: M, upAxis: "z" },
+  beanbag: { url: "/models/beanbag.glb", scale: M, upAxis: "z" },
+  pouffe: { url: "/models/pouffe.glb", scale: M, upAxis: "z" },
+  daybed: { url: "/models/daybed.glb", scale: M, upAxis: "z" },
 };

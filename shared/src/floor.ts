@@ -200,6 +200,30 @@ export const woventexFloor: Floor = {
     { kind: "wallArt", x: 1000, y: 30 },
     { kind: "wallArt", x: 1400, y: 30, model: "wall-art-b" },
 
+    /* ── Hangout, filling the lower half of the studio ────────────── */
+
+    // A low bookcase screens the social end from the desks. Waist height, so
+    // it separates the two without walling either of them in — which is the
+    // whole trick with an open plan.
+    { kind: "shelf", x: 1080, y: 800, solid: true },
+    { kind: "shelf", x: 1280, y: 800, solid: true, model: "shelf-b" },
+    { kind: "plant", x: 1180, y: 790, model: "plant-c" },
+
+    // Sofa, two armchairs and a table around a rug — a closed conversation
+    // group, everything facing in.
+    ...loungeSet(1180, 1070, "rug"),
+
+    // Soft seating on the open side, where a chair would feel too formal.
+    { kind: "beanbag", x: 970, y: 1215, rotation: deg(38) },
+    { kind: "beanbag", x: 1390, y: 1215, rotation: deg(-38) },
+    { kind: "pouffe", x: 1180, y: 1230 },
+    { kind: "daybed", x: 1600, y: 1150, rotation: deg(-90), solid: true },
+
+    { kind: "lamp", x: 900, y: 950 },
+    { kind: "console", x: 1610, y: 900, rotation: deg(90), solid: true },
+    { kind: "plant", x: 760, y: 1250, model: "plant-big" },
+    { kind: "plant", x: 1610, y: 810, model: "tree" },
+
     /* ── Meeting room ─────────────────────────────────────────────── */
     { kind: "meetingTable", x: 2180, y: 300, solid: true },
     ...seatsAround(2180, 300, 200, 105, 3),

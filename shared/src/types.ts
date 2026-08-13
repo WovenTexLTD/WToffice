@@ -110,7 +110,10 @@ export type FurnitureKind =
   | "waterCooler"
   | "roundTable"
   | "benchDesk"
-  | "monitor";
+  | "monitor"
+  | "beanbag"
+  | "pouffe"
+  | "daybed";
 
 export interface Furniture {
   kind: FurnitureKind;
@@ -203,6 +206,9 @@ export const FURNITURE_SIZE: Record<FurnitureKind, { w: number; h: number }> = {
   roundTable: { w: 184, h: 173 }, //   2.17 × 2.03 m
   benchDesk: { w: 313, h: 65 }, //     3.68 × 0.77 m
   monitor: { w: 57, h: 16 }, //        0.67 × 0.19 m
+  beanbag: { w: 61, h: 57 }, //        0.72 × 0.67 m
+  pouffe: { w: 49, h: 49 }, //         0.58 × 0.58 m
+  daybed: { w: 58, h: 151 }, //        0.68 × 1.78 m
 };
 
 export type PresenceStatus = "available" | "focusing" | "away";
