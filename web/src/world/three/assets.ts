@@ -118,5 +118,6 @@ export const MODELS: Partial<Record<FurnitureKind, ModelSpec>> = {
   benchDesk: { url: "/models/bench-desk.glb", scale: M, upAxis: "z" },
   monitor: { url: "/models/monitor.glb", scale: M, upAxis: "z" },
   softCube: { url: "/models/soft-cube.glb", scale: M, upAxis: "z" },
+  sideChair: { url: "/models/side-chair.glb", scale: M, upAxis: "z" },
   floorCushion: { url: "/models/floor-cushion.glb", scale: M, upAxis: "z" },
 };

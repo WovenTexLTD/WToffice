@@ -195,7 +195,14 @@ let cache: Record<string, SurfaceMaps> | null = null;
  * Built once and shared. Generating these is the most expensive thing that
  * happens at start-up, and every floor of the same material can share them.
  */
-export type SurfaceName = "oak" | "walnut" | "tile" | "carpet" | "carpetDark" | "concrete";
+export type SurfaceName =
+  | "oak"
+  | "walnut"
+  | "tile"
+  | "carpet"
+  | "carpetDark"
+  | "concrete"
+  | "navy";
 
 export function surfaces(): Record<SurfaceName, SurfaceMaps> {
   if (cache) return cache as Record<SurfaceName, SurfaceMaps>;
@@ -217,6 +224,9 @@ export function surfaces(): Record<SurfaceName, SurfaceMaps> {
     // at this size stops looking like carpet and starts looking like tarmac.
     carpetDark: { map: toTexture(carpetCanvas(212, 4, 37, 7), 1), roughnessMap: rough(0.97, 0.08, 1) },
     concrete: { map: toTexture(tileCanvas(), 1), roughnessMap: rough(0.8, 0.2, 1) },
+    // Rug navy. Deeper and more saturated than the floor carpets, because a rug
+    // is meant to be seen as an object on the floor rather than as the floor.
+    navy: { map: toTexture(carpetCanvas(217, 34, 21, 9), 1), roughnessMap: rough(0.96, 0.1, 1) },
   };
   return cache as Record<SurfaceName, SurfaceMaps>;
 }
@@ -228,6 +238,7 @@ const ROUGHNESS: Record<SurfaceName, number> = {
   carpet: 0.98,
   carpetDark: 0.98,
   concrete: 0.85,
+  navy: 0.99,
 };
 
 /**

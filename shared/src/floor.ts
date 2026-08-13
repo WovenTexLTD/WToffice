@@ -225,24 +225,37 @@ export const woventexFloor: Floor = {
     { kind: "shelf", x: 1280, y: 800, solid: true },
     { kind: "plant", x: 1180, y: 795, model: "plant-big" },
 
-    // Sofa, two armchairs and a table around a rug — a closed conversation
-    // group, everything facing in.
-    ...loungeSet(1180, 1070, "rug-round"),
+    // The hangout proper. Not the shared loungeSet: this one is built around a
+    // corner sofa nearly three metres deep, which needs its own spacing, and it
+    // is the only group in the office that seats six.
+    //
+    // The rug does the work of the missing walls. Everything sits on it, so the
+    // group reads as one place rather than as furniture that happens to be near
+    // other furniture — and it is drawn rather than loaded so it can be sized to
+    // the group and coloured to contrast with the pale boards.
+    { kind: "areaRug", x: 1180, y: 1120 },
 
-    // Informal seating on the open side, where a chair would feel too formal.
-    // The pack has no bean bags; soft cubes and a floor cushion are the nearest
-    // thing, and they sit better with the rest of the group than a novelty
-    // shape would.
-    // A pair pulled up on one side and a cushion on the other. Spaced evenly in
-    // a symmetric arc they read as three abandoned boxes; grouped unevenly they
-    // read as seats someone moved.
-    { kind: "softCube", x: 1042, y: 1196, rotation: deg(-22) },
-    { kind: "softCube", x: 1108, y: 1224, rotation: deg(-8) },
-    { kind: "softCube", x: 1312, y: 1192, rotation: deg(26) },
+    // The sofa is an L. Its two legs run along the top and left of the rug, so
+    // the group's focus is the crook they enclose — not the middle of the rug,
+    // which is where a straight sofa would have put it. Everything else rings
+    // that crook from the open side.
+    { kind: "sofa", x: 1102, y: 1052, w: 207, h: 226, solid: true, model: "sofa-l" },
+    { kind: "coffeeTable", x: 1210, y: 1140, solid: true },
+
+    // Facing back into the crook. Rotation 0 faces north and negative turns
+    // clockwise, so a seat east of the table needs +90 to look west.
+    { kind: "armchair", x: 1330, y: 1105, w: 57, h: 69, rotation: deg(90), solid: true, model: "lounge-chair" },
+    { kind: "armchair", x: 1288, y: 1252, w: 57, h: 69, rotation: deg(140), solid: true, model: "lounge-chair" },
+
+    // Two stools closing the ring on the open side, for when the whole team is
+    // in. Nothing sits off the rug: the point of it is that the group reads as
+    // one place.
+    { kind: "sideChair", x: 1148, y: 1272, rotation: deg(180), solid: true },
+    { kind: "sideChair", x: 1046, y: 1244, rotation: deg(214), solid: true },
 
     // Beside the sofa, where a lamp belongs. On its own in the middle of the
     // floor it just reads as an object.
-    { kind: "lamp", x: 1058, y: 962 },
+    { kind: "lamp", x: 926, y: 986 },
     { kind: "console", x: 1610, y: 940, rotation: deg(90), solid: true },
     { kind: "plant", x: 1610, y: 850, model: "plant-big" },
     { kind: "plant", x: 780, y: 1230, model: "tree" },

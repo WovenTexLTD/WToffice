@@ -13,6 +13,7 @@
 
 import * as THREE from "three";
 import { FURNITURE_SIZE, type Furniture, type FurnitureKind } from "@wtoffice/shared";
+import { floorMaterial } from "./textures";
 
 /* ── Materials ────────────────────────────────────────────────────── */
 
@@ -44,6 +45,8 @@ const M = {
   leafDark: mat("#44603D", 0.85),
   rugPile: mat("#B4A796", 1),
   rugTrim: mat("#9C6046", 1),
+  /** The bound edge of a drawn rug — a shade under its own weave. */
+  rugBind: mat("#141B2A", 1),
   glassWarm: new THREE.MeshStandardMaterial({
     color: "#F6E2B8",
     emissive: new THREE.Color("#F6E2B8"),
@@ -286,6 +289,39 @@ const BUILD: Partial<Record<FurnitureKind, Build>> = {
     const inner = box(w - 30, 1.6, d - 30, M.rugPile, 0, 1, 0);
     inner.castShadow = false;
     g.add(inner);
+    return g;
+  },
+
+  /**
+   * A rug drawn here rather than loaded from the pack.
+   *
+   * The pack's rugs come in whatever colour and proportion they were modelled
+   * in, and none of them is a plain dark square. Drawing it means the size and
+   * the colour are both free variables — which matters, because a rug's job is
+   * to draw a boundary around a group of furniture, and that boundary has to be
+   * sized to the group, not to a model.
+   */
+  areaRug(w, d) {
+    const g = new THREE.Group();
+
+    // Two centimetres of pile. Any thicker and chairs read as standing on a
+    // plinth rather than on a rug.
+    const edge = box(w, 1.5, d, M.rugBind, 0, 0.75, 0);
+    edge.castShadow = false;
+    edge.receiveShadow = true;
+    g.add(edge);
+
+    // The woven field, inset to leave a bound border — the detail that makes a
+    // rug read as made rather than as a painted rectangle.
+    const field = new THREE.Mesh(
+      new THREE.BoxGeometry(w - 20, 1.8, d - 20),
+      floorMaterial("navy", w, d),
+    );
+    field.position.set(0, 0.9, 0);
+    field.castShadow = false;
+    field.receiveShadow = true;
+    g.add(field);
+
     return g;
   },
 

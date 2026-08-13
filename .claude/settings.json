@@ -9,7 +9,10 @@
       "Bash(node tools/inspect-models.mjs ~/Downloads/Separate_assets_glb Partitions_048 --zup)",
       "Bash(node tools/inspect-models.mjs ~/Downloads/Separate_assets_glb Partitions_005 --zup)",
       "Bash(cd /Users/karimsabbagh/Documents/GitHub/WToffice *)",
-      "Bash(node tools/inspect-models.mjs --zup \"shelf_0\")"
+      "Bash(node tools/inspect-models.mjs --zup \"shelf_0\")",
+      "Read(//Users/karimsabbagh/Documents/GitHub/WToffice/web/public/**)",
+      "Bash(node tools/inspect-models.mjs web/public/catalogue)",
+      "Bash(node tools/inspect-models.mjs /tmp/pick --zup)"
     ],
     "additionalDirectories": [
       "/Users/karimsabbagh/Downloads/Separate_assets_glb"

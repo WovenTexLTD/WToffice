@@ -112,7 +112,9 @@ export type FurnitureKind =
   | "benchDesk"
   | "monitor"
   | "softCube"
-  | "floorCushion";
+  | "floorCushion"
+  | "sideChair"
+  | "areaRug";
 
 export interface Furniture {
   kind: FurnitureKind;
@@ -207,6 +209,9 @@ export const FURNITURE_SIZE: Record<FurnitureKind, { w: number; h: number }> = {
   monitor: { w: 57, h: 16 }, //        0.67 × 0.19 m
   softCube: { w: 48, h: 36 }, //       0.56 × 0.42 m
   floorCushion: { w: 57, h: 65 }, //   0.67 × 0.77 m
+  sideChair: { w: 75, h: 71 }, //      0.88 × 0.84 m
+  // Drawn rather than loaded, so this is the real size, not a model's.
+  areaRug: { w: 417, h: 417 }, //      4.90 m square
 };
 
 export type PresenceStatus = "available" | "focusing" | "away";
