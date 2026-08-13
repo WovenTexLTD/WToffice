@@ -55,6 +55,22 @@ function loadOnce(url: string): Promise<THREE.Group> {
 function normalise(source: THREE.Group, spec: ModelSpec, width: number, depth: number): THREE.Group {
   const model = source.clone(true);
 
+  // Materials are shared with the cached source, so they must be copied before
+  // being repainted or every instance of the model changes with them.
+  if (spec.tint) {
+    const paint = (material: THREE.Material) => {
+      const copy = material.clone();
+      if ("color" in copy) (copy as THREE.MeshStandardMaterial).color.set(spec.tint!);
+      return copy;
+    };
+    model.traverse((child) => {
+      if (!(child instanceof THREE.Mesh)) return;
+      child.material = Array.isArray(child.material)
+        ? child.material.map(paint)
+        : paint(child.material);
+    });
+  }
+
   // Correct the up axis before measuring anything.
   //
   // glTF specifies Y-up, but packs exported from Blender or 3ds Max routinely

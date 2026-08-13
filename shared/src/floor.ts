@@ -46,8 +46,11 @@ const DESK_TOP = 62;
 function deskBank(cx: number, cy: number): Furniture[] {
   const out: Furniture[] = [];
   const PITCH = 168;
-  /** Half the gap between the two desks of a pair. */
-  const REACH = 38;
+  /**
+   * Half the depth of a desk, so the pair butt together. A gap between them
+   * leaves the shared screen supported by nothing, and it hovers.
+   */
+  const REACH = 28;
   const SEAT = 100;
 
   for (const side of [-0.5, 0.5]) {
@@ -59,14 +62,17 @@ function deskBank(cx: number, cy: number): Furniture[] {
     out.push({ kind: "chair", x, y: cy - SEAT });
 
     // The screen they share, sitting on the desks between them.
-    out.push({ kind: "partition", x, y: cy, elevation: DESK_TOP });
+    // Set into the desks rather than perched on them: the base disappears
+    // behind the desk edge and the panel stands about 40cm proud, which is what
+    // a desk screen looks like.
+    out.push({ kind: "partition", x, y: cy, elevation: 34 });
 
     // South desk: whoever sits here is below it, facing north.
     out.push({ kind: "desk", x, y: cy + REACH, solid: true });
     out.push({ kind: "monitor", x, y: cy + 24, elevation: DESK_TOP });
     out.push({ kind: "chair", x, y: cy + SEAT, rotation: deg(180) });
 
-    out.push({ kind: "deskLamp", x: x + 54, y: cy - REACH - 12, elevation: DESK_TOP });
+    out.push({ kind: "deskLamp", x: x + 54, y: cy - REACH - 14, elevation: DESK_TOP });
   }
   return out;
 }

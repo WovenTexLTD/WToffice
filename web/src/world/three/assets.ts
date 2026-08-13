@@ -44,6 +44,14 @@ export interface ModelSpec {
    * floor lamp only reads as 2m tall with the flag, the pack is Z-up.
    */
   upAxis?: "y" | "z";
+  /**
+   * Repaints every material on the model.
+   *
+   * The pack ships almost no texture imagery — 2.6 KB for 1,740 models — so its
+   * colour lives in material values, which means overriding them actually
+   * recolours the object rather than tinting a picture of one.
+   */
+  tint?: string;
 }
 
 /**
@@ -84,7 +92,7 @@ export const GROUND: ModelSpec & { tileMetres: number } = {
 };
 
 export const MODELS: Partial<Record<FurnitureKind, ModelSpec>> = {
-  desk: { url: "/models/desk.glb", scale: M, upAxis: "z" },
+  desk: { url: "/models/desk.glb", scale: M, upAxis: "z", tint: "#EDEAE4" },
   chair: { url: "/models/task-chair.glb", scale: M, upAxis: "z" },
   meetingTable: { url: "/models/meeting-table.glb", scale: M, upAxis: "z" },
   sofa: { url: "/models/sofa.glb", scale: M, upAxis: "z" },
