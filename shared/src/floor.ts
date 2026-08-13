@@ -166,9 +166,8 @@ export const woventexFloor: Floor = {
     { id: "entrance", label: "Entrance", x: 40, y: 700, w: 400, h: 320, material: "tile" },
     { id: "kitchen", label: "Kitchen", x: 60, y: 60, w: 520, h: 380, material: "tile" },
     { id: "lounge", label: "Lounge", x: 60, y: 1160, w: 520, h: 480, material: "carpet" },
-    // Inset, so the boards frame the carpet rather than the carpet swallowing
-    // the middle of the plan.
-    { id: "studio", label: "Studio Floor", x: 700, y: 340, w: 960, h: 1020, material: "carpetDark" },
+    // The same boards as the rooms, so the whole floor reads as one surface.
+    { id: "studio", label: "Studio Floor", x: 700, y: 340, w: 960, h: 1020, material: "oak" },
   ],
 
   furniture: [

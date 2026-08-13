@@ -34,7 +34,7 @@ import {
 
 import { buildFurniture } from "./models";
 import { groundTiles, modelFor, tileFloor } from "./loader";
-import { labelSprite, surfaces } from "./textures";
+import { floorMaterial, labelSprite } from "./textures";
 
 /* ── Scale ────────────────────────────────────────────────────────── */
 
@@ -312,11 +312,9 @@ export class ThreeScene {
   }
 
   private buildGround(floor: Floor): void {
-    const maps = surfaces();
-
     const slab = new THREE.Mesh(
       new THREE.PlaneGeometry(floor.width, floor.height),
-      new THREE.MeshStandardMaterial({ ...maps[floor.groundMaterial], roughness: 0.72 }),
+      floorMaterial(floor.groundMaterial, floor.width, floor.height),
     );
     slab.rotation.x = -Math.PI / 2;
     slab.position.set(floor.width / 2, 0, floor.height / 2);
@@ -347,7 +345,7 @@ export class ThreeScene {
       // in one place, and that place is the generator in textures.ts.
       // The procedural covering goes down either way: it is what shows while a
       // model tile loads, and what remains if one is not named or fails.
-      patch(area, new THREE.MeshStandardMaterial({ ...maps[area.material] }), 0.4);
+      patch(area, floorMaterial(area.material, area.w, area.h), 0.4);
 
       if (!area.model) continue;
       void tileFloor(`/models/${area.model}.glb`, area).then((tiles) => {
@@ -358,7 +356,7 @@ export class ThreeScene {
     }
 
     for (const zone of floor.zones) {
-      patch(zone, new THREE.MeshStandardMaterial({ ...maps.oak }), 0.4);
+      patch(zone, floorMaterial("oak", zone.w, zone.h), 0.4);
     }
   }
 

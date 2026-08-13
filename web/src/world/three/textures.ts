@@ -11,7 +11,16 @@
 
 import * as THREE from "three";
 
-const TILE_PX = 512;
+const TILE_PX = 1024;
+
+/**
+ * World units covered by one texture tile — about four metres.
+ *
+ * Repeat is derived from this and the surface's own size, so a plank is the
+ * same width on a 2600-unit floor as on a 400-unit one. A fixed repeat stretches
+ * the texture by whatever the surface's aspect happens to be.
+ */
+const TILE_WORLD = 340;
 
 function surface(draw: (ctx: CanvasRenderingContext2D, size: number) => void): HTMLCanvasElement {
   const canvas = document.createElement("canvas");
@@ -47,39 +56,50 @@ function rand(seed: number): number {
  * ash to dark walnut, and it is the one value worth tuning by eye. Grain and
  * seams are derived from it so the whole board darkens together.
  */
-function oakCanvas(base = 47, sat = 33, hue = 30): HTMLCanvasElement {
+function oakCanvas(base = 74, sat = 20, hue = 34): HTMLCanvasElement {
   return surface((ctx, size) => {
-    const rows = 6;
+    const rows = 12;
     const rowH = size / rows;
+    const plankLen = size / 2;
 
     for (let row = 0; row < rows; row++) {
-      const stagger = (row % 2) * (size / 4);
+      // Thirds rather than halves, so the joints do not line up every other row.
+      const stagger = ((row % 3) / 3) * plankLen;
+
       for (let i = -1; i < 3; i++) {
-        const x = stagger + i * (size / 2);
-        const shade = rand(row * 13 + i * 7);
+        const x = stagger + i * plankLen;
+        const seed = row * 13 + i * 7;
+        const light = base + (rand(seed) - 0.5) * 9;
 
-        ctx.fillStyle = `hsl(${hue}, ${sat}%, ${base + shade * 8}%)`;
-        ctx.fillRect(x, row * rowH, size / 2, rowH);
+        ctx.fillStyle = `hsl(${hue}, ${sat}%, ${light}%)`;
+        ctx.fillRect(x, row * rowH, plankLen, rowH);
 
-        // Grain: long, low-contrast strokes along the board.
-        ctx.strokeStyle = `hsla(${hue - 2}, ${sat - 2}%, ${base - 13 + shade * 6}%, 0.3)`;
-        ctx.lineWidth = 1;
-        for (let g = 0; g < 7; g++) {
-          const gy = row * rowH + (rand(row * 31 + i * 17 + g) * rowH);
+        // Grain, clipped to the board so strokes never run across a joint.
+        ctx.save();
+        ctx.beginPath();
+        ctx.rect(x, row * rowH, plankLen, rowH);
+        ctx.clip();
+        ctx.strokeStyle = `hsla(${hue - 3}, ${sat + 6}%, ${light - 15}%, 0.2)`;
+        ctx.lineWidth = 1.3;
+        for (let g = 0; g < 9; g++) {
+          const gy = row * rowH + rand(seed + g * 3) * rowH;
           ctx.beginPath();
-          ctx.moveTo(x, gy);
+          ctx.moveTo(x - 4, gy);
           ctx.bezierCurveTo(
-            x + size / 6, gy + (rand(g + i) - 0.5) * 4,
-            x + size / 3, gy + (rand(g + row) - 0.5) * 4,
-            x + size / 2, gy,
+            x + plankLen * 0.3, gy + (rand(g + i) - 0.5) * 8,
+            x + plankLen * 0.7, gy + (rand(g + row) - 0.5) * 8,
+            x + plankLen + 4, gy,
           );
           ctx.stroke();
         }
+        ctx.restore();
 
-        // Board seam.
-        ctx.strokeStyle = `hsla(${hue - 4}, ${sat - 4}%, ${base - 22}%, 0.6)`;
-        ctx.lineWidth = 1.5;
-        ctx.strokeRect(x, row * rowH, size / 2, rowH);
+        // A dark line on the top and left edges reads as the bevel between
+        // boards, which is most of what makes a floor look laid rather than
+        // printed.
+        ctx.fillStyle = `hsla(${hue - 6}, ${sat}%, ${base - 28}%, 0.45)`;
+        ctx.fillRect(x, row * rowH, plankLen, 2);
+        ctx.fillRect(x, row * rowH, 2, rowH);
       }
     }
   });
@@ -175,7 +195,7 @@ let cache: Record<string, SurfaceMaps> | null = null;
  * Built once and shared. Generating these is the most expensive thing that
  * happens at start-up, and every floor of the same material can share them.
  */
-type SurfaceName = "oak" | "tile" | "carpet" | "carpetDark" | "concrete";
+export type SurfaceName = "oak" | "tile" | "carpet" | "carpetDark" | "concrete";
 
 export function surfaces(): Record<SurfaceName, SurfaceMaps> {
   if (cache) return cache as Record<SurfaceName, SurfaceMaps>;
@@ -185,16 +205,49 @@ export function surfaces(): Record<SurfaceName, SurfaceMaps> {
   cache = {
     // Mid-tone boards. Raise the first argument for a paler floor, lower it for
     // walnut — it is the one number worth adjusting by eye.
-    oak: { map: toTexture(oakCanvas(47), 6), roughnessMap: rough(0.55, 0.25, 6) },
-    tile: { map: toTexture(tileCanvas(), 8), roughnessMap: rough(0.28, 0.16, 8) },
+    // Pale boards. Raise the first argument for a whiter floor, lower it for
+    // walnut — it is the one number worth adjusting by eye.
+    oak: { map: toTexture(oakCanvas(74), 1), roughnessMap: rough(0.5, 0.22, 1) },
+    tile: { map: toTexture(tileCanvas(), 1), roughnessMap: rough(0.28, 0.16, 1) },
     // Warm beige.
-    carpet: { map: toTexture(carpetCanvas(36, 14, 62, 12), 10), roughnessMap: rough(0.95, 0.1, 10) },
+    carpet: { map: toTexture(carpetCanvas(36, 14, 62, 12), 1), roughnessMap: rough(0.95, 0.1, 1) },
     // Mid commercial grey, slightly cool so it does not read as brown. Charcoal
     // at this size stops looking like carpet and starts looking like tarmac.
-    carpetDark: { map: toTexture(carpetCanvas(212, 4, 37, 7), 10), roughnessMap: rough(0.97, 0.08, 10) },
-    concrete: { map: toTexture(tileCanvas(), 3), roughnessMap: rough(0.8, 0.2, 3) },
+    carpetDark: { map: toTexture(carpetCanvas(212, 4, 37, 7), 1), roughnessMap: rough(0.97, 0.08, 1) },
+    concrete: { map: toTexture(tileCanvas(), 1), roughnessMap: rough(0.8, 0.2, 1) },
   };
   return cache as Record<SurfaceName, SurfaceMaps>;
+}
+
+const ROUGHNESS: Record<SurfaceName, number> = {
+  oak: 0.6,
+  tile: 0.32,
+  carpet: 0.98,
+  carpetDark: 0.98,
+  concrete: 0.85,
+};
+
+/**
+ * A floor material sized to the surface it covers.
+ *
+ * Textures are cloned so each surface carries its own repeat — they share the
+ * one canvas, so this costs a wrapper object rather than another megabyte.
+ */
+export function floorMaterial(
+  name: SurfaceName,
+  width: number,
+  height: number,
+): THREE.MeshStandardMaterial {
+  const maps = surfaces()[name];
+  const map = maps.map.clone();
+  const roughnessMap = maps.roughnessMap.clone();
+
+  const rx = Math.max(1, Math.round(width / TILE_WORLD));
+  const ry = Math.max(1, Math.round(height / TILE_WORLD));
+  map.repeat.set(rx, ry);
+  roughnessMap.repeat.set(rx, ry);
+
+  return new THREE.MeshStandardMaterial({ map, roughnessMap, roughness: ROUGHNESS[name] });
 }
 
 /** A canvas-backed label that always faces the camera. */
