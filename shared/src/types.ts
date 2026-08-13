@@ -93,7 +93,8 @@ export type FurnitureKind =
   | "printer"
   | "waterCooler"
   | "roundTable"
-  | "benchDesk";
+  | "benchDesk"
+  | "deskTopper";
 
 export interface Furniture {
   kind: FurnitureKind;
@@ -112,6 +113,13 @@ export interface Furniture {
    * does. Names a file in web/public/models without the extension.
    */
   model?: string;
+  /**
+   * Height above the floor, in world units.
+   *
+   * For things that sit on other things — a monitor riser on a desk. The model
+   * is placed with its base at this height rather than on the ground.
+   */
+  elevation?: number;
   /**
    * Whether you have to walk around it.
    *
@@ -149,8 +157,8 @@ export interface Floor {
  *   node tools/inspect-models.mjs <pack-dir> <prefix> --zup
  */
 export const FURNITURE_SIZE: Record<FurnitureKind, { w: number; h: number }> = {
-  desk: { w: 139, h: 74 }, //          1.63 × 0.87 m
-  chair: { w: 55, h: 56 }, //          0.65 × 0.66 m
+  desk: { w: 134, h: 56 }, //          1.58 × 0.66 m
+  chair: { w: 55, h: 63 }, //          0.65 × 0.74 m
   sofa: { w: 174, h: 74 }, //          2.05 × 0.87 m
   armchair: { w: 73, h: 74 }, //       0.86 × 0.87 m
   meetingTable: { w: 163, h: 121 }, // 1.92 × 1.42 m
@@ -174,6 +182,7 @@ export const FURNITURE_SIZE: Record<FurnitureKind, { w: number; h: number }> = {
   waterCooler: { w: 43, h: 43 }, //    0.51 × 0.51 m
   roundTable: { w: 184, h: 173 }, //   2.17 × 2.03 m
   benchDesk: { w: 313, h: 65 }, //     3.68 × 0.77 m
+  deskTopper: { w: 60, h: 44 }, //     0.71 × 0.52 m
 };
 
 export type PresenceStatus = "available" | "focusing" | "away";

@@ -28,12 +28,14 @@ const ROOM_LEFT = 1800;
 
 /* ── Composition helpers ──────────────────────────────────────────── */
 
+/** Height of the desk surface, in world units — where a topper sits. */
+const DESK_TOP = 62;
+
 /**
  * A bank of four desks, back to back in two rows, with a screen between them.
  *
- * Variants alternate across the bank. Four identical desks read as copy-paste
- * in a way a single desk never does, and the pack has enough choice that
- * varying them costs nothing.
+ * Each desk carries a storage unit on its surface, set toward the back so the
+ * near half stays clear to work on.
  */
 function deskBank(cx: number, cy: number): Furniture[] {
   const out: Furniture[] = [];
@@ -44,22 +46,10 @@ function deskBank(cx: number, cy: number): Furniture[] {
       const y = cy + sz * 45;
       const facing = sz < 0 ? 0 : deg(180);
 
-      out.push({
-        kind: "desk",
-        x,
-        y,
-        rotation: facing,
-        solid: true,
-        model: sx < 0 ? undefined : "desk-b",
-      });
-      out.push({
-        kind: "chair",
-        x,
-        y: y + sz * 64,
-        rotation: facing,
-        model: sx < 0 ? "task-chair-b" : undefined,
-      });
-      out.push({ kind: "deskLamp", x: x + 52, y: y - sz * 22 });
+      out.push({ kind: "desk", x, y, rotation: facing, solid: true });
+      out.push({ kind: "deskTopper", x, y: y - sz * 10, rotation: facing, elevation: DESK_TOP });
+      out.push({ kind: "chair", x, y: y + sz * 64, rotation: facing });
+      out.push({ kind: "deskLamp", x: x + 52, y: y - sz * 18 });
     }
   }
 
@@ -74,8 +64,8 @@ function seatsAround(cx: number, cy: number, spread: number, offset: number, per
   for (let i = 0; i < perSide; i++) {
     const t = perSide === 1 ? 0.5 : i / (perSide - 1);
     const x = cx - spread / 2 + t * spread;
-    out.push({ kind: "chair", x, y: cy - offset, rotation: 0, model: "task-chair-c" });
-    out.push({ kind: "chair", x, y: cy + offset, rotation: deg(180), model: "task-chair-c" });
+    out.push({ kind: "chair", x, y: cy - offset, rotation: 0 });
+    out.push({ kind: "chair", x, y: cy + offset, rotation: deg(180) });
   }
   return out;
 }
@@ -196,8 +186,8 @@ export const woventexFloor: Floor = {
     // Horizontal, not vertical: turned the other way it walls off the corridor
     // between the desk banks, which the flood fill allows but nobody enjoys.
     { kind: "benchDesk", x: 1150, y: 700, solid: true },
-    { kind: "chair", x: 1070, y: 640, model: "task-chair-c" },
-    { kind: "chair", x: 1230, y: 640, model: "task-chair-c" },
+    { kind: "chair", x: 1070, y: 640 },
+    { kind: "chair", x: 1230, y: 640 },
     { kind: "wallArt", x: 1000, y: 30 },
     { kind: "wallArt", x: 1400, y: 30, model: "wall-art-b" },
 
@@ -212,12 +202,12 @@ export const woventexFloor: Floor = {
 
     /* ── Focus room: quiet desks along the far wall ───────────────── */
     { kind: "desk", x: 1980, y: 760, solid: true, model: "desk-c" },
-    { kind: "chair", x: 1980, y: 838, rotation: deg(180), model: "task-chair-b" },
+    { kind: "chair", x: 1980, y: 838, rotation: deg(180) },
     { kind: "deskLamp", x: 2032, y: 738 },
     { kind: "desk", x: 2200, y: 760, solid: true },
     { kind: "chair", x: 2200, y: 838, rotation: deg(180) },
     { kind: "desk", x: 2420, y: 760, solid: true, model: "desk-b" },
-    { kind: "chair", x: 2420, y: 838, rotation: deg(180), model: "task-chair-b" },
+    { kind: "chair", x: 2420, y: 838, rotation: deg(180) },
     { kind: "deskLamp", x: 2472, y: 738 },
     { kind: "shelf", x: 2200, y: 1020, rotation: deg(180), solid: true },
     { kind: "plant", x: 1870, y: 1000, model: "plant-c" },

@@ -364,7 +364,9 @@ export function buildFurniture(item: Furniture): THREE.Group {
   const build = BUILD[item.kind] ?? genericBlock;
   const group = build(w, d);
   // World Y is depth on the floor plane; Three's Y is up.
-  group.position.set(item.x, 0, item.y);
+  // Elevation lifts things that sit on other things; the loaded model copies
+  // this position, so it applies to both the placeholder and the real mesh.
+  group.position.set(item.x, item.elevation ?? 0, item.y);
   group.rotation.y = -(item.rotation ?? 0);
   return group;
 }
