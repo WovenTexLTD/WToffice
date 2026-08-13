@@ -187,7 +187,14 @@ async function run(): Promise<void> {
   check("client receives welcome with an id", alice.id.length > 0, alice.id);
 
   const welcome = alice.inbox.find((m) => m.t === "welcome");
-  check("welcome carries the floor", welcome?.t === "welcome" && welcome.floor.zones.length === 3);
+  // Against the floor this test compiled with, not a hard-coded count — the
+  // point is that the server hands out the same plan the client is holding, and
+  // adding a room should not fail a test about the welcome message.
+  check(
+    "welcome carries the floor",
+    welcome?.t === "welcome" && welcome.floor.zones.length === floor.zones.length,
+    `${welcome?.t === "welcome" ? welcome.floor.zones.length : "?"} zones`,
+  );
 
   const bob = await connect("Bob");
   await wait(200);

@@ -156,6 +156,23 @@ export const woventexFloor: Floor = {
     { x: ROOM_LEFT, y: 660, w: WALL, h: 140, glass: true },
     { x: ROOM_LEFT, y: 900, w: WALL, h: 160, glass: true },
 
+    // Two private offices in the band under the north glazing. Same language as
+    // the three rooms opposite — glazed, so the plan stays legible and you can
+    // see whether someone is in before you knock. They stop at x 1660 so the
+    // corridor to the meeting room door stays open.
+    // ABD's office.
+    { x: 960, y: WALL, w: WALL, h: 326, glass: true },
+    { x: 1296, y: WALL, w: WALL, h: 326, glass: true },
+    { x: 960, y: 326, w: 130, h: WALL, glass: true },
+    { x: 1190, y: 326, w: 120, h: WALL, glass: true },
+
+    // Karim's office, in the corner the glazing makes with the run down to the
+    // meeting room.
+    { x: 1324, y: WALL, w: WALL, h: 326, glass: true },
+    { x: 1646, y: WALL, w: WALL, h: 326, glass: true },
+    { x: 1324, y: 326, w: 116, h: WALL, glass: true },
+    { x: 1540, y: 326, w: 120, h: WALL, glass: true },
+
     // Breakout room.
     { x: ROOM_LEFT, y: 1160, w: W - ROOM_LEFT - WALL, h: WALL, glass: true },
     { x: ROOM_LEFT, y: 1626, w: W - ROOM_LEFT - WALL, h: WALL, glass: true },
@@ -167,12 +184,16 @@ export const woventexFloor: Floor = {
     { id: "meeting", name: "Meeting Room", x: 1814, y: 74, w: 772, h: 472, material: "walnut" },
     { id: "focus", name: "Focus Room", x: 1814, y: 674, w: 772, h: 372, material: "walnut" },
     { id: "breakout", name: "Breakout", x: 1814, y: 1174, w: 772, h: 452, material: "walnut" },
+    { id: "abd", name: "ABD's Office", x: 974, y: WALL, w: 322, h: 312, material: "walnut" },
+    { id: "karim", name: "Karim's Office", x: 1338, y: WALL, w: 308, h: 312, material: "walnut" },
   ],
 
   doors: [
     { id: "meeting-door", zoneId: "meeting", x: ROOM_LEFT, y: 250, w: WALL, h: 100 },
     { id: "focus-door", zoneId: "focus", x: ROOM_LEFT, y: 800, w: WALL, h: 100 },
     { id: "breakout-door", zoneId: "breakout", x: ROOM_LEFT, y: 1310, w: WALL, h: 100 },
+    { id: "abd-door", zoneId: "abd", x: 1090, y: 326, w: 100, h: WALL },
+    { id: "karim-door", zoneId: "karim", x: 1440, y: 326, w: 100, h: WALL },
   ],
 
   // Boards throughout, with the areas laid over the top.
@@ -287,6 +308,30 @@ export const woventexFloor: Floor = {
     { kind: "crate", x: 1250, y: 1078, rotation: deg(14), solid: true, model: "crate-b" },
     { kind: "fabricStack", x: 1250, y: 1078, rotation: deg(24), elevation: 29, model: "fabric-stack-c" },
 
+    /* ── ABD's office ─────────────────────────────────────────────── */
+
+    // Desk against the glazing with the chair behind it, so whoever is in the
+    // room faces the door and the visitor chairs rather than the window.
+    { kind: "desk", x: 1090, y: 150, rotation: deg(180), solid: true, model: "desk-b" },
+    { kind: "monitor", x: 1090, y: 154, rotation: deg(180), elevation: DESK_TOP },
+    { kind: "deskLamp", x: 1156, y: 136, elevation: DESK_TOP },
+    { kind: "chair", x: 1090, y: 78 },
+    { kind: "chair", x: 1046, y: 244, rotation: deg(180) },
+    { kind: "chair", x: 1134, y: 244, rotation: deg(180) },
+    { kind: "shelf", x: 1268, y: 220, rotation: deg(-90), solid: true },
+    { kind: "plant", x: 1008, y: 268, model: "plant-big" },
+
+    /* ── Karim's office ───────────────────────────────────────────── */
+
+    { kind: "desk", x: 1450, y: 150, rotation: deg(180), solid: true, model: "desk-c" },
+    { kind: "monitor", x: 1450, y: 154, rotation: deg(180), elevation: DESK_TOP },
+    { kind: "deskLamp", x: 1516, y: 136, elevation: DESK_TOP },
+    { kind: "chair", x: 1450, y: 78 },
+    { kind: "chair", x: 1406, y: 244, rotation: deg(180) },
+    { kind: "chair", x: 1494, y: 244, rotation: deg(180) },
+    { kind: "shelf", x: 1618, y: 220, rotation: deg(-90), solid: true },
+    { kind: "plant", x: 1372, y: 268, model: "plant-c" },
+
     /* ── Meeting room ─────────────────────────────────────────────── */
     { kind: "meetingTable", x: 2180, y: 300, solid: true },
     ...seatsAround(2180, 300, 200, 105, 3),
@@ -332,9 +377,11 @@ export const woventexFloor: Floor = {
    * entrance across the studio floor.
    */
   signs: [
-    { id: "brand", x: 940, y: WALL, w: 420, h: WALL_HEIGHT, text: "WOVENTEX", mark: true },
+    { id: "brand", x: 480, y: WALL, w: 420, h: WALL_HEIGHT, text: "WOVENTEX", mark: true },
     { id: "meeting-plaque", x: 1826, y: 60 + WALL, w: 180, h: WALL_HEIGHT, text: "MEETING" },
     { id: "focus-plaque", x: 1826, y: 660 + WALL, w: 180, h: WALL_HEIGHT, text: "FOCUS" },
     { id: "breakout-plaque", x: 1826, y: 1160 + WALL, w: 180, h: WALL_HEIGHT, text: "BREAKOUT" },
+    { id: "abd-plaque", x: 935, y: 344, w: 180, h: WALL_HEIGHT, text: "ABD" },
+    { id: "karim-plaque", x: 1292, y: 344, w: 180, h: WALL_HEIGHT, text: "KARIM" },
   ],
 };
