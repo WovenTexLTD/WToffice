@@ -156,18 +156,32 @@ export class MediaEngine {
   /* ── Lifecycle ─────────────────────────────────────────────────── */
 
   /**
-   * Called on every welcome, including after a reconnect. The server issues a
-   * fresh id each time, so an existing session must drop all peers (their ids
-   * are now stale) and re-key — without requesting a second mic stream.
+   * Adopt an identity. Synchronous, and called on every welcome.
+   *
+   * Deliberately separate from the microphone. Peering must not wait on a
+   * permission prompt: a connection that cannot be built until the user clicks
+   * "Allow" will miss the offer that arrives while the dialog is open, and with
+   * a single offerer there is no second offer to cover for it.
    */
-  async start(selfId: string): Promise<void> {
-    if (this.micStream) {
+  attach(selfId: string): void {
+    if (this.selfId && this.selfId !== selfId) {
+      // Reconnected under a fresh id — every peer id is now stale.
       for (const id of [...this.peers.keys()]) this.removePeer(id);
-      this.selfId = selfId;
-      return;
+      this.desiredGain.clear();
+      this.desiredVideo.clear();
     }
-
     this.selfId = selfId;
+    this.startLoop();
+  }
+
+  /**
+   * Request the microphone and publish it to peers that already exist.
+   *
+   * Safe to call more than once. If it is denied the office still works — you
+   * can see and hear everyone, they just cannot hear you.
+   */
+  async ensureMic(): Promise<void> {
+    if (this.micStream || this.micState === "requesting") return;
 
     if (!navigator.mediaDevices?.getUserMedia) {
       this.setMicState("unavailable");
@@ -187,12 +201,15 @@ export class MediaEngine {
 
     if (this.stopped) {
       this.micStream.getTracks().forEach((t) => t.stop());
+      this.micStream = null;
       return;
     }
 
     this.setupVoiceDetection();
     this.setMicState("live");
-    this.startLoop();
+
+    // Peers built while the prompt was open have a silent audio sender.
+    for (const peer of this.peers.values()) this.applyLocalTracks(peer);
   }
 
   stop(): void {
@@ -310,7 +327,8 @@ export class MediaEngine {
   /* ── Peers ─────────────────────────────────────────────────────── */
 
   syncPeers(ids: string[]): void {
-    if (!this.micStream) return;
+    // No microphone gate: peering must not wait on a permission prompt.
+    if (!this.selfId) return;
 
     const wanted = new Set(ids.filter((id) => id !== this.selfId));
     for (const id of wanted) if (!this.peers.has(id)) this.createPeer(id);
@@ -461,10 +479,10 @@ export class MediaEngine {
   private rebind(peer: Peer): void {
     const kindOf = (t: RTCRtpTransceiver) => t.receiver.track?.kind ?? t.sender.track?.kind ?? null;
 
-    const associated = peer.pc
-      .getTransceivers()
-      // currentDirection null means the transceiver was stopped.
-      .filter((t) => t.mid !== null && t.currentDirection !== null);
+    // A mid means the transceiver is associated with an m-line. Checked rather
+    // than currentDirection, which is still null between applying an offer and
+    // producing the answer — exactly when the answerer needs to bind.
+    const associated = peer.pc.getTransceivers().filter((t) => t.mid !== null);
 
     const audio = associated.filter((t) => kindOf(t) === "audio");
     const video = associated.filter((t) => kindOf(t) === "video");
@@ -530,7 +548,9 @@ export class MediaEngine {
   /* ── Signalling ────────────────────────────────────────────────── */
 
   async handleSignal(from: string, data: SignalData): Promise<void> {
-    if (!this.micStream) return;
+    // Never drop a signal waiting on the microphone. An offer discarded here is
+    // never re-sent, and the connection simply never forms.
+    if (!this.selfId) return;
 
     const peer = this.peers.get(from) ?? this.createPeer(from);
     const pc = peer.pc;
@@ -553,6 +573,9 @@ export class MediaEngine {
         await this.flushIce(peer);
 
         if (data.type === "offer") {
+          // Bind and opt into sending *before* answering, so the answer already
+          // says sendrecv and no second negotiation is needed to start sending.
+          this.rebind(peer);
           await pc.setLocalDescription();
           const desc = pc.localDescription;
           if (desc) {
@@ -716,6 +739,8 @@ export class MediaEngine {
   /* ── Loop ──────────────────────────────────────────────────────── */
 
   private startLoop(): void {
+    // attach() may be called on every welcome; one loop is enough.
+    if (this.rafId !== null || this.stopped) return;
     this.lastFrameAt = performance.now();
     const frame = (now: number) => {
       if (this.stopped) return;

@@ -149,7 +149,11 @@ function Stage({ name }: { name: string }) {
         setFloor(f);
         setPlayers(list);
         scene.setFloor(f, id, list, shutDoors);
-        void media.start(id).then(() => media.syncPeers(list.map((p) => p.id)));
+        // Peer up immediately; the microphone catches up on its own. Waiting on
+        // the permission prompt means missing the offer sent while it is open.
+        media.attach(id);
+        media.syncPeers(list.map((p) => p.id));
+        void media.ensureMic();
       },
       onDoors: (shut) => scene.setDoors(shut),
       onKnock: (doorId, knockerName) => {
