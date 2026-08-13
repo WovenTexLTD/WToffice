@@ -10,6 +10,7 @@ import {
   audioGain,
   doorAt,
   resolveMove,
+  videoVisible,
   wallsWithShutDoors,
   zoneAt,
   EARSHOT,
@@ -67,6 +68,14 @@ check(
   audioGain(shouting, open(300, 520), EARSHOT) === 0,
   "the broadcaster still only hears their own room",
 );
+
+// Video follows the zone, not the distance — a face across the floor is still
+// presence, but a sealed room is still private.
+check("video carries across the open floor", videoVisible(open(60, 60), open(1000, 900)));
+check("video is hidden by a sealed room", !videoVisible(open(300, 520), inRoom("meeting")));
+check("video is shared inside a room", videoVisible(inRoom("meeting"), inRoom("meeting")));
+check("video is hidden between two rooms", !videoVisible(inRoom("focus"), inRoom("meeting")));
+check("a broadcaster is visible from anywhere", videoVisible(inRoom("focus"), shouting));
 
 const doorId = floor.doors[0].id;
 check(
@@ -240,34 +249,32 @@ async function run(): Promise<void> {
   const bobMuted = afterMute?.t === "state" ? afterMute.players.find((p) => p.id === bob.id) : undefined;
   check("mute propagates", bobMuted?.muted === true && bobMuted?.speaking === false);
 
-  // Camera and screen stream ids are published so receivers can tell a face
-  // from a shared screen.
-  bob.socket.send(
-    JSON.stringify({ t: "media", cameraStreamId: "cam-abc", screenStreamId: "scr-xyz" }),
-  );
+  // Camera and screen publication is an on/off flag; which transceiver carries
+  // which is fixed at connection time, so no ids are exchanged.
+  bob.socket.send(JSON.stringify({ t: "media", cameraOn: true, screenOn: true }));
   await wait(250);
   const withMedia = latestState(alice);
   const bobMedia = withMedia?.t === "state" ? withMedia.players.find((p) => p.id === bob.id) : undefined;
-  check("camera stream id propagates", bobMedia?.cameraStreamId === "cam-abc");
-  check("screen stream id propagates", bobMedia?.screenStreamId === "scr-xyz");
+  check("camera publication propagates", bobMedia?.cameraOn === true);
+  check("screen publication propagates", bobMedia?.screenOn === true);
 
-  bob.socket.send(JSON.stringify({ t: "media", cameraStreamId: null, screenStreamId: null }));
+  bob.socket.send(JSON.stringify({ t: "media", cameraOn: false, screenOn: false }));
   await wait(250);
   const cleared = latestState(alice);
   const bobCleared = cleared?.t === "state" ? cleared.players.find((p) => p.id === bob.id) : undefined;
   check(
-    "stopping publication clears both ids",
-    bobCleared?.cameraStreamId === null && bobCleared?.screenStreamId === null,
+    "stopping publication clears both flags",
+    bobCleared?.cameraOn === false && bobCleared?.screenOn === false,
   );
 
-  // Non-string ids must not survive into player state.
-  bob.socket.send(JSON.stringify({ t: "media", cameraStreamId: 42, screenStreamId: {} }));
+  // Junk must coerce to false rather than leaking into state.
+  bob.socket.send(JSON.stringify({ t: "media", cameraOn: "yes", screenOn: null }));
   await wait(250);
   const junk = latestState(alice);
   const bobJunk = junk?.t === "state" ? junk.players.find((p) => p.id === bob.id) : undefined;
   check(
-    "malformed stream ids are rejected",
-    bobJunk?.cameraStreamId === null && bobJunk?.screenStreamId === null,
+    "malformed media flags coerce to booleans",
+    typeof bobJunk?.cameraOn === "boolean" && bobJunk?.screenOn === false,
   );
 
   // The server relays signalling verbatim and never joins the call.

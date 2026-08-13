@@ -173,6 +173,22 @@ export function audioGain(listener: AudioActor, speaker: AudioActor, earshot: nu
 }
 
 /**
+ * Whether `viewer` should see `subject`'s camera or screenshare.
+ *
+ * Deliberately **not** distance-based, unlike audio. Faces carry presence: you
+ * want to see who is around from across the floor, and a camera that only
+ * appears once you are already close is indistinguishable from a broken one.
+ * Only a sealed room hides video, which is the privacy boundary that matters.
+ *
+ * Costs ~250kbps per outbound stream, so ~1Mbps up for a five-person office.
+ */
+export function videoVisible(viewer: AudioActor, subject: AudioActor): boolean {
+  if (subject.broadcasting) return true;
+  // null === null puts everyone on the open floor in the same bucket.
+  return viewer.zoneId === subject.zoneId;
+}
+
+/**
  * Collision geometry including any shut doors.
  *
  * An open door is a gap in the wall; a shut one is wall. Client and server must

@@ -20,6 +20,7 @@ import {
   audioGain,
   doorAt,
   resolveMove,
+  videoVisible,
   wallsWithShutDoors,
   zoneAt,
   type Floor,
@@ -53,7 +54,8 @@ interface Avatar {
   target: { x: number; y: number };
   /** Last gain reported to the media engine, to avoid redundant updates. */
   lastGain: number;
-  /** Last outbound-video decision, likewise. */
+  /** Last video-visibility decisions, likewise. */
+  lastSeeVideo: boolean | null;
   lastSendVideo: boolean | null;
 }
 
@@ -63,10 +65,12 @@ export interface OfficeSceneCallbacks {
   onZoneChange(zoneId: string | null): void;
   /** How loudly this peer should be heard, 0–1, from the proximity rule. */
   onGain(peerId: string, gain: number): void;
+  /** Whether we can see this peer's video — drives what we render. */
+  onSeeVideo(peerId: string, visible: boolean): void;
   /**
-   * Whether this peer can hear *us* — the reverse direction, which is what
-   * decides if sending them video is worth the bytes. Separate from onGain
-   * because broadcast makes the two directions differ.
+   * Whether this peer can see *us* — the reverse direction, which is what
+   * decides if sending them video is worth the bytes. Separate because
+   * broadcast makes the two directions differ.
    */
   onSendVideo(peerId: string, enabled: boolean): void;
   onDoorToggle(doorId: string, open: boolean): void;
@@ -324,6 +328,7 @@ export class OfficeScene {
       cur: { x: state.x, y: state.y },
       target: { x: state.x, y: state.y },
       lastGain: -1,
+      lastSeeVideo: null,
       lastSendVideo: null,
     });
   }
@@ -524,13 +529,18 @@ export class OfficeScene {
         this.callbacks.onGain(id, hear);
       }
 
-      // Evaluated in reverse: whether *they* hear *us* decides if our camera is
-      // worth sending. Broadcast makes the two directions differ, so reusing
-      // `hear` here would send video to a broadcaster who cannot see us.
-      const theyHearMe = audioGain(them, me, EARSHOT) > 0;
-      if (theyHearMe !== avatar.lastSendVideo) {
-        avatar.lastSendVideo = theyHearMe;
-        this.callbacks.onSendVideo(id, theyHearMe);
+      // Video is gated by zone rather than distance — see videoVisible. Both
+      // directions are evaluated because broadcast makes them differ.
+      const iSeeThem = videoVisible(me, them);
+      if (iSeeThem !== avatar.lastSeeVideo) {
+        avatar.lastSeeVideo = iSeeThem;
+        this.callbacks.onSeeVideo(id, iSeeThem);
+      }
+
+      const theySeeMe = videoVisible(them, me);
+      if (theySeeMe !== avatar.lastSendVideo) {
+        avatar.lastSendVideo = theySeeMe;
+        this.callbacks.onSendVideo(id, theySeeMe);
       }
 
       // Fade the name with audibility, so you can see who is in earshot.

@@ -157,8 +157,8 @@ wss.on("connection", (socket) => {
         zoneId: zoneAt(floor.spawn.x, floor.spawn.y, floor.zones),
         speaking: false,
         muted: false,
-        cameraStreamId: null,
-        screenStreamId: null,
+        cameraOn: false,
+        screenOn: false,
         broadcasting: false,
       };
       conn.player = player;
@@ -200,11 +200,11 @@ wss.on("connection", (socket) => {
     }
 
     if (msg.t === "media") {
-      // Which stream id carries the face and which carries the screen. Relayed
-      // in state so receivers can route incoming tracks to the right surface.
+      // Whether a face or screen is being published. Routing is by transceiver
+      // position, so these are only on/off flags.
       if (!conn.player) return;
-      conn.player.cameraStreamId = typeof msg.cameraStreamId === "string" ? msg.cameraStreamId : null;
-      conn.player.screenStreamId = typeof msg.screenStreamId === "string" ? msg.screenStreamId : null;
+      conn.player.cameraOn = Boolean(msg.cameraOn);
+      conn.player.screenOn = Boolean(msg.screenOn);
       return;
     }
 

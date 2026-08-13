@@ -130,36 +130,48 @@ network jitter — which a modified client could aim at a shut door.
 
 ### Mesh peer-to-peer, not an SFU
 
-Video looked like the point where an SFU takes over. Two things changed the
-arithmetic:
-
-- **Faces render in a ~44px circle.** Capture is 320×320 at 24fps, capped at
-  250kbps — not the ~600 a naive 720p stream costs. 720p would just be thrown
-  away by the scaler.
-- **`audioGain` is symmetric.** If you cannot hear someone, they cannot hear
-  you, so a sender already knows which peers its camera is not worth sending to
-  and stops with `replaceTrack(null)`. That is the same bandwidth strategy
-  Kumospace needs an SFU for, applied at the sender.
-
-Typical load is one or two active video streams, not four.
+Faces render in a ~44px circle, so capture is 320×320 at 24fps capped at
+250kbps — not the ~600 a naive 720p stream costs, which the scaler would just
+throw away. Four outbound faces is ~1Mbps up, which a five-person office can
+afford.
 
 **The real SFU trigger** is several people watching one screenshare at once,
 which fans out at ~1.5Mbps per copy. If that becomes routine, move to
 self-hosted LiveKit.
 
+### Video follows the zone, audio follows the distance
+
+`videoVisible()` is deliberately **not** distance-based. Faces carry presence:
+you want to see who is around from across the floor, and a camera that only
+appears once you are already close is indistinguishable from a broken one. Only
+a sealed room hides video — that is the privacy boundary that actually matters.
+
+Audio still falls off with distance. The two rules are different on purpose.
+
 STUN alone covers the same LAN and most home NATs. Production needs TURN for the
 ~10–20% of connections behind symmetric NAT — that lands in Phase 7.
 
-### Negotiation
+### Transceivers, not addTrack
 
-Turning a camera on mid-call changes the session, and two people can change it
-at once. `MediaEngine` implements the standard **perfect negotiation** pattern:
-one side of each pair is "polite" and yields on collision, the other ignores the
-colliding offer. Without it, two people enabling video simultaneously wedges the
-connection.
+Three transceivers are created per peer at connection time in a fixed order —
+audio, camera, screen — identically on both sides, so the m-lines line up. Two
+things fall out of that:
 
-Senders are created once and then fed with `replaceTrack`, so toggling a camera
-or walking in and out of earshot costs **no renegotiation at all**.
+- **Routing needs no signalling.** A track's position identifies it as a face or
+  a screen. Matching on MediaStream id instead is fragile, because
+  `replaceTrack` does not renegotiate and the receiver may never learn the msid.
+- **Toggling a camera never renegotiates.** `replaceTrack` on an existing
+  transceiver does not change the session.
+
+Perfect negotiation still guards the initial handshake, where both sides may
+offer at once — one side of each pair is "polite" and yields on collision.
+
+### React double-invokes effects in development
+
+Anything reached from an `await` inside the setup effect must check whether it
+was cancelled, and `OfficeClient.connect()` refuses to reconnect once disposed.
+Without both, the first, already-cleaned-up client opens a socket anyway from an
+async continuation, and every tab shows up in the office twice.
 
 ### Video is DOM, not canvas
 

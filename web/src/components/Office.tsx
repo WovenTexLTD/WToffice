@@ -79,8 +79,8 @@ function Stage({ name }: { name: string }) {
   const mediaRef = useRef<MediaEngine | null>(null);
   const overlayRef = useRef<VideoOverlay | null>(null);
 
-  /** Peers currently within earshot. A ref because it updates at frame rate. */
-  const audibleRef = useRef<Set<string>>(new Set());
+  /** Peers whose video we can see. A ref because it updates at frame rate. */
+  const visibleRef = useRef<Set<string>>(new Set());
 
   const [status, setStatus] = useState<ConnectionStatus>("connecting");
   const [micState, setMicState] = useState<MicState>("idle");
@@ -120,8 +120,8 @@ function Stage({ name }: { name: string }) {
       onMicState: setMicState,
       onCameraState: setCameraState,
       onScreenState: setScreenState,
-      onLocalMediaChange: (cameraStreamId, screenStreamId) =>
-        clientRef.current?.sendMedia(cameraStreamId, screenStreamId),
+      onLocalMediaChange: (cameraOn, screenOn) =>
+        clientRef.current?.sendMedia(cameraOn, screenOn),
       onRemoteMediaChange: bumpMedia,
     });
     mediaRef.current = media;
@@ -129,18 +129,12 @@ function Stage({ name }: { name: string }) {
     const scene = new OfficeScene(host, {
       onPositionChange: (x, y) => clientRef.current?.sendPosition(x, y),
       onZoneChange: setZone,
-      onGain: (peerId, gain) => {
-        media.setGain(peerId, gain);
-
-        // Earshot membership gates the screenshare viewer. Only react when it
-        // actually crosses the boundary, not on every frame of a fade.
-        const wasAudible = audibleRef.current.has(peerId);
-        const isAudible = gain > 0;
-        if (wasAudible !== isAudible) {
-          if (isAudible) audibleRef.current.add(peerId);
-          else audibleRef.current.delete(peerId);
-          bumpMedia();
-        }
+      onGain: (peerId, gain) => media.setGain(peerId, gain),
+      onSeeVideo: (peerId, visible) => {
+        if (visible) visibleRef.current.add(peerId);
+        else visibleRef.current.delete(peerId);
+        // Only fires on a genuine change, so this re-render is rare.
+        bumpMedia();
       },
       onSendVideo: (peerId, enabled) => media.setVideoEnabled(peerId, enabled),
       onDoorToggle: (doorId, open) => clientRef.current?.sendDoor(doorId, open),
@@ -170,7 +164,7 @@ function Stage({ name }: { name: string }) {
       onJoined: (player) => scene.addPlayer(player),
       onLeft: (id) => {
         scene.removePlayer(id);
-        audibleRef.current.delete(id);
+        visibleRef.current.delete(id);
       },
       onCorrect: (x, y) => scene.correctPosition(x, y),
       onStatus: setStatus,
@@ -178,7 +172,12 @@ function Stage({ name }: { name: string }) {
     });
     clientRef.current = client;
 
+    // React double-invokes effects in development. Everything below the await
+    // must check this, or the first pass keeps building a world nobody sees.
+    let cancelled = false;
+
     void scene.init().then(() => {
+      if (cancelled) return;
       // Created after init so it stacks above the canvas the scene appended.
       const overlay = new VideoOverlay(host);
       overlayRef.current = overlay;
@@ -187,6 +186,7 @@ function Stage({ name }: { name: string }) {
     });
 
     return () => {
+      cancelled = true;
       client.disconnect();
       media.stop();
       scene.setSurface(null);
@@ -207,9 +207,13 @@ function Stage({ name }: { name: string }) {
 
     for (const p of players) {
       const isSelf = p.id === selfId;
+      // The receiving transceiver always holds a track, black and muted, even
+      // when nothing is being published — so gate on the peer's own flag.
       const stream = isSelf
         ? media.getLocalCameraStream()
-        : media.getRemoteStream(p.cameraStreamId);
+        : p.cameraOn && visibleRef.current.has(p.id)
+          ? media.getPeerVideo(p.id, "camera")
+          : null;
       // Your own face is mirrored, the way a mirror behaves; everyone else's is not.
       overlay.setStream(p.id, stream, isSelf);
     }
@@ -271,9 +275,7 @@ function Stage({ name }: { name: string }) {
   );
 
   /* Only shares from people you could hear — the same rule as voice. */
-  const sharer = players.find(
-    (p) => p.screenStreamId && (p.id === selfId || audibleRef.current.has(p.id)),
-  );
+  const sharer = players.find((p) => p.screenOn && (p.id === selfId || visibleRef.current.has(p.id)));
 
   const statusLabel: Record<ConnectionStatus, string> = {
     connecting: "Connecting",
@@ -301,7 +303,7 @@ function Stage({ name }: { name: string }) {
           getStream={() =>
             sharer.id === selfId
               ? (mediaRef.current?.getLocalScreenStream() ?? null)
-              : (mediaRef.current?.getRemoteStream(sharer.screenStreamId) ?? null)
+              : (mediaRef.current?.getPeerVideo(sharer.id, "screen") ?? null)
           }
           version={mediaVersion}
         />

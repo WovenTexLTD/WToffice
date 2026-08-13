@@ -59,16 +59,15 @@ export interface PlayerState {
   muted: boolean;
 
   /**
-   * MediaStream ids for this player's published video, or null when off.
+   * Whether this player is publishing a face or a screen.
    *
-   * A peer connection carries several video tracks and the receiver has no
-   * inherent way to tell a face from a shared screen. WebRTC signals stream
-   * ids in the SDP, so `event.streams[0].id` on the receiving end matches the
-   * sender's — publishing the mapping here is what lets a receiver route each
-   * incoming track to the right surface.
+   * Which transceiver carries which is fixed at connection time, so routing
+   * needs no signalling. These flags only answer "is it on" — a receiver's
+   * transceiver always holds a track, muted and black, even when the sender is
+   * publishing nothing.
    */
-  cameraStreamId: string | null;
-  screenStreamId: string | null;
+  cameraOn: boolean;
+  screenOn: boolean;
 
   /**
    * Addressing the whole floor. Overrides distance and sealed rooms in one
@@ -105,7 +104,7 @@ export type ClientMessage =
   | { t: "join"; name: string }
   | { t: "move"; x: number; y: number }
   | { t: "presence"; speaking: boolean; muted: boolean }
-  | { t: "media"; cameraStreamId: string | null; screenStreamId: string | null }
+  | { t: "media"; cameraOn: boolean; screenOn: boolean }
   | { t: "broadcast"; on: boolean }
   /** Open or shut a door. Only permitted from inside the room it belongs to. */
   | { t: "door"; id: string; open: boolean }

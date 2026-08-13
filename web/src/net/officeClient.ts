@@ -27,6 +27,8 @@ const RECONNECT_MAX_MS = 8000;
 export class OfficeClient {
   private socket: WebSocket | null = null;
   private closedByUs = false;
+  /** Terminal: set by disconnect(), never cleared. */
+  private disposed = false;
   private attempt = 0;
   private reconnectTimer: number | null = null;
 
@@ -37,6 +39,13 @@ export class OfficeClient {
   ) {}
 
   connect(): void {
+    // Once disconnected, stay disconnected.
+    //
+    // React double-invokes effects in development, and connect() is reached
+    // from an async continuation — so without this guard the first, already
+    // cleaned-up client opens a socket anyway and the office shows two of you.
+    if (this.disposed) return;
+
     this.closedByUs = false;
     this.handlers.onStatus(this.attempt === 0 ? "connecting" : "reconnecting");
 
@@ -123,9 +132,9 @@ export class OfficeClient {
     this.send({ t: "presence", speaking, muted });
   }
 
-  /** Publish which stream id carries our face and which carries our screen. */
-  sendMedia(cameraStreamId: string | null, screenStreamId: string | null): void {
-    this.send({ t: "media", cameraStreamId, screenStreamId });
+  /** Publish whether we are showing a face or a screen. */
+  sendMedia(cameraOn: boolean, screenOn: boolean): void {
+    this.send({ t: "media", cameraOn, screenOn });
   }
 
   sendBroadcast(on: boolean): void {
@@ -141,6 +150,7 @@ export class OfficeClient {
   }
 
   disconnect(): void {
+    this.disposed = true;
     this.closedByUs = true;
     if (this.reconnectTimer !== null) {
       window.clearTimeout(this.reconnectTimer);

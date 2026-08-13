@@ -2,27 +2,29 @@
  * Proximity media — voice, camera and screenshare over mesh WebRTC.
  *
  * ── Still mesh, and the numbers still work ──────────────────────────────────
- * Video looked like the point where an SFU takes over, but two things change
- * the arithmetic. Faces render inside a ~44px circle, so capture is 320x320 and
- * costs ~200kbps rather than the ~600 a naive 720p stream would. And audioGain
- * is symmetric: a sender already knows which peers cannot hear it, so it can
- * stop sending video to them entirely with replaceTrack(null) — no
- * renegotiation, no bytes. That is the same bandwidth strategy Kumospace uses
- * an SFU for, done at the sender.
+ * Faces render inside a ~44px circle, so capture is 320x320 capped at 250kbps
+ * rather than the ~600 a naive 720p stream costs — 720p would just be discarded
+ * by the scaler. Four outbound faces is ~1Mbps up, which a five-person office
+ * can afford. The real trigger for an SFU is several people watching one
+ * screenshare at once, at ~1.5Mbps a copy.
  *
- * Typical load is one or two active video streams, not four. The real trigger
- * for an SFU is several people watching one screenshare at once: that fans out
- * at ~1.5Mbps a copy. If that becomes routine, revisit.
+ * Video is gated by zone, not distance: only a sealed room hides it. See
+ * videoVisible() for why.
  *
- * ── Negotiation ────────────────────────────────────────────────────────────
- * Turning a camera on mid-call changes the session, and both sides may change
- * it at once. This implements the standard perfect-negotiation pattern: one
- * side of each pair is "polite" and yields on collision, the other ignores the
- * colliding offer. Without it, two people enabling video simultaneously wedges
- * the connection.
+ * ── Transceivers, not addTrack ─────────────────────────────────────────────
+ * Three transceivers are created per peer at connection time in a fixed order —
+ * audio, camera, screen — identically on both sides, so the m-lines line up.
+ * Two things fall out of that:
  *
- * Senders are created once and then fed with replaceTrack, so toggling a camera
- * or moving in and out of earshot costs no negotiation at all.
+ *  - Routing needs no signalling. A track's position identifies it as a face or
+ *    a screen. Matching on MediaStream id instead is fragile, because
+ *    replaceTrack does not renegotiate and the receiver may never learn the
+ *    msid at all.
+ *  - Toggling a camera never renegotiates. replaceTrack on an existing
+ *    transceiver does not change the session.
+ *
+ * Perfect negotiation still guards the initial handshake, where both sides may
+ * offer at once.
  *
  * ── Playback ───────────────────────────────────────────────────────────────
  * Audio still plays through <audio> elements rather than a Web Audio graph, so
@@ -57,7 +59,7 @@ export interface MediaEngineCallbacks {
   onSpeakingChange(speaking: boolean): void;
   onMicState(state: MicState): void;
   /** Local publication changed — republish the stream-id map to the room. */
-  onLocalMediaChange(cameraStreamId: string | null, screenStreamId: string | null): void;
+  onLocalMediaChange(cameraOn: boolean, screenOn: boolean): void;
   onCameraState(state: ShareState): void;
   onScreenState(state: ShareState): void;
   /** A remote stream arrived or went away; surfaces need re-binding. */
@@ -80,13 +82,21 @@ interface Peer {
   ignoreOffer: boolean;
   settingRemoteAnswer: boolean;
 
-  /* Created once, then fed with replaceTrack */
-  cameraSender: RTCRtpSender | null;
-  screenSender: RTCRtpSender | null;
-  /** Whether video is currently flowing to this peer (proximity-gated). */
-  sendingVideo: boolean;
+  /**
+   * Created once at connection time in a fixed order, then fed with
+   * replaceTrack. Their position in the m-line list is what identifies a face
+   * from a screen on the receiving end — no signalling required.
+   */
+  audioTx: RTCRtpTransceiver;
+  cameraTx: RTCRtpTransceiver;
+  screenTx: RTCRtpTransceiver;
 
-  streamIds: Set<string>;
+  /** Cached wrappers so srcObject isn't reassigned every render. */
+  remoteCamera: MediaStream | null;
+  remoteScreen: MediaStream | null;
+
+  /** Whether video is currently flowing to this peer. */
+  sendingVideo: boolean;
 }
 
 export class MediaEngine {
@@ -95,9 +105,6 @@ export class MediaEngine {
   private cameraStream: MediaStream | null = null;
   private screenStream: MediaStream | null = null;
   private peers = new Map<string, Peer>();
-
-  /** Every remote stream we have received, keyed by its id. */
-  private remoteStreams = new Map<string, MediaStream>();
 
   private audioCtx: AudioContext | null = null;
   private analyser: AnalyserNode | null = null;
@@ -169,7 +176,6 @@ export class MediaEngine {
     this.micStream = null;
     this.cameraStream = null;
     this.screenStream = null;
-    this.remoteStreams.clear();
 
     void this.audioCtx?.close();
     this.audioCtx = null;
@@ -182,10 +188,7 @@ export class MediaEngine {
   }
 
   private publishLocalMedia(): void {
-    this.callbacks.onLocalMediaChange(
-      this.cameraStream?.id ?? null,
-      this.screenStream?.id ?? null,
-    );
+    this.callbacks.onLocalMediaChange(this.cameraStream !== null, this.screenStream !== null);
   }
 
   /* ── Camera ────────────────────────────────────────────────────── */
@@ -216,7 +219,7 @@ export class MediaEngine {
         track.onended = () => void this.setCamera(false);
       }
 
-      for (const [peerId, peer] of this.peers) this.attachCamera(peerId, peer);
+      for (const peer of this.peers.values()) this.attachCamera(peer);
       this.cameraState = "on";
       this.callbacks.onCameraState("on");
     } else {
@@ -225,7 +228,7 @@ export class MediaEngine {
       this.cameraStream = null;
       // Keep the sender: dropping it would force a renegotiation on every
       // toggle. A null track simply stops the bytes.
-      for (const peer of this.peers.values()) void peer.cameraSender?.replaceTrack(null);
+      for (const peer of this.peers.values()) void peer.cameraTx.sender.replaceTrack(null);
       this.cameraState = "off";
       this.callbacks.onCameraState("off");
     }
@@ -257,14 +260,14 @@ export class MediaEngine {
         track.onended = () => void this.setScreen(false);
       }
 
-      for (const [peerId, peer] of this.peers) this.attachScreen(peerId, peer);
+      for (const peer of this.peers.values()) this.attachScreen(peer);
       this.screenState = "on";
       this.callbacks.onScreenState("on");
     } else {
       if (!this.screenStream) return;
       this.screenStream.getTracks().forEach((t) => t.stop());
       this.screenStream = null;
-      for (const peer of this.peers.values()) void peer.screenSender?.replaceTrack(null);
+      for (const peer of this.peers.values()) void peer.screenTx.sender.replaceTrack(null);
       this.screenState = "off";
       this.callbacks.onScreenState("off");
     }
@@ -298,6 +301,14 @@ export class MediaEngine {
     audioEl.autoplay = true;
     audioEl.volume = 0;
 
+    // Fixed order, created identically on both sides so the m-lines line up:
+    // audio, then camera, then screen. Position is the routing key, which
+    // means turning a camera on or off never renegotiates — replaceTrack on an
+    // existing transceiver does not change the session.
+    const audioTx = pc.addTransceiver("audio", { direction: "sendrecv" });
+    const cameraTx = pc.addTransceiver("video", { direction: "sendrecv" });
+    const screenTx = pc.addTransceiver("video", { direction: "sendrecv" });
+
     const peer: Peer = {
       pc,
       audioEl,
@@ -309,18 +320,23 @@ export class MediaEngine {
       makingOffer: false,
       ignoreOffer: false,
       settingRemoteAnswer: false,
-      cameraSender: null,
-      screenSender: null,
+      audioTx,
+      cameraTx,
+      screenTx,
+      remoteCamera: null,
+      remoteScreen: null,
       sendingVideo: false,
-      streamIds: new Set(),
     };
     this.peers.set(peerId, peer);
 
-    if (this.micStream) {
-      for (const track of this.micStream.getAudioTracks()) pc.addTrack(track, this.micStream);
-    }
-    if (this.cameraStream) this.attachCamera(peerId, peer);
-    if (this.screenStream) this.attachScreen(peerId, peer);
+    const micTrack = this.micStream?.getAudioTracks()[0] ?? null;
+    if (micTrack) void audioTx.sender.replaceTrack(micTrack);
+
+    void this.capBitrate(cameraTx.sender, CAMERA_MAX_BITRATE);
+    void this.capBitrate(screenTx.sender, SCREEN_MAX_BITRATE);
+
+    if (this.cameraStream) this.attachCamera(peer);
+    if (this.screenStream) this.attachScreen(peer);
 
     pc.onnegotiationneeded = async () => {
       try {
@@ -342,26 +358,15 @@ export class MediaEngine {
     };
 
     pc.ontrack = (event) => {
-      const [stream] = event.streams;
-      if (!stream) return;
-
       if (event.track.kind === "audio") {
-        audioEl.srcObject = stream;
+        // Wrap the track directly rather than trusting event.streams — msid
+        // survives negotiation unreliably once replaceTrack is in play.
+        audioEl.srcObject = new MediaStream([event.track]);
         void audioEl.play().catch(() => undefined);
         return;
       }
-
-      // Video: hold it by stream id. Which surface it belongs to is resolved
-      // from the sender's published camera/screen ids in player state.
-      this.remoteStreams.set(stream.id, stream);
-      peer.streamIds.add(stream.id);
-      stream.onremovetrack = () => {
-        if (stream.getTracks().length === 0) {
-          this.remoteStreams.delete(stream.id);
-          peer.streamIds.delete(stream.id);
-          this.callbacks.onRemoteMediaChange();
-        }
-      };
+      // Video needs no bookkeeping: the transceiver it arrived on already says
+      // whether it is a face or a screen.
       this.callbacks.onRemoteMediaChange();
     };
 
@@ -393,38 +398,19 @@ export class MediaEngine {
     peer.audioEl.srcObject = null;
     peer.audioEl.pause();
 
-    for (const streamId of peer.streamIds) this.remoteStreams.delete(streamId);
     this.peers.delete(peerId);
     this.callbacks.onRemoteMediaChange();
   }
 
-  /**
-   * Create the camera sender once. Whether it actually carries a track is
-   * decided by proximity in setGain, so walking in and out of earshot never
-   * triggers renegotiation.
-   */
-  private attachCamera(peerId: string, peer: Peer): void {
-    const track = this.cameraStream?.getVideoTracks()[0];
-    if (!track || !this.cameraStream) return;
-
-    if (!peer.cameraSender) {
-      peer.cameraSender = peer.pc.addTrack(track, this.cameraStream);
-      void this.capBitrate(peer.cameraSender, CAMERA_MAX_BITRATE);
-    } else {
-      void peer.cameraSender.replaceTrack(peer.sendingVideo ? track : null);
-    }
-    if (!peer.sendingVideo) void peer.cameraSender.replaceTrack(null);
+  /** Feed (or starve) this peer's camera transceiver. Never renegotiates. */
+  private attachCamera(peer: Peer): void {
+    const track = this.cameraStream?.getVideoTracks()[0] ?? null;
+    void peer.cameraTx.sender.replaceTrack(peer.sendingVideo ? track : null);
   }
 
-  private attachScreen(peerId: string, peer: Peer): void {
-    const track = this.screenStream?.getVideoTracks()[0];
-    if (!track || !this.screenStream) return;
-
-    if (!peer.screenSender) {
-      peer.screenSender = peer.pc.addTrack(track, this.screenStream);
-      void this.capBitrate(peer.screenSender, SCREEN_MAX_BITRATE);
-    }
-    void peer.screenSender.replaceTrack(peer.sendingVideo ? track : null);
+  private attachScreen(peer: Peer): void {
+    const track = this.screenStream?.getVideoTracks()[0] ?? null;
+    void peer.screenTx.sender.replaceTrack(peer.sendingVideo ? track : null);
   }
 
   private async capBitrate(sender: RTCRtpSender, maxBitrate: number): Promise<void> {
@@ -522,13 +508,31 @@ export class MediaEngine {
     if (!peer || enabled === peer.sendingVideo) return;
 
     peer.sendingVideo = enabled;
+    this.attachCamera(peer);
+    this.attachScreen(peer);
+  }
 
-    const cameraTrack = this.cameraStream?.getVideoTracks()[0] ?? null;
-    if (peer.cameraSender) void peer.cameraSender.replaceTrack(enabled ? cameraTrack : null);
+  /**
+   * A peer's incoming face or screen.
+   *
+   * Read straight off the transceiver it was negotiated on, so it needs no
+   * stream-id bookkeeping. The track exists even when the sender publishes
+   * nothing — callers gate on the peer's cameraOn/screenOn flags.
+   */
+  getPeerVideo(peerId: string, role: "camera" | "screen"): MediaStream | null {
+    const peer = this.peers.get(peerId);
+    if (!peer) return null;
 
-    // A screenshare follows the same rule: only people who could hear you see it.
-    const screenTrack = this.screenStream?.getVideoTracks()[0] ?? null;
-    if (peer.screenSender) void peer.screenSender.replaceTrack(enabled ? screenTrack : null);
+    const track = (role === "camera" ? peer.cameraTx : peer.screenTx).receiver.track;
+    if (!track) return null;
+
+    const cached = role === "camera" ? peer.remoteCamera : peer.remoteScreen;
+    if (cached && cached.getTracks()[0] === track) return cached;
+
+    const stream = new MediaStream([track]);
+    if (role === "camera") peer.remoteCamera = stream;
+    else peer.remoteScreen = stream;
+    return stream;
   }
 
   setMuted(muted: boolean): void {
@@ -564,12 +568,6 @@ export class MediaEngine {
 
   getLocalScreenStream(): MediaStream | null {
     return this.screenStream;
-  }
-
-  /** Look up a received stream by the id its publisher advertised. */
-  getRemoteStream(streamId: string | null): MediaStream | null {
-    if (!streamId) return null;
-    return this.remoteStreams.get(streamId) ?? null;
   }
 
   gainFor(peerId: string): number {
