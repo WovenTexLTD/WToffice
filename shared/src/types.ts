@@ -40,7 +40,7 @@ export interface Wall extends Rect {
 }
 
 /** Ground covering. Purely visual, but it is most of what makes a room read. */
-export type Material = "oak" | "carpet" | "tile" | "concrete";
+export type Material = "oak" | "carpet" | "carpetDark" | "tile" | "concrete";
 
 /** Named open areas — kitchen, lounge. No behaviour, purely wayfinding. */
 export interface Area extends Rect {
@@ -150,6 +150,10 @@ export interface Floor {
   areas: Area[];
   furniture: Furniture[];
   signs: Sign[];
+  /** Covering for everything outside the named areas. */
+  groundMaterial: Material;
+  /** A floor model tiled over the ground instead, if one suits better. */
+  groundModel?: string;
   /**
    * Glazed doors drawn over a stretch of outer wall. Decorative — the wall
    * behind stays solid, because there is nowhere to go.

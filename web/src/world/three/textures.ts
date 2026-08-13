@@ -116,19 +116,24 @@ function tileCanvas(): HTMLCanvasElement {
 
 /* ── Carpet ───────────────────────────────────────────────────────── */
 
-function carpetCanvas(): HTMLCanvasElement {
+/**
+ * Carpet as a plain weave — warp and weft crossing, which is what carpet looks
+ * like up close and, conveniently, the brand.
+ *
+ * Hue, saturation and the lightness range are parameters so the same weave can
+ * be a warm beige or a dark charcoal without a second generator.
+ */
+function carpetCanvas(hue: number, sat: number, base: number, spread: number): HTMLCanvasElement {
   return surface((ctx, size) => {
-    ctx.fillStyle = "hsl(36, 14%, 70%)";
+    ctx.fillStyle = `hsl(${hue}, ${sat}%, ${base + spread / 2}%)`;
     ctx.fillRect(0, 0, size, size);
 
-    // A plain weave — warp and weft crossing, which is both what carpet looks
-    // like up close and, conveniently, the brand.
     const pitch = 8;
     for (let y = 0; y < size; y += pitch) {
       for (let x = 0; x < size; x += pitch) {
         const over = ((x / pitch + y / pitch) | 0) % 2 === 0;
-        const shade = 62 + rand(x * 0.7 + y * 1.3) * 12;
-        ctx.fillStyle = `hsl(36, 15%, ${shade}%)`;
+        const shade = base + rand(x * 0.7 + y * 1.3) * spread;
+        ctx.fillStyle = `hsl(${hue}, ${sat}%, ${shade}%)`;
         if (over) ctx.fillRect(x, y + pitch * 0.22, pitch, pitch * 0.56);
         else ctx.fillRect(x + pitch * 0.22, y, pitch * 0.56, pitch);
       }
@@ -163,18 +168,23 @@ let cache: Record<string, SurfaceMaps> | null = null;
  * Built once and shared. Generating these is the most expensive thing that
  * happens at start-up, and every floor of the same material can share them.
  */
-export function surfaces(): Record<"oak" | "tile" | "carpet" | "concrete", SurfaceMaps> {
-  if (cache) return cache as Record<"oak" | "tile" | "carpet" | "concrete", SurfaceMaps>;
+type SurfaceName = "oak" | "tile" | "carpet" | "carpetDark" | "concrete";
+
+export function surfaces(): Record<SurfaceName, SurfaceMaps> {
+  if (cache) return cache as Record<SurfaceName, SurfaceMaps>;
 
   const rough = (b: number, v: number, repeat: number) => toTexture(roughnessCanvas(b, v), repeat);
 
   cache = {
     oak: { map: toTexture(oakCanvas(), 6), roughnessMap: rough(0.55, 0.25, 6) },
     tile: { map: toTexture(tileCanvas(), 8), roughnessMap: rough(0.28, 0.16, 8) },
-    carpet: { map: toTexture(carpetCanvas(), 10), roughnessMap: rough(0.95, 0.1, 10) },
+    // Warm beige.
+    carpet: { map: toTexture(carpetCanvas(36, 14, 62, 12), 10), roughnessMap: rough(0.95, 0.1, 10) },
+    // Charcoal, very slightly cool so it does not read as brown.
+    carpetDark: { map: toTexture(carpetCanvas(215, 5, 22, 8), 10), roughnessMap: rough(0.97, 0.08, 10) },
     concrete: { map: toTexture(tileCanvas(), 3), roughnessMap: rough(0.8, 0.2, 3) },
   };
-  return cache as Record<"oak" | "tile" | "carpet" | "concrete", SurfaceMaps>;
+  return cache as Record<SurfaceName, SurfaceMaps>;
 }
 
 /** A canvas-backed label that always faces the camera. */

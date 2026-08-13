@@ -312,20 +312,22 @@ export class ThreeScene {
 
     const slab = new THREE.Mesh(
       new THREE.PlaneGeometry(floor.width, floor.height),
-      new THREE.MeshStandardMaterial({ ...maps.concrete, color: "#B9B2A6", roughness: 0.9 }),
+      new THREE.MeshStandardMaterial({ ...maps[floor.groundMaterial], roughness: 0.72 }),
     );
     slab.rotation.x = -Math.PI / 2;
     slab.position.set(floor.width / 2, 0, floor.height / 2);
     slab.receiveShadow = true;
     this.worldGroup.add(slab);
 
-    // The real ground goes on top once it loads. The plain slab underneath
-    // means there is never a hole, and it is what shows if the tile fails.
-    void groundTiles(floor.width, floor.height).then((tiles) => {
-      if (!tiles || this.floor !== floor) return;
-      tiles.position.y = 0.2;
-      this.worldGroup.add(tiles);
-    });
+    // A model ground goes on top when one is named. The textured slab under it
+    // means there is never a hole, and it is what shows otherwise.
+    if (floor.groundModel) {
+      void groundTiles(floor.width, floor.height).then((tiles) => {
+        if (!tiles || this.floor !== floor) return;
+        tiles.position.y = 0.2;
+        this.worldGroup.add(tiles);
+      });
+    }
 
     const patch = (r: Rect, material: THREE.Material, lift: number) => {
       const mesh = new THREE.Mesh(new THREE.PlaneGeometry(r.w, r.h), material);
@@ -336,16 +338,12 @@ export class ThreeScene {
     };
 
     for (const area of floor.areas) {
-      const tone = { oak: "#C09A6B", tile: "#E6E3DA", carpet: "#BCAF9E", concrete: "#B9B2A6" }[
-        area.material
-      ];
+      // No colour multiplier. Tinting a texture that already carries its colour
+      // multiplies the two together and darkens everything — the colour belongs
+      // in one place, and that place is the generator in textures.ts.
       // The procedural covering goes down either way: it is what shows while a
       // model tile loads, and what remains if one is not named or fails.
-      patch(
-        area,
-        new THREE.MeshStandardMaterial({ ...maps[area.material], color: tone }),
-        0.4,
-      );
+      patch(area, new THREE.MeshStandardMaterial({ ...maps[area.material] }), 0.4);
 
       if (!area.model) continue;
       void tileFloor(`/models/${area.model}.glb`, area).then((tiles) => {
@@ -356,7 +354,7 @@ export class ThreeScene {
     }
 
     for (const zone of floor.zones) {
-      patch(zone, new THREE.MeshStandardMaterial({ ...maps.oak, color: "#C5A275" }), 0.4);
+      patch(zone, new THREE.MeshStandardMaterial({ ...maps.oak }), 0.4);
     }
   }
 
