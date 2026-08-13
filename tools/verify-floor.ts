@@ -5,6 +5,10 @@
  * invisible in source and obvious in play: a door gap too narrow to walk
  * through, and a zone whose edge overlaps a wall.
  *
+ * It proves reachability, not good circulation. A chair parked in the middle of
+ * the lane everyone walks still passes here, because you can go round it — the
+ * smoke test's walk across the floor is what catches that.
+ *
  *   npm run verify:floor
  */
 import { woventexFloor as f, collisionRects, hitsAnyWall, pointInRect, PLAYER_RADIUS } from "../shared/src/index";

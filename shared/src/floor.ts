@@ -8,7 +8,7 @@
  * Coordinate space is world pixels, origin top-left. One "step" is ~240px/sec.
  */
 
-import type { Floor, Furniture } from "./types";
+import { WALL_HEIGHT, type Floor, type Furniture } from "./types";
 
 /** Degrees read better than radians when laying out a room by hand. */
 const deg = (d: number) => (d * Math.PI) / 180;
@@ -34,7 +34,12 @@ export const woventexFloor: Floor = {
   name: "WovenTex HQ",
   width: W,
   height: H,
-  spawn: { x: 300, y: 520 },
+  // Just inside the front doors — you arrive at the entrance and walk in,
+  // rather than materialising in the middle of the room.
+  spawn: { x: 132, y: 520 },
+
+  /** Glazed double doors on the left wall. Decorative; the wall stays solid. */
+  entrance: { x: 0, y: 440, w: WALL, h: 170 },
 
   walls: [
     // Outer shell
@@ -72,6 +77,7 @@ export const woventexFloor: Floor = {
   ],
 
   areas: [
+    { id: "entrance", label: "Entrance", x: 40, y: 400, w: 250, h: 250, material: "tile" },
     { id: "kitchen", label: "Kitchen", x: 60, y: 60, w: 340, h: 260, material: "tile" },
     { id: "studio", label: "Studio Floor", x: 470, y: 330, w: 500, h: 340, material: "oak" },
     { id: "lounge", label: "Lounge", x: 60, y: 680, w: 380, h: 250, material: "carpet" },
@@ -83,6 +89,14 @@ export const woventexFloor: Floor = {
    * so nobody gets wedged behind a stool.
    */
   furniture: [
+    // ── Entrance: mat, somewhere to sit, something green
+    { kind: "rug", x: 130, y: 524, w: 128, h: 92 },
+    // Against the back of the lobby. Anything solid in front of the doors would
+    // sit squarely in the lane everyone walks when they arrive.
+    { kind: "bench", x: 160, y: 415, solid: true },
+    { kind: "plant", x: 246, y: 606 },
+    { kind: "plant", x: 62, y: 640 },
+
     // ── Kitchen: counter along the top wall, table to eat at
     { kind: "counter", x: 230, y: 96, solid: true },
     { kind: "coffeeTable", x: 230, y: 232, solid: true },
@@ -116,13 +130,25 @@ export const woventexFloor: Floor = {
     { kind: "chair", x: 1240, y: 332, rotation: deg(180) },
     { kind: "chair", x: 1330, y: 332, rotation: deg(180) },
     { kind: "chair", x: 1420, y: 332, rotation: deg(180) },
-    { kind: "whiteboard", x: 1330, y: 96 },
+    // Clear of the wall's front face, which drops WALL_HEIGHT into the room.
+    { kind: "whiteboard", x: 1330, y: 108 },
     { kind: "plant", x: 1530, y: 400 },
+    { kind: "console", x: 1150, y: 400, solid: true },
 
     // ── Focus room: two quiet desks
     ...workstation(1220, 700, "down"),
     ...workstation(1440, 700, "down"),
     { kind: "shelf", x: 1330, y: 890, rotation: deg(180), solid: true },
-    { kind: "lamp", x: 1120, y: 610 },
+    { kind: "lamp", x: 1120, y: 620 },
+  ],
+
+  /**
+   * Signage, mounted on the front face of a wall. The big one sits above the
+   * studio floor where it faces the entrance across the room.
+   */
+  signs: [
+    { id: "brand", x: 620, y: WALL, w: 320, h: WALL_HEIGHT, text: "WOVENTEX", mark: true },
+    { id: "meeting-plaque", x: 1086, y: 60 + WALL, w: 150, h: WALL_HEIGHT, text: "MEETING" },
+    { id: "focus-plaque", x: 1086, y: 560 + WALL, w: 150, h: WALL_HEIGHT, text: "FOCUS" },
   ],
 };

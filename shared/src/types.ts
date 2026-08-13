@@ -38,6 +38,25 @@ export interface Area extends Rect {
   material: Material;
 }
 
+/**
+ * How tall walls appear, in world pixels.
+ *
+ * Purely visual: walls are drawn with a lit top face and a shaded front face
+ * dropping this far toward the viewer, which is what stops a floor plan reading
+ * as tape on the ground. Collision still uses the flat footprint.
+ *
+ * Furniture within this distance below a wall will be covered by its face.
+ */
+export const WALL_HEIGHT = 20;
+
+/** Wall-mounted signage — the brand panel, room plaques. */
+export interface Sign extends Rect {
+  id: string;
+  text: string;
+  /** Draws the woven mark alongside the text. */
+  mark?: boolean;
+}
+
 export type FurnitureKind =
   | "desk"
   | "chair"
@@ -51,7 +70,9 @@ export type FurnitureKind =
   | "rug"
   | "shelf"
   | "whiteboard"
-  | "lamp";
+  | "lamp"
+  | "bench"
+  | "console";
 
 export interface Furniture {
   kind: FurnitureKind;
@@ -83,6 +104,12 @@ export interface Floor {
   doors: Door[];
   areas: Area[];
   furniture: Furniture[];
+  signs: Sign[];
+  /**
+   * Glazed doors drawn over a stretch of outer wall. Decorative — the wall
+   * behind stays solid, because there is nowhere to go.
+   */
+  entrance: Rect;
 }
 
 /** Default footprint per kind, in world pixels. */
@@ -100,6 +127,8 @@ export const FURNITURE_SIZE: Record<FurnitureKind, { w: number; h: number }> = {
   shelf: { w: 150, h: 30 },
   whiteboard: { w: 170, h: 14 },
   lamp: { w: 26, h: 26 },
+  bench: { w: 130, h: 40 },
+  console: { w: 140, h: 40 },
 };
 
 export type PresenceStatus = "available" | "focusing" | "away";

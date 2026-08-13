@@ -138,6 +138,27 @@ const DRAW: Record<FurnitureKind, Draw> = {
     g.roundRect(-w / 2, -h / 2, w, h, 2).stroke({ width: 1.5, color: PALETTE.brass });
   },
 
+  bench(g, w, h) {
+    g.roundRect(-w / 2, -h / 2, w, h, 5).fill(PALETTE.walnutLight);
+    g.roundRect(-w / 2, -h / 2, w, h, 5).stroke({ width: 1.4, color: PALETTE.walnutDark });
+    // Slats.
+    for (let i = 1; i < 4; i++) {
+      const x = -w / 2 + (w / 4) * i;
+      g.moveTo(x, -h / 2 + 4).lineTo(x, h / 2 - 4);
+    }
+    g.stroke({ width: 1.2, color: PALETTE.walnutDark, alpha: 0.55 });
+  },
+
+  console(g, w, h) {
+    g.roundRect(-w / 2, -h / 2, w, h, 4).fill(PALETTE.walnut);
+    g.roundRect(-w / 2, -h / 2, w, h, 4).stroke({ width: 1.4, color: PALETTE.walnutDark });
+    g.roundRect(-w / 2 + 8, -h / 2 + 7, w - 16, h - 14, 2).stroke({
+      width: 1,
+      color: PALETTE.walnutLight,
+      alpha: 0.55,
+    });
+  },
+
   lamp(g, w) {
     const r = w / 2;
     g.circle(0, 0, r * 2.6).fill({ color: "#F6E2B8", alpha: 0.22 });

@@ -29,7 +29,15 @@ import {
 } from "@wtoffice/shared";
 
 import { PALETTE } from "./render/palette";
-import { drawMaterial, drawRoomFloor, drawWalls } from "./render/floorArt";
+import {
+  drawEntrance,
+  drawEntranceLight,
+  drawMaterial,
+  drawOcclusion,
+  drawRoomFloor,
+  drawSignPanel,
+  drawWalls,
+} from "./render/floorArt";
 import { build as buildFurniture, isUnderlay } from "./render/furniture";
 
 const COLORS = {
@@ -208,6 +216,17 @@ export class OfficeScene {
     }
     layer.addChild(materials);
 
+    // Occlusion sits above the floor but under everything else, so furniture
+    // does not get a dark halo of its own.
+    const occlusion = new Graphics();
+    drawOcclusion(occlusion, floor.walls);
+    layer.addChild(occlusion);
+
+    // Daylight from the front doors, on the floor before anything stands on it.
+    const daylight = new Graphics();
+    drawEntranceLight(daylight, floor.entrance);
+    layer.addChild(daylight);
+
     const labelStyle = {
       fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace",
       fontSize: 12,
@@ -226,17 +245,6 @@ export class OfficeScene {
       layer.addChild(label);
     }
 
-    for (const zone of floor.zones) {
-      const label = new Text({
-        text: zone.name.toUpperCase(),
-        style: { ...labelStyle, fill: COLORS.roomLabel },
-      });
-      label.anchor.set(0.5, 0);
-      label.position.set(zone.x + zone.w / 2, zone.y + 14);
-      label.alpha = 0.85;
-      layer.addChild(label);
-    }
-
     // Rugs first so everything else sits on top of them.
     for (const item of floor.furniture) {
       if (isUnderlay(item.kind)) layer.addChild(buildFurniture(item));
@@ -251,10 +259,38 @@ export class OfficeScene {
     layer.addChild(wallShadows);
     layer.addChild(walls);
 
+    // The glazing itself goes over the wall it is set into.
+    const glazing = new Graphics();
+    drawEntrance(glazing, floor.entrance);
+    layer.addChild(glazing);
+
     // Redrawn whenever a door opens or shuts, so it lives on its own layer.
     this.doorGfx = new Graphics();
     layer.addChild(this.doorGfx);
     this.redrawDoors();
+
+    // Signage is mounted on the wall faces, so it goes last.
+    const signPanels = new Graphics();
+    for (const sign of floor.signs) drawSignPanel(signPanels, sign);
+    layer.addChild(signPanels);
+
+    for (const sign of floor.signs) {
+      const text = new Text({
+        text: sign.text,
+        style: {
+          fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace",
+          fontSize: sign.mark ? 13 : 10,
+          fontWeight: "600",
+          letterSpacing: sign.mark ? 5 : 2.6,
+          fill: sign.mark ? PALETTE.brass : PALETTE.oatmeal,
+        },
+      });
+      text.anchor.set(0.5);
+      // Nudged right of the woven mark when there is one.
+      const markShift = sign.mark ? sign.h * 0.55 : 0;
+      text.position.set(sign.x + sign.w / 2 + markShift, sign.y + sign.h / 2);
+      layer.addChild(text);
+    }
 
     return layer;
   }

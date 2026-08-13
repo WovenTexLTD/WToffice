@@ -20,10 +20,20 @@ export const PALETTE = {
   roomFloor: "#E4DED2",
   roomFloorLine: "#D5CCBC",
 
-  /* Structure */
+  /* Structure — three tones so walls read as solid volumes, not outlines */
   wall: "#3A342E",
-  wallTop: "#4C443B",
+  /** Lit top surface, seen from above. */
+  wallTop: "#584E43",
+  /** Shaded face dropping toward the viewer. */
+  wallFace: "#332E29",
+  /** Catch-light along the very top edge. */
+  wallEdge: "#6B6053",
   shadow: "#2A2520",
+
+  /* Entrance glazing */
+  glass: "#AFC2C4",
+  glassLight: "#D3E0DF",
+  frame: "#4A423A",
 
   /* Furniture */
   walnut: "#7A5C42",
