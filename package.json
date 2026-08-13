@@ -1,0 +1,27 @@
+{
+  "name": "wtoffice",
+  "private": true,
+  "version": "0.1.0",
+  "description": "WovenTex virtual office — spatial 2D workspace with proximity audio",
+  "workspaces": [
+    "shared",
+    "server",
+    "web"
+  ],
+  "scripts": {
+    "dev": "concurrently -n server,web -c cyan,magenta \"npm:dev:server\" \"npm:dev:web\"",
+    "dev:server": "npm run dev -w @wtoffice/server",
+    "dev:web": "npm run dev -w @wtoffice/web",
+    "build": "npm run build -w @wtoffice/web",
+    "typecheck": "tsc -p shared --noEmit && tsc -p server --noEmit && tsc -p web --noEmit",
+    "verify:floor": "tsx tools/verify-floor.ts",
+    "smoke": "tsx tools/smoke-test.ts"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.2",
+    "typescript": "^5.7.3"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

@@ -1,0 +1,223 @@
+:root {
+  --ground: #e4e9ea;
+  --surface: #f8fafa;
+  --surface-alt: #dfe5e7;
+  --ink: #15222a;
+  --ink-soft: #47606c;
+  --ink-faint: #7c929c;
+  --rule: #c6d1d4;
+  --accent: #1d5d86;
+  --good: #2f6b4f;
+  --warn: #b9622a;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  overflow: hidden;
+  background: var(--ground);
+  color: var(--ink);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+.mono {
+  font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+}
+
+/* ── Entry screen ──────────────────────────────────────────────── */
+
+.entry {
+  height: 100%;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+}
+
+.entry-card {
+  width: 100%;
+  max-width: 380px;
+  background: var(--surface);
+  border: 1px solid var(--rule);
+  border-radius: 6px;
+  padding: 32px 30px 30px;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.entry-kicker {
+  font-size: 11px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+  margin: 0;
+}
+
+.entry-card h1 {
+  font-family: ui-serif, "New York", Georgia, serif;
+  font-weight: 500;
+  font-size: 30px;
+  letter-spacing: -0.02em;
+  margin: 0;
+}
+
+.entry-card p {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--ink-soft);
+}
+
+.entry-card label {
+  font-size: 11px;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+  display: block;
+  margin-bottom: 7px;
+}
+
+.entry-card input {
+  width: 100%;
+  font: inherit;
+  font-size: 16px;
+  padding: 11px 13px;
+  border: 1px solid var(--rule);
+  border-radius: 4px;
+  background: #fff;
+  color: var(--ink);
+}
+
+.entry-card input:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -1px;
+  border-color: transparent;
+}
+
+.entry-card button {
+  font: inherit;
+  font-size: 15px;
+  font-weight: 600;
+  padding: 12px 18px;
+  border: none;
+  border-radius: 4px;
+  background: var(--accent);
+  color: #fff;
+  cursor: pointer;
+}
+
+.entry-card button:disabled {
+  background: var(--rule);
+  color: var(--ink-faint);
+  cursor: not-allowed;
+}
+
+.entry-card button:focus-visible {
+  outline: 2px solid var(--ink);
+  outline-offset: 2px;
+}
+
+/* ── Office ────────────────────────────────────────────────────── */
+
+.office {
+  position: relative;
+  height: 100%;
+  width: 100%;
+}
+
+.stage {
+  position: absolute;
+  inset: 0;
+}
+
+.stage canvas {
+  display: block;
+  cursor: pointer;
+}
+
+.hud {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  padding: 11px 18px;
+  background: rgba(21, 34, 42, 0.92);
+  color: #dee7e9;
+  font-size: 13px;
+  backdrop-filter: blur(8px);
+}
+
+.hud-status {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--ink-faint);
+  flex: none;
+}
+
+.dot.online {
+  background: #6fbf95;
+}
+
+.dot.reconnecting {
+  background: #d6a94a;
+}
+
+.dot.offline {
+  background: #c2564f;
+}
+
+.hud-zone {
+  padding: 3px 9px;
+  border-radius: 3px;
+  background: rgba(111, 178, 220, 0.16);
+  color: #9fd0ee;
+  font-size: 11px;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+}
+
+.hud-spacer {
+  flex: 1;
+}
+
+.hud-hint {
+  color: #7c929c;
+  font-size: 12px;
+}
+
+.hud-roster {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.chip {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font-size: 10px;
+  font-weight: 600;
+  color: #fff;
+}
