@@ -184,7 +184,7 @@ export const FURNITURE_SIZE: Record<FurnitureKind, { w: number; h: number }> = {
   lamp: { w: 37, h: 37 }, //           0.44 × 0.44 m
   bench: { w: 82, h: 31 }, //          0.97 × 0.36 m
   console: { w: 105, h: 30 }, //       1.24 × 0.35 m
-  partition: { w: 164, h: 13 }, //     1.93 × 0.15 m
+  partition: { w: 161, h: 5 }, //      1.89 × 0.06 m
   wallArt: { w: 107, h: 7 }, //        1.26 × 0.08 m
   locker: { w: 72, h: 32 }, //         0.85 × 0.38 m
   pillow: { w: 36, h: 26 }, //         0.42 × 0.31 m

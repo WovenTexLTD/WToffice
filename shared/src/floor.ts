@@ -32,32 +32,41 @@ const ROOM_LEFT = 1800;
 const DESK_TOP = 62;
 
 /**
- * A bank of four workstations, in two rows.
+ * A bank of four workstations: two pairs, each sitting opposite each other.
  *
- * Every desk faces north, toward the glazed elevation. That is how a real
- * office is laid out — you orient work toward the daylight and the view, not
- * away from it — and it has a second benefit here: from a fixed overhead
- * camera, rows facing opposite ways show one row's work surface and the other's
- * back panel, which reads as a rendering fault rather than as an office.
+ * Two desks pushed back to back with a screen between them is the standard
+ * bench arrangement, and it reads far better than rows all facing one way —
+ * people are grouped into pairs that face each other, which is what a desk
+ * cluster is for.
  *
- * A screen sits behind each row, a monitor at the back of each desk, and the
- * 66-unit gap between rows is deliberate: enough to walk through.
+ * Monitors go against the screen; chairs sit on the outside of each desk so
+ * whoever is in one faces their own desk. The screen mounts on the desks rather
+ * than standing on the floor, which is what this partition is sized for.
  */
 function deskBank(cx: number, cy: number): Furniture[] {
   const out: Furniture[] = [];
   const PITCH = 168;
+  /** Half the gap between the two desks of a pair. */
+  const REACH = 38;
+  const SEAT = 100;
 
-  for (const row of [-100, 100]) {
-    for (const side of [-0.5, 0.5]) {
-      const x = cx + side * PITCH;
-      const y = cy + row;
+  for (const side of [-0.5, 0.5]) {
+    const x = cx + side * PITCH;
 
-      out.push({ kind: "partition", x, y: y - 34, solid: true });
-      out.push({ kind: "desk", x, y, solid: true });
-      out.push({ kind: "monitor", x, y: y - 12, elevation: DESK_TOP });
-      out.push({ kind: "deskLamp", x: x + 52, y: y + 4 });
-      out.push({ kind: "chair", x, y: y + 62 });
-    }
+    // North desk: whoever sits here is above it, facing south.
+    out.push({ kind: "desk", x, y: cy - REACH, rotation: deg(180), solid: true });
+    out.push({ kind: "monitor", x, y: cy - 24, rotation: deg(180), elevation: DESK_TOP });
+    out.push({ kind: "chair", x, y: cy - SEAT });
+
+    // The screen they share, sitting on the desks between them.
+    out.push({ kind: "partition", x, y: cy, elevation: DESK_TOP });
+
+    // South desk: whoever sits here is below it, facing north.
+    out.push({ kind: "desk", x, y: cy + REACH, solid: true });
+    out.push({ kind: "monitor", x, y: cy + 24, elevation: DESK_TOP });
+    out.push({ kind: "chair", x, y: cy + SEAT, rotation: deg(180) });
+
+    out.push({ kind: "deskLamp", x: x + 54, y: cy - REACH - 12, elevation: DESK_TOP });
   }
   return out;
 }

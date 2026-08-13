@@ -5,7 +5,13 @@
       "Bash(node tools/inspect-models.mjs ~/Downloads/Separate_assets_glb electronics --zup --top 12)",
       "Bash(cp ~/Downloads/Separate_assets_glb/office_chair_009.glb web/public/models/task-chair.glb)",
       "Bash(cp ~/Downloads/Separate_assets_glb/electronics_024.glb web/public/models/monitor.glb)",
-      "Bash(rm -f web/public/models/task-chair.glb.orig web/public/models/desk-topper.glb*)"
+      "Bash(rm -f web/public/models/task-chair.glb.orig web/public/models/desk-topper.glb*)",
+      "Bash(node tools/inspect-models.mjs ~/Downloads/Separate_assets_glb Partitions_048 --zup)",
+      "Bash(node tools/inspect-models.mjs ~/Downloads/Separate_assets_glb Partitions_005 --zup)",
+      "Bash(cd /Users/karimsabbagh/Documents/GitHub/WToffice *)"
+    ],
+    "additionalDirectories": [
+      "/Users/karimsabbagh/Downloads/Separate_assets_glb"
     ]
   }
 }
