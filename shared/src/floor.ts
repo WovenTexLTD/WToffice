@@ -28,33 +28,37 @@ const ROOM_LEFT = 1800;
 
 /* ── Composition helpers ──────────────────────────────────────────── */
 
-/** Height of the desk surface, in world units — where a topper sits. */
+/** Height of the desk surface, in world units — where a monitor sits. */
 const DESK_TOP = 62;
 
 /**
- * A bank of four desks, back to back in two rows, with a screen between them.
+ * A bank of four workstations, in two rows.
  *
- * Each desk carries a storage unit on its surface, set toward the back so the
- * near half stays clear to work on.
+ * Every desk faces north, toward the glazed elevation. That is how a real
+ * office is laid out — you orient work toward the daylight and the view, not
+ * away from it — and it has a second benefit here: from a fixed overhead
+ * camera, rows facing opposite ways show one row's work surface and the other's
+ * back panel, which reads as a rendering fault rather than as an office.
+ *
+ * A screen sits behind each row, a monitor at the back of each desk, and the
+ * 66-unit gap between rows is deliberate: enough to walk through.
  */
 function deskBank(cx: number, cy: number): Furniture[] {
   const out: Furniture[] = [];
+  const PITCH = 168;
 
-  for (const sx of [-1, 1] as const) {
-    for (const sz of [-1, 1] as const) {
-      const x = cx + sx * 74;
-      const y = cy + sz * 45;
-      const facing = sz < 0 ? 0 : deg(180);
+  for (const row of [-100, 100]) {
+    for (const side of [-0.5, 0.5]) {
+      const x = cx + side * PITCH;
+      const y = cy + row;
 
-      out.push({ kind: "desk", x, y, rotation: facing, solid: true });
-      out.push({ kind: "deskTopper", x, y: y - sz * 10, rotation: facing, elevation: DESK_TOP });
-      out.push({ kind: "chair", x, y: y + sz * 64, rotation: facing });
-      out.push({ kind: "deskLamp", x: x + 52, y: y - sz * 18 });
+      out.push({ kind: "partition", x, y: y - 34, solid: true });
+      out.push({ kind: "desk", x, y, solid: true });
+      out.push({ kind: "monitor", x, y: y - 12, elevation: DESK_TOP });
+      out.push({ kind: "deskLamp", x: x + 52, y: y + 4 });
+      out.push({ kind: "chair", x, y: y + 62 });
     }
   }
-
-  // The screen down the middle is what makes a bank read as a bank.
-  out.push({ kind: "partition", x: cx, y: cy, solid: true });
   return out;
 }
 
@@ -147,7 +151,9 @@ export const woventexFloor: Floor = {
     { id: "entrance", label: "Entrance", x: 40, y: 700, w: 400, h: 320, material: "tile" },
     { id: "kitchen", label: "Kitchen", x: 60, y: 60, w: 520, h: 380, material: "tile" },
     { id: "lounge", label: "Lounge", x: 60, y: 1160, w: 520, h: 480, material: "carpet" },
-    { id: "studio", label: "Studio Floor", x: 660, y: 280, w: 1040, h: 1140, material: "carpetDark" },
+    // Inset, so the boards frame the carpet rather than the carpet swallowing
+    // the middle of the plan.
+    { id: "studio", label: "Studio Floor", x: 700, y: 340, w: 960, h: 1020, material: "carpetDark" },
   ],
 
   furniture: [
@@ -178,19 +184,17 @@ export const woventexFloor: Floor = {
     ...deskBank(900, 1050),
     ...deskBank(1400, 1050),
 
-    { kind: "printer", x: 700, y: 330, solid: true },
+    { kind: "printer", x: 730, y: 400, solid: true },
     { kind: "shelf", x: 1150, y: 300, solid: true },
     { kind: "shelf", x: 1150, y: 1400, rotation: deg(180), solid: true, model: "shelf-b" },
-    { kind: "waterCooler", x: 1660, y: 800 },
+    { kind: "waterCooler", x: 1655, y: 430 },
     { kind: "plant", x: 700, y: 1390, model: "tree" },
     { kind: "plant", x: 1650, y: 320, model: "plant-big" },
     { kind: "plant", x: 700, y: 800, model: "plant-c" },
     { kind: "plant", x: 1650, y: 1390, model: "plant-b" },
-    // Horizontal, not vertical: turned the other way it walls off the corridor
-    // between the desk banks, which the flood fill allows but nobody enjoys.
-    { kind: "benchDesk", x: 1150, y: 700, solid: true },
-    { kind: "chair", x: 1070, y: 640 },
-    { kind: "chair", x: 1230, y: 640 },
+    // Against the east edge, clear of both the desk banks and the cross
+    // corridor between them.
+    { kind: "benchDesk", x: 1618, y: 836, rotation: deg(90), solid: true },
     { kind: "wallArt", x: 1000, y: 30 },
     { kind: "wallArt", x: 1400, y: 30, model: "wall-art-b" },
 

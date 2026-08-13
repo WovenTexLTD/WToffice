@@ -189,16 +189,19 @@ export class ThreeScene {
   }
 
   private setupLights(): void {
-    this.scene.add(new THREE.HemisphereLight(0xdfe8ef, 0x6b5c4a, 0.7));
+    // Carries the interior. A single hard sun with little fill gives an office
+    // the shadows of a car park at five o'clock.
+    this.scene.add(new THREE.HemisphereLight(0xe6edf4, 0x7a6a55, 1.25));
 
-    // One directional light doing the work of a big window, angled so that
-    // every wall casts a shadow across the floor.
-    const sun = new THREE.DirectionalLight(0xfff2df, 2.1);
-    sun.position.set(-700, 1250, -420);
+    // High and soft. At a low angle every object throws a long hard shadow
+    // across the floor, which reads as outdoors — interiors are lit from much
+    // closer to overhead, and the shadows are short and diffuse.
+    const sun = new THREE.DirectionalLight(0xfff4e4, 1.7);
     sun.castShadow = true;
     sun.shadow.mapSize.set(2048, 2048);
     sun.shadow.bias = -0.0006;
     sun.shadow.normalBias = 2;
+    sun.shadow.radius = 5;
 
     // Sized to the whole floor and aimed at its centre. A shadow camera that
     // covers only part of the plan leaves the far rooms unshadowed, which reads
@@ -212,14 +215,15 @@ export class ThreeScene {
     cam.far = 3600;
     cam.updateProjectionMatrix();
 
-    sun.position.set(-500, 1900, -700);
+    // About 70° above the horizon, from the glazed north-west corner.
+    sun.position.set(600, 2800, 300);
     sun.target.position.set(1300, 0, 850);
     this.scene.add(sun);
     this.scene.add(sun.target);
 
     // A cool bounce from the opposite side, so shadows are not dead black.
-    const fill = new THREE.DirectionalLight(0xcfe0ee, 0.45);
-    fill.position.set(900, 600, 900);
+    const fill = new THREE.DirectionalLight(0xd6e4f0, 0.62);
+    fill.position.set(2200, 900, 1900);
     this.scene.add(fill);
   }
 

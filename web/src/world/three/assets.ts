@@ -108,5 +108,5 @@ export const MODELS: Partial<Record<FurnitureKind, ModelSpec>> = {
   waterCooler: { url: "/models/water-cooler.glb", scale: M, upAxis: "z" },
   roundTable: { url: "/models/round-table.glb", scale: M, upAxis: "z" },
   benchDesk: { url: "/models/bench-desk.glb", scale: M, upAxis: "z" },
-  deskTopper: { url: "/models/desk-topper.glb", scale: M, upAxis: "z" },
+  monitor: { url: "/models/monitor.glb", scale: M, upAxis: "z" },
 };

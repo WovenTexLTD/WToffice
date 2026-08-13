@@ -189,8 +189,9 @@ export function surfaces(): Record<SurfaceName, SurfaceMaps> {
     tile: { map: toTexture(tileCanvas(), 8), roughnessMap: rough(0.28, 0.16, 8) },
     // Warm beige.
     carpet: { map: toTexture(carpetCanvas(36, 14, 62, 12), 10), roughnessMap: rough(0.95, 0.1, 10) },
-    // Charcoal, very slightly cool so it does not read as brown.
-    carpetDark: { map: toTexture(carpetCanvas(215, 5, 22, 8), 10), roughnessMap: rough(0.97, 0.08, 10) },
+    // Mid commercial grey, slightly cool so it does not read as brown. Charcoal
+    // at this size stops looking like carpet and starts looking like tarmac.
+    carpetDark: { map: toTexture(carpetCanvas(212, 4, 37, 7), 10), roughnessMap: rough(0.97, 0.08, 10) },
     concrete: { map: toTexture(tileCanvas(), 3), roughnessMap: rough(0.8, 0.2, 3) },
   };
   return cache as Record<SurfaceName, SurfaceMaps>;
