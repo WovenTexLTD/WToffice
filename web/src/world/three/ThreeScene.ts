@@ -356,7 +356,7 @@ export class ThreeScene {
     }
 
     for (const zone of floor.zones) {
-      patch(zone, floorMaterial("oak", zone.w, zone.h), 0.4);
+      patch(zone, floorMaterial(zone.material, zone.w, zone.h), 0.4);
     }
   }
 

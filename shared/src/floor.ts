@@ -148,9 +148,9 @@ export const woventexFloor: Floor = {
   ],
 
   zones: [
-    { id: "meeting", name: "Meeting Room", x: 1814, y: 74, w: 772, h: 472 },
-    { id: "focus", name: "Focus Room", x: 1814, y: 674, w: 772, h: 372 },
-    { id: "breakout", name: "Breakout", x: 1814, y: 1174, w: 772, h: 452 },
+    { id: "meeting", name: "Meeting Room", x: 1814, y: 74, w: 772, h: 472, material: "walnut" },
+    { id: "focus", name: "Focus Room", x: 1814, y: 674, w: 772, h: 372, material: "walnut" },
+    { id: "breakout", name: "Breakout", x: 1814, y: 1174, w: 772, h: 452, material: "walnut" },
   ],
 
   doors: [
@@ -166,8 +166,9 @@ export const woventexFloor: Floor = {
     { id: "entrance", label: "Entrance", x: 40, y: 700, w: 400, h: 320, material: "tile" },
     { id: "kitchen", label: "Kitchen", x: 60, y: 60, w: 520, h: 380, material: "tile" },
     { id: "lounge", label: "Lounge", x: 60, y: 1160, w: 520, h: 480, material: "carpet" },
-    // The same boards as the rooms, so the whole floor reads as one surface.
-    { id: "studio", label: "Studio Floor", x: 700, y: 340, w: 960, h: 1020, material: "oak" },
+    // The warm boards, matching the rooms — the pale ones outside then read as
+    // circulation around the places people actually work.
+    { id: "studio", label: "Studio Floor", x: 700, y: 340, w: 960, h: 1020, material: "walnut" },
   ],
 
   furniture: [

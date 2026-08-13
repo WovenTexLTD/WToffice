@@ -20,6 +20,7 @@ export interface Rect {
 export interface Zone extends Rect {
   id: string;
   name: string;
+  material: Material;
 }
 
 /** A gap in a zone's wall. Openable doors land in Phase 4; for now these are always open. */
@@ -40,7 +41,14 @@ export interface Wall extends Rect {
 }
 
 /** Ground covering. Purely visual, but it is most of what makes a room read. */
-export type Material = "oak" | "carpet" | "carpetDark" | "tile" | "concrete";
+/**
+ * Ground coverings.
+ *
+ * Two woods, deliberately: pale boards outside the rooms and a warmer brown
+ * inside them, which is what separates the circulation from the places you
+ * work without needing a change of material.
+ */
+export type Material = "oak" | "walnut" | "carpet" | "carpetDark" | "tile" | "concrete";
 
 /** Named open areas — kitchen, lounge. No behaviour, purely wayfinding. */
 export interface Area extends Rect {

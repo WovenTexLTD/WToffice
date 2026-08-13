@@ -195,7 +195,7 @@ let cache: Record<string, SurfaceMaps> | null = null;
  * Built once and shared. Generating these is the most expensive thing that
  * happens at start-up, and every floor of the same material can share them.
  */
-export type SurfaceName = "oak" | "tile" | "carpet" | "carpetDark" | "concrete";
+export type SurfaceName = "oak" | "walnut" | "tile" | "carpet" | "carpetDark" | "concrete";
 
 export function surfaces(): Record<SurfaceName, SurfaceMaps> {
   if (cache) return cache as Record<SurfaceName, SurfaceMaps>;
@@ -208,6 +208,8 @@ export function surfaces(): Record<SurfaceName, SurfaceMaps> {
     // Pale boards. Raise the first argument for a whiter floor, lower it for
     // walnut — it is the one number worth adjusting by eye.
     oak: { map: toTexture(oakCanvas(74), 1), roughnessMap: rough(0.5, 0.22, 1) },
+    // The warmer, browner board used inside the rooms and across the studio.
+    walnut: { map: toTexture(oakCanvas(47, 33, 30), 1), roughnessMap: rough(0.55, 0.25, 1) },
     tile: { map: toTexture(tileCanvas(), 1), roughnessMap: rough(0.28, 0.16, 1) },
     // Warm beige.
     carpet: { map: toTexture(carpetCanvas(36, 14, 62, 12), 1), roughnessMap: rough(0.95, 0.1, 1) },
@@ -221,6 +223,7 @@ export function surfaces(): Record<SurfaceName, SurfaceMaps> {
 
 const ROUGHNESS: Record<SurfaceName, number> = {
   oak: 0.6,
+  walnut: 0.62,
   tile: 0.32,
   carpet: 0.98,
   carpetDark: 0.98,
