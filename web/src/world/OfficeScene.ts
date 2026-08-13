@@ -39,6 +39,7 @@ import {
   drawWalls,
 } from "./render/floorArt";
 import { build as buildFurniture, isUnderlay } from "./render/furniture";
+import { TILT, UNTILT } from "./render/perspective";
 
 const COLORS = {
   ground: PALETTE.shell,
@@ -227,10 +228,12 @@ export class OfficeScene {
     drawEntranceLight(daylight, floor.entrance);
     layer.addChild(daylight);
 
+    // Larger than it looks: area labels lie on the floor and keep the squash,
+    // so they render at roughly 70% of this height.
     const labelStyle = {
       fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace",
-      fontSize: 12,
-      letterSpacing: 2.6,
+      fontSize: 17,
+      letterSpacing: 3.4,
     };
 
     for (const area of floor.areas) {
@@ -286,8 +289,10 @@ export class OfficeScene {
         },
       });
       text.anchor.set(0.5);
+      // Signage is mounted on a vertical surface, so it cancels the squash.
+      text.scale.set(1, UNTILT);
       // Nudged right of the woven mark when there is one.
-      const markShift = sign.mark ? sign.h * 0.55 : 0;
+      const markShift = sign.mark ? sign.h * 0.4 : 0;
       text.position.set(sign.x + sign.w / 2 + markShift, sign.y + sign.h / 2);
       layer.addChild(text);
     }
@@ -331,6 +336,10 @@ export class OfficeScene {
 
   private addAvatar(state: PlayerState): void {
     const view = new Container();
+    // People stand up, so they cancel the ground-plane squash. Without this
+    // every face renders as an ellipse.
+    view.scale.set(1, UNTILT);
+
     const isSelf = state.id === this.selfId;
 
     // Earshot ring, drawn only for the local player — this is the audio range
@@ -339,16 +348,20 @@ export class OfficeScene {
       const ring = new Graphics();
       ring.circle(0, 0, EARSHOT).fill({ color: COLORS.earshot, alpha: 0.05 });
       ring.circle(0, 0, EARSHOT).stroke({ width: 1.5, color: COLORS.earshot, alpha: 0.28 });
+      // Earshot lies on the floor, so it keeps the squash the avatar cancels.
+      ring.scale.set(1, TILT);
       view.addChild(ring);
     }
 
     // Contact shadow — without one, avatars look pasted on rather than standing
     // in the room. Below the halo, or it darkens it.
     const shadow = new Graphics();
-    shadow.ellipse(1, 5, PLAYER_RADIUS * 0.95, PLAYER_RADIUS * 0.72).fill({
+    shadow.ellipse(1, PLAYER_RADIUS * 0.8, PLAYER_RADIUS * 0.95, PLAYER_RADIUS * 0.5).fill({
       color: PALETTE.shadow,
-      alpha: 0.18,
+      alpha: 0.2,
     });
+    // On the floor, so it stays squashed — and sits at the feet, not the middle.
+    shadow.scale.set(1, TILT);
     view.addChild(shadow);
 
     // Sits behind the body so it reads as a halo rather than an outline.
@@ -470,7 +483,7 @@ export class OfficeScene {
 
     const rect = this.app.canvas.getBoundingClientRect();
     const worldX = (e.clientX - rect.left - this.world.x) / this.zoom;
-    const worldY = (e.clientY - rect.top - this.world.y) / this.zoom;
+    const worldY = (e.clientY - rect.top - this.world.y) / (this.zoom * TILT);
 
     const door = doorAt(worldX, worldY, floor.doors);
     if (door) {
@@ -556,7 +569,7 @@ export class OfficeScene {
 
     for (const [id, avatar] of this.avatars) {
       const sx = this.world.x + avatar.cur.x * this.zoom;
-      const sy = this.world.y + avatar.cur.y * this.zoom;
+      const sy = this.world.y + avatar.cur.y * this.zoom * TILT;
 
       // Skip offscreen avatars; endFrame hides whatever wasn't placed.
       if (sx < -margin || sy < -margin || sx > app.screen.width + margin || sy > app.screen.height + margin) {
@@ -732,17 +745,18 @@ export class OfficeScene {
   }
 
   private updateCamera(app: Application, floor: Floor): void {
-    this.world.scale.set(this.zoom);
+    // X at full zoom, Y compressed — this is the tilt.
+    this.world.scale.set(this.zoom, this.zoom * TILT);
 
     const viewW = app.screen.width;
     const viewH = app.screen.height;
     const worldW = floor.width * this.zoom;
-    const worldH = floor.height * this.zoom;
+    const worldH = floor.height * this.zoom * TILT;
 
     // Centre on the player, but never scroll past the world edge. If the world
     // is smaller than the viewport on an axis, centre it instead.
     let x = viewW / 2 - this.local.x * this.zoom;
-    let y = viewH / 2 - this.local.y * this.zoom;
+    let y = viewH / 2 - this.local.y * this.zoom * TILT;
 
     x = worldW <= viewW ? (viewW - worldW) / 2 : Math.min(0, Math.max(viewW - worldW, x));
     y = worldH <= viewH ? (viewH - worldH) / 2 : Math.min(0, Math.max(viewH - worldH, y));

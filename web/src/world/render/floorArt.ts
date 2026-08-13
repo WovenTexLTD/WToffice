@@ -179,17 +179,28 @@ export function drawWalls(shadowLayer: Graphics, wallLayer: Graphics, walls: Rec
   const sorted = [...walls].sort((a, b) => a.y + a.h - (b.y + b.h));
 
   for (const w of sorted) {
-    // Face.
-    wallLayer.rect(w.x, w.y + w.h, w.w, WALL_HEIGHT).fill(PALETTE.wallFace);
-    // A slight gradient down the face, darker at the foot.
-    wallLayer
-      .rect(w.x, w.y + w.h + WALL_HEIGHT * 0.55, w.w, WALL_HEIGHT * 0.45)
-      .fill({ color: PALETTE.shadow, alpha: 0.22 });
+    // Only runs that face the camera get a visible face. A north-south wall
+    // would otherwise sprout a thin dark sliver off its bottom end, which lands
+    // squarely in doorways and reads as a glitch rather than a wall.
+    const facesCamera = w.w >= w.h;
+
+    if (facesCamera) {
+      wallLayer.rect(w.x, w.y + w.h, w.w, WALL_HEIGHT).fill(PALETTE.wallFace);
+      // Darker toward the foot, where least light reaches.
+      wallLayer
+        .rect(w.x, w.y + w.h + WALL_HEIGHT * 0.6, w.w, WALL_HEIGHT * 0.4)
+        .fill({ color: PALETTE.shadow, alpha: 0.26 });
+    }
 
     // Top surface.
     wallLayer.rect(w.x, w.y, w.w, w.h).fill(PALETTE.wallTop);
-    // Catch-light.
-    wallLayer.rect(w.x, w.y, w.w, 2).fill({ color: PALETTE.wallEdge, alpha: 0.85 });
+    // Catch-light along the lit edge.
+    wallLayer.rect(w.x, w.y, w.w, 2.5).fill({ color: PALETTE.wallEdge, alpha: 0.9 });
+
+    // North-south runs get their thickness from a shaded right edge instead.
+    if (!facesCamera) {
+      wallLayer.rect(w.x + w.w - 3, w.y, 3, w.h).fill({ color: PALETTE.shadow, alpha: 0.3 });
+    }
   }
 }
 

@@ -131,7 +131,7 @@ export const woventexFloor: Floor = {
     { kind: "chair", x: 1330, y: 332, rotation: deg(180) },
     { kind: "chair", x: 1420, y: 332, rotation: deg(180) },
     // Clear of the wall's front face, which drops WALL_HEIGHT into the room.
-    { kind: "whiteboard", x: 1330, y: 108 },
+    { kind: "whiteboard", x: 1330, y: 136 },
     { kind: "plant", x: 1530, y: 400 },
     { kind: "console", x: 1150, y: 400, solid: true },
 
@@ -139,7 +139,7 @@ export const woventexFloor: Floor = {
     ...workstation(1220, 700, "down"),
     ...workstation(1440, 700, "down"),
     { kind: "shelf", x: 1330, y: 890, rotation: deg(180), solid: true },
-    { kind: "lamp", x: 1120, y: 620 },
+    { kind: "lamp", x: 1120, y: 640 },
   ],
 
   /**

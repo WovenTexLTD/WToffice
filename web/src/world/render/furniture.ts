@@ -10,7 +10,12 @@
  */
 
 import { Container, Graphics } from "pixi.js";
-import { FURNITURE_SIZE, type Furniture, type FurnitureKind } from "@wtoffice/shared";
+import {
+  FURNITURE_HEIGHT,
+  FURNITURE_SIZE,
+  type Furniture,
+  type FurnitureKind,
+} from "@wtoffice/shared";
 import { PALETTE, SPINE_COLORS } from "./palette";
 
 type Draw = (g: Graphics, w: number, h: number) => void;
@@ -167,28 +172,77 @@ const DRAW: Record<FurnitureKind, Draw> = {
   },
 };
 
+/**
+ * The colour of a piece's sides.
+ *
+ * Derived per kind rather than shared, because one walnut band under every
+ * object makes upholstery and planters look like they are sitting on crates.
+ */
+const SIDE_COLOR: Record<FurnitureKind, string> = {
+  desk: PALETTE.walnutDark,
+  chair: PALETTE.oatmealDark,
+  sofa: PALETTE.oatmealDark,
+  armchair: PALETTE.oatmealDark,
+  meetingTable: PALETTE.walnutDark,
+  coffeeTable: PALETTE.walnutDark,
+  stool: PALETTE.oatmealDark,
+  counter: PALETTE.oatmealDark,
+  plant: "#8A5238",
+  rug: PALETTE.carpet,
+  shelf: PALETTE.walnutDark,
+  whiteboard: "#6A5238",
+  lamp: "#8A6D40",
+  bench: PALETTE.walnutDark,
+  console: PALETTE.walnutDark,
+};
+
 /** Rugs lie under everything; drawing order is otherwise as authored. */
 export function isUnderlay(kind: FurnitureKind): boolean {
   return kind === "rug";
 }
 
+/**
+ * Build a piece, extruded.
+ *
+ * Three passes: a contact shadow on the floor, a dark silhouette of the shape at
+ * the footprint, and the real shape raised by the kind's height. The gap between
+ * the last two is what the eye reads as the side of the object — far cheaper
+ * than modelling each side, and it works for any silhouette.
+ *
+ * Rotation is applied to the whole container, so an item's sides stay consistent
+ * with the way it is turned.
+ */
 export function build(item: Furniture): Container {
   const size = FURNITURE_SIZE[item.kind];
   const w = item.w ?? size.w;
   const h = item.h ?? size.h;
+  const lift = FURNITURE_HEIGHT[item.kind];
 
   const view = new Container();
 
-  // A soft contact shadow. Skipped for flat items, which sit on the floor.
-  if (!isUnderlay(item.kind) && item.kind !== "whiteboard") {
+  if (!isUnderlay(item.kind)) {
     const shadow = new Graphics();
-    shadow.roundRect(-w / 2 + 2, -h / 2 + 4, w, h, 8).fill({ color: PALETTE.shadow, alpha: 0.13 });
+    shadow
+      .roundRect(-w / 2 + 3, -h / 2 + 5, w, h, 8)
+      .fill({ color: PALETTE.shadow, alpha: 0.16 });
     view.addChild(shadow);
   }
 
-  const g = new Graphics();
-  DRAW[item.kind](g, w, h);
-  view.addChild(g);
+  if (lift > 0) {
+    // The side: one band spanning from the raised top down to the footprint.
+    // Darker at the foot, which is all the shading a piece this size needs.
+    const side = new Graphics();
+    side.roundRect(-w / 2, -h / 2 - lift, w, h + lift, 6).fill(SIDE_COLOR[item.kind]);
+    side
+      .roundRect(-w / 2, h / 2 - lift * 0.5, w, lift * 0.5 + h / 2, 6)
+      .fill({ color: PALETTE.shadow, alpha: 0.28 });
+    view.addChild(side);
+  }
+
+  const top = new Graphics();
+  DRAW[item.kind](top, w, h);
+  top.y = -lift;
+  view.addChild(top);
 
   view.position.set(item.x, item.y);
   view.rotation = item.rotation ?? 0;

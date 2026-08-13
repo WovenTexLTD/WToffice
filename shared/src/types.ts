@@ -47,7 +47,7 @@ export interface Area extends Rect {
  *
  * Furniture within this distance below a wall will be covered by its face.
  */
-export const WALL_HEIGHT = 20;
+export const WALL_HEIGHT = 44;
 
 /** Wall-mounted signage — the brand panel, room plaques. */
 export interface Sign extends Rect {
@@ -129,6 +129,32 @@ export const FURNITURE_SIZE: Record<FurnitureKind, { w: number; h: number }> = {
   lamp: { w: 26, h: 26 },
   bench: { w: 130, h: 40 },
   console: { w: 140, h: 40 },
+};
+
+/**
+ * How far each kind stands off the floor, in world pixels.
+ *
+ * The renderer draws a dark silhouette at the footprint and the real shape
+ * raised by this much, so the gap between them reads as the side of the object.
+ * Values are pre-compensated for the ground-plane squash — on screen they land
+ * at roughly 70% of these.
+ */
+export const FURNITURE_HEIGHT: Record<FurnitureKind, number> = {
+  desk: 24,
+  chair: 16,
+  sofa: 20,
+  armchair: 20,
+  meetingTable: 24,
+  coffeeTable: 12,
+  stool: 14,
+  counter: 30,
+  plant: 26,
+  rug: 0,
+  shelf: 34,
+  whiteboard: 40,
+  lamp: 18,
+  bench: 14,
+  console: 20,
 };
 
 export type PresenceStatus = "available" | "focusing" | "away";
