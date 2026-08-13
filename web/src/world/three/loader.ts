@@ -1,0 +1,120 @@
+/**
+ * Model loading, with auto-fit.
+ *
+ * Bought packs never agree on units, origin or facing. Rather than hand-tuning
+ * every piece, each model is measured on load and normalised: scaled to the
+ * footprint the floor plan already declares, centred on it, and sat on the
+ * floor. That is what makes "drop a .glb in and name it" actually true.
+ *
+ * Each URL is fetched once and cloned per instance, so twenty identical chairs
+ * cost one download and share their geometry and materials.
+ */
+
+import * as THREE from "three";
+import { FURNITURE_SIZE, type Furniture } from "@wtoffice/shared";
+import { MODELS, type ModelSpec } from "./assets";
+
+const cache = new Map<string, Promise<THREE.Group>>();
+
+async function fetchModel(url: string): Promise<THREE.Group> {
+  const [{ GLTFLoader }, { MeshoptDecoder }] = await Promise.all([
+    import("three/examples/jsm/loaders/GLTFLoader.js"),
+    import("three/examples/jsm/libs/meshopt_decoder.module.js"),
+  ]);
+
+  const loader = new GLTFLoader();
+  // Meshopt is the compression the optimise script applies. It decodes from a
+  // plain module, so unlike Draco it needs no decoder files served alongside.
+  loader.setMeshoptDecoder(MeshoptDecoder);
+
+  const gltf = await loader.loadAsync(url);
+  gltf.scene.traverse((child) => {
+    if (child instanceof THREE.Mesh) {
+      child.castShadow = true;
+      child.receiveShadow = true;
+    }
+  });
+  return gltf.scene;
+}
+
+function loadOnce(url: string): Promise<THREE.Group> {
+  let pending = cache.get(url);
+  if (!pending) {
+    pending = fetchModel(url);
+    cache.set(url, pending);
+  }
+  return pending;
+}
+
+/**
+ * Measure the model and normalise it into the footprint.
+ *
+ * Returned wrapped in a group so the caller can position and rotate it exactly
+ * as it does a primitive.
+ */
+function normalise(source: THREE.Group, spec: ModelSpec, width: number, depth: number): THREE.Group {
+  const model = source.clone(true);
+
+  const bounds = new THREE.Box3().setFromObject(model);
+  const size = new THREE.Vector3();
+  const centre = new THREE.Vector3();
+  bounds.getSize(size);
+  bounds.getCenter(centre);
+
+  let scale = spec.scale ?? 1;
+  if (spec.scale === undefined && size.x > 0 && size.z > 0) {
+    const byWidth = width / size.x;
+    const byDepth = depth / size.z;
+    // `contain` keeps proportions inside the footprint; `cover` fills it.
+    scale = spec.fitMode === "cover" ? Math.max(byWidth, byDepth) : Math.min(byWidth, byDepth);
+  }
+
+  model.scale.setScalar(scale);
+  // Centre on the footprint horizontally, and sit the base on the floor —
+  // packs put the origin at the centre, a corner or the top, inconsistently.
+  model.position.set(
+    -centre.x * scale,
+    -bounds.min.y * scale + (spec.offsetY ?? 0),
+    -centre.z * scale,
+  );
+
+  // Two nested groups: the inner one carries the pack's own facing correction,
+  // the outer stays free for the floor plan's rotation. Collapsing them would
+  // mean the caller's rotation silently overwrites the spec's.
+  const spin = new THREE.Group();
+  spin.rotation.y = spec.rotationY ?? 0;
+  spin.add(model);
+
+  const wrapper = new THREE.Group();
+  wrapper.add(spin);
+  return wrapper;
+}
+
+/**
+ * The model for a piece, if one is configured.
+ *
+ * Resolves to null when there is no entry or the file fails to load, so the
+ * caller keeps its primitive and a missing or broken asset never empties the
+ * room.
+ */
+export async function modelFor(item: Furniture): Promise<THREE.Group | null> {
+  const spec = MODELS[item.kind];
+  if (!spec) return null;
+
+  const size = FURNITURE_SIZE[item.kind];
+  const width = item.w ?? size.w;
+  const depth = item.h ?? size.h;
+
+  try {
+    const source = await loadOnce(spec.url);
+    return normalise(source, spec, width, depth);
+  } catch (error) {
+    console.warn(`[office] could not load ${spec.url}, keeping the built-in shape`, error);
+    return null;
+  }
+}
+
+/** Whether any bought models are configured at all. */
+export function hasModels(): boolean {
+  return Object.keys(MODELS).length > 0;
+}

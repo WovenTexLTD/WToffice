@@ -32,6 +32,7 @@ import {
 } from "@wtoffice/shared";
 
 import { buildFurniture } from "./models";
+import { modelFor } from "./loader";
 import { labelSprite, surfaces } from "./textures";
 
 /* ── Scale ────────────────────────────────────────────────────────── */
@@ -277,7 +278,25 @@ export class ThreeScene {
     this.buildDoors(floor);
     this.buildSigns(floor);
 
-    for (const item of floor.furniture) this.worldGroup.add(buildFurniture(item));
+    // Primitives go in immediately so the room is complete on the first frame;
+    // bought models replace them as they arrive. A missing or broken asset
+    // therefore costs nothing but its own detail.
+    for (const item of floor.furniture) {
+      const placeholder = buildFurniture(item);
+      this.worldGroup.add(placeholder);
+
+      void modelFor(item).then((model) => {
+        if (this.destroyed || !model) return;
+        // The floor may have been rebuilt while this was in flight.
+        if (placeholder.parent !== this.worldGroup) return;
+
+        model.position.copy(placeholder.position);
+        model.rotation.y = placeholder.rotation.y;
+        this.worldGroup.add(model);
+        this.worldGroup.remove(placeholder);
+      });
+    }
+
     for (const p of players) this.addAvatar(p);
   }
 
