@@ -142,6 +142,8 @@ wss.on("connection", (socket) => {
         x: floor.spawn.x,
         y: floor.spawn.y,
         zoneId: zoneAt(floor.spawn.x, floor.spawn.y, floor.zones),
+        speaking: false,
+        muted: false,
       };
       conn.player = player;
       conn.lastMoveAt = Date.now();
@@ -165,6 +167,23 @@ wss.on("connection", (socket) => {
       player.zoneId = zoneAt(result.x, result.y, floor.zones);
 
       if (result.corrected) send(socket, { t: "correct", x: result.x, y: result.y });
+      return;
+    }
+
+    if (msg.t === "presence") {
+      if (!conn.player) return;
+      conn.player.speaking = Boolean(msg.speaking);
+      conn.player.muted = Boolean(msg.muted);
+      return;
+    }
+
+    if (msg.t === "signal") {
+      // Relay WebRTC signalling verbatim. The server never inspects the payload
+      // and never joins the call — media is peer-to-peer.
+      if (!conn.player) return;
+      const target = connections.get(msg.to);
+      if (!target?.player) return;
+      send(target.socket, { t: "signal", from: id, data: msg.data });
     }
   });
 

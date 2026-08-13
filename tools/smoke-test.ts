@@ -101,8 +101,15 @@ async function run(): Promise<void> {
   await wait(200);
   check("existing player is told about the newcomer", alice.inbox.some((m) => m.t === "joined"));
 
+  // Assert membership, not count — a long-running dev server may still hold
+  // connections from an earlier run until the heartbeat reaps them.
   const state = latestState(alice);
-  check("state broadcast lists both players", state?.t === "state" && state.players.length === 2);
+  const ids = state?.t === "state" ? state.players.map((p) => p.id) : [];
+  check(
+    "state broadcast lists both players",
+    ids.includes(alice.id) && ids.includes(bob.id),
+    `saw ${ids.join(", ") || "nobody"}`,
+  );
 
   // Walk left toward the outer wall in realistic steps.
   alice.inbox.length = 0;
@@ -139,7 +146,52 @@ async function run(): Promise<void> {
     `zone = ${aliceNow?.zoneId ?? "null"}`,
   );
 
-  // Disconnect propagates.
+  /* ── Voice: presence and signalling relay ──────────────────────── */
+
+  console.log("\nVoice\n");
+
+  bob.socket.send(JSON.stringify({ t: "presence", speaking: true, muted: false }));
+  await wait(250);
+  const withPresence = latestState(alice);
+  const bobState = withPresence?.t === "state" ? withPresence.players.find((p) => p.id === bob.id) : undefined;
+  check("speaking state reaches other clients", bobState?.speaking === true);
+  check("muted state defaults false", bobState?.muted === false);
+
+  bob.socket.send(JSON.stringify({ t: "presence", speaking: false, muted: true }));
+  await wait(250);
+  const afterMute = latestState(alice);
+  const bobMuted = afterMute?.t === "state" ? afterMute.players.find((p) => p.id === bob.id) : undefined;
+  check("mute propagates", bobMuted?.muted === true && bobMuted?.speaking === false);
+
+  // The server relays signalling verbatim and never joins the call.
+  bob.inbox.length = 0;
+  const offer = { kind: "offer", sdp: "v=0\r\ns=smoke\r\n" };
+  alice.socket.send(JSON.stringify({ t: "signal", to: bob.id, data: offer }));
+  await wait(200);
+
+  const relayed = bob.inbox.find((m) => m.t === "signal");
+  check("signal reaches the addressed peer", !!relayed);
+  check(
+    "signal is stamped with the sender",
+    relayed?.t === "signal" && relayed.from === alice.id,
+    `from = ${relayed?.t === "signal" ? relayed.from : "none"}`,
+  );
+  check(
+    "signal payload is relayed untouched",
+    relayed?.t === "signal" && relayed.data.kind === "offer" && relayed.data.sdp === offer.sdp,
+  );
+
+  // A signal aimed at nobody must not crash the server or leak to others.
+  bob.inbox.length = 0;
+  alice.socket.send(JSON.stringify({ t: "signal", to: "p999", data: offer }));
+  await wait(200);
+  check("signal to an unknown peer is dropped", !bob.inbox.some((m) => m.t === "signal"));
+  check("server still alive after a bad signal", !!latestState(alice));
+
+  /* ── Teardown ──────────────────────────────────────────────────── */
+
+  console.log("\nTeardown\n");
+
   alice.inbox.length = 0;
   bob.socket.close();
   await wait(300);

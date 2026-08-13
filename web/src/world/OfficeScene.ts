@@ -17,7 +17,9 @@ import {
   MOVE_SPEED,
   PLAYER_RADIUS,
   SEND_HZ,
+  audioGain,
   resolveMove,
+  zoneAt,
   type Floor,
   type PlayerState,
 } from "@wtoffice/shared";
@@ -39,15 +41,22 @@ interface Avatar {
   state: PlayerState;
   view: Container;
   body: Graphics;
+  /** Ring that appears while this person is talking. */
+  speakingRing: Graphics;
+  nameLabel: Text;
   /** Rendered position, smoothed toward `target`. */
   cur: { x: number; y: number };
   target: { x: number; y: number };
+  /** Last gain reported to the voice engine, to avoid redundant updates. */
+  lastGain: number;
 }
 
 export interface OfficeSceneCallbacks {
   onPositionChange(x: number, y: number): void;
   /** Fires when the local player enters or leaves a sealed room. */
   onZoneChange(zoneId: string | null): void;
+  /** How loudly this peer should be heard, 0–1, from the proximity rule. */
+  onGain(peerId: string, gain: number): void;
 }
 
 export class OfficeScene {
@@ -62,6 +71,7 @@ export class OfficeScene {
   private moveTarget: { x: number; y: number } | null = null;
   private zoom = 1;
   private lastZoneId: string | null = null;
+  private elapsed = 0;
 
   private keys = new Set<string>();
   private sendAccumulator = 0;
@@ -203,6 +213,12 @@ export class OfficeScene {
       view.addChild(ring);
     }
 
+    // Sits behind the body so it reads as a halo rather than an outline.
+    const speakingRing = new Graphics();
+    speakingRing.circle(0, 0, PLAYER_RADIUS + 7).fill({ color: state.color, alpha: 0.35 });
+    speakingRing.visible = false;
+    view.addChild(speakingRing);
+
     const body = new Graphics();
     body.circle(0, 0, PLAYER_RADIUS).fill(state.color);
     body.circle(0, 0, PLAYER_RADIUS).stroke({ width: 3, color: "#F8FAFA" });
@@ -240,8 +256,11 @@ export class OfficeScene {
       state,
       view,
       body,
+      speakingRing,
+      nameLabel: name,
       cur: { x: state.x, y: state.y },
       target: { x: state.x, y: state.y },
+      lastGain: -1,
     });
   }
 
@@ -338,11 +357,68 @@ export class OfficeScene {
 
     // Large dt means the tab was backgrounded — don't teleport on return.
     const step = Math.min(dt, 0.05);
+    this.elapsed += step;
 
     this.moveLocal(step, floor);
     this.smoothRemotes(step);
+    this.updateAudio(floor);
+    this.updateSpeakingRings();
     this.updateCamera(app, floor);
     this.reportPosition(step);
+  }
+
+  /**
+   * Apply the proximity rule to every peer, every frame.
+   *
+   * The listener's zone is computed from the local position rather than read
+   * from server state, so crossing a threshold takes effect immediately instead
+   * of after a round trip — you should hear the room seal as you step through
+   * the door, not a beat later.
+   */
+  private updateAudio(floor: Floor): void {
+    const selfZone = zoneAt(this.local.x, this.local.y, floor.zones);
+    const listener = { x: this.local.x, y: this.local.y, zoneId: selfZone };
+
+    if (selfZone !== this.lastZoneId) {
+      this.lastZoneId = selfZone;
+      this.callbacks.onZoneChange(selfZone);
+    }
+
+    for (const [id, avatar] of this.avatars) {
+      if (id === this.selfId) continue;
+
+      // Uses the smoothed render position, so what you hear matches what you see.
+      const gain = audioGain(
+        listener,
+        { x: avatar.cur.x, y: avatar.cur.y, zoneId: avatar.state.zoneId },
+        EARSHOT,
+      );
+
+      if (Math.abs(gain - avatar.lastGain) > 0.004) {
+        avatar.lastGain = gain;
+        this.callbacks.onGain(id, gain);
+      }
+
+      // Fade the name with audibility, so you can see who is in earshot.
+      avatar.nameLabel.alpha = 0.3 + gain * 0.7;
+    }
+  }
+
+  private updateSpeakingRings(): void {
+    const pulse = 0.3 + Math.sin(this.elapsed * 7) * 0.12;
+    for (const avatar of this.avatars.values()) {
+      const active = avatar.state.speaking && !avatar.state.muted;
+      avatar.speakingRing.visible = active;
+      if (active) avatar.speakingRing.alpha = pulse;
+    }
+  }
+
+  /** Local voice activity, applied without waiting for the server round trip. */
+  setSelfVoice(speaking: boolean, muted: boolean): void {
+    const self = this.avatars.get(this.selfId);
+    if (!self) return;
+    self.state.speaking = speaking;
+    self.state.muted = muted;
   }
 
   private moveLocal(dt: number, floor: Floor): void {
@@ -428,12 +504,5 @@ export class OfficeScene {
     }
     this.lastSent = { ...this.local };
     this.callbacks.onPositionChange(this.local.x, this.local.y);
-
-    const self = this.avatars.get(this.selfId);
-    const zoneId = self?.state.zoneId ?? null;
-    if (zoneId !== this.lastZoneId) {
-      this.lastZoneId = zoneId;
-      this.callbacks.onZoneChange(zoneId);
-    }
   }
 }

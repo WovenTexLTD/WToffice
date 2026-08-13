@@ -5,7 +5,7 @@
  * messages to the scene. All simulation lives in the scene.
  */
 
-import type { ClientMessage, Floor, PlayerState, ServerMessage } from "@wtoffice/shared";
+import type { ClientMessage, Floor, PlayerState, ServerMessage, SignalData } from "@wtoffice/shared";
 
 export interface OfficeClientHandlers {
   onWelcome(selfId: string, floor: Floor, players: PlayerState[]): void;
@@ -14,6 +14,7 @@ export interface OfficeClientHandlers {
   onLeft(id: string): void;
   onCorrect(x: number, y: number): void;
   onStatus(status: ConnectionStatus): void;
+  onSignal(from: string, data: SignalData): void;
 }
 
 export type ConnectionStatus = "connecting" | "online" | "reconnecting" | "offline";
@@ -70,6 +71,9 @@ export class OfficeClient {
         case "correct":
           this.handlers.onCorrect(msg.x, msg.y);
           break;
+        case "signal":
+          this.handlers.onSignal(msg.from, msg.data);
+          break;
       }
     };
 
@@ -101,6 +105,14 @@ export class OfficeClient {
 
   sendPosition(x: number, y: number): void {
     this.send({ t: "move", x: Math.round(x * 10) / 10, y: Math.round(y * 10) / 10 });
+  }
+
+  sendSignal(to: string, data: SignalData): void {
+    this.send({ t: "signal", to, data });
+  }
+
+  sendPresence(speaking: boolean, muted: boolean): void {
+    this.send({ t: "presence", speaking, muted });
   }
 
   disconnect(): void {

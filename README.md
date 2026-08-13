@@ -10,19 +10,23 @@ products like Kumospace.
 
 ## Status
 
-**Phase 1 complete** — the world, movement and multiplayer sync.
-Proximity audio (Phase 2) is next, and is the thing that decides whether this
-is worth finishing.
+**Phase 2 complete** — you can walk up to someone and talk to them.
 
 | Phase | | |
 |---|---|---|
 | 1 | World, movement, presence | ✅ done |
-| 2 | Proximity audio | ← next |
-| 3 | Video circles + screenshare | |
+| 2 | Proximity audio | ✅ done |
+| 3 | Video circles + screenshare | ← next |
 | 4 | Doors, broadcast | |
 | 5 | Chat, status | |
 | 6 | Art pass | |
 | 7 | Auth, deploy, harden | |
+
+### The gate
+
+Phase 2 was the go/no-go point. Get four people in and do an hour of real work.
+If they linger, build the rest; if they leave after ten minutes, you have
+learned that for two weeks of effort rather than two months.
 
 ## Running it
 
@@ -95,11 +99,42 @@ distance, because a sealed room overrides proximity in both directions:
 - either party in a room the other isn't → silent, both ways
 - both on the open floor → linear falloff to zero at `EARSHOT` (300px)
 
-## Known Phase 2 trap
+## Voice
 
-Routing WebRTC audio through Web Audio silently disables Chrome's echo
-cancellation, because AEC lives on the `<audio>` element path rather than the
-graph. It will sound perfect in headphones and howl on laptop speakers. The fix
-is looping the processed stream back through a local `RTCPeerConnection`, and
-the cost is that stereo panning stops working. Take that trade — distance-based
-volume only. Test on speakers from the first hour.
+### Mesh peer-to-peer, not an SFU
+
+At five people, audio-only, mesh is correct. Opus is ~32kbps, so four outbound
+streams is ~128kbps. In exchange: lowest possible latency, no media server, no
+account, no API key — the world socket is already a fine signalling channel, and
+it relays signalling verbatim without ever joining the call.
+
+**Revisit at Phase 3.** Video is ~600kbps per stream, so four outbound becomes
+~2.4Mbps up and weak uplinks suffer. That is where an SFU (self-hosted LiveKit)
+starts paying for itself. Not here.
+
+STUN alone covers the same LAN and most home NATs. Production needs TURN for the
+~10–20% of connections behind symmetric NAT — that lands in Phase 7.
+
+### The echo trap, and why there isn't one
+
+The usual failure in this product category is routing WebRTC audio through a Web
+Audio graph to get a `GainNode`. Chrome's echo cancellation lives on the
+media-element path, so doing that silently switches AEC off: perfect in
+headphones, howling on laptop speakers. The common fix — looping the processed
+stream back through a local `RTCPeerConnection` — works, but costs real
+complexity and kills stereo panning.
+
+We need exactly one thing from the graph, a volume control, and
+`HTMLMediaElement.volume` already is one, on the native path where AEC works. So
+there is no graph and no trap to work around. Web Audio is still used for
+voice-activity detection, but only as an `AnalyserNode` that is never connected
+to a destination — nothing is played through it.
+
+If a compressor is ever needed for group calls, that is the point to reach for
+the loopback, and the point to re-read this section.
+
+### Volume is never assigned directly
+
+Walking changes distance continuously, and stepping the value each frame is
+audible as a click. Gain is smoothed exponentially toward its target
+(`GAIN_SMOOTHING`), and new peers fade up from silence rather than popping in.

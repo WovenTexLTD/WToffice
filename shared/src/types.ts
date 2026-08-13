@@ -54,13 +54,35 @@ export interface PlayerState {
   y: number;
   /** id of the audio zone this player currently occupies, or null for the open floor */
   zoneId: string | null;
+  /** Voice activity, detected locally and broadcast. Drives the speaking ring. */
+  speaking: boolean;
+  muted: boolean;
 }
 
 /* ── Wire protocol ───────────────────────────────────────────────── */
 
+/**
+ * WebRTC signalling payload. The server relays these between peers verbatim and
+ * never inspects them — it is a post box, not a participant in the call.
+ */
+export type SignalData =
+  | { kind: "offer"; sdp: string }
+  | { kind: "answer"; sdp: string }
+  | { kind: "ice"; candidate: RTCIceCandidateInitLike };
+
+/** Structural copy of RTCIceCandidateInit so shared/ stays free of DOM lib types. */
+export interface RTCIceCandidateInitLike {
+  candidate?: string;
+  sdpMid?: string | null;
+  sdpMLineIndex?: number | null;
+  usernameFragment?: string | null;
+}
+
 export type ClientMessage =
   | { t: "join"; name: string }
-  | { t: "move"; x: number; y: number };
+  | { t: "move"; x: number; y: number }
+  | { t: "presence"; speaking: boolean; muted: boolean }
+  | { t: "signal"; to: string; data: SignalData };
 
 export type ServerMessage =
   | { t: "welcome"; selfId: string; floor: Floor; players: PlayerState[] }
@@ -68,7 +90,8 @@ export type ServerMessage =
   | { t: "joined"; player: PlayerState }
   | { t: "left"; id: string }
   /** Server rejected a move as illegal — snap back to this position. */
-  | { t: "correct"; x: number; y: number };
+  | { t: "correct"; x: number; y: number }
+  | { t: "signal"; from: string; data: SignalData };
 
 /* ── Tunables ────────────────────────────────────────────────────── */
 
@@ -86,6 +109,21 @@ export const PLAYER_RADIUS = 22;
  * floor without bleeding into each other — expect to tune it by ear in Phase 2.
  */
 export const EARSHOT = 300;
+
+/**
+ * Exponential smoothing rate for volume, per second.
+ *
+ * Volume is never assigned directly — walking produces a continuous change in
+ * distance, and stepping the value each frame is audible as a click. High
+ * enough to track movement, low enough to stay smooth.
+ */
+export const GAIN_SMOOTHING = 9;
+
+/** RMS above which the local mic counts as speaking. */
+export const SPEAKING_ON = 0.045;
+
+/** RMS below which it stops. The gap is hysteresis, so the ring doesn't flicker. */
+export const SPEAKING_OFF = 0.028;
 
 /** World pixels per second. Tuned so crossing the open floor takes ~5s. */
 export const MOVE_SPEED = 240;
