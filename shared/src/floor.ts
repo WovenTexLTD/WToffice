@@ -218,48 +218,33 @@ export const woventexFloor: Floor = {
 
     /* ── Hangout, filling the lower half of the studio ────────────── */
 
-    // A low bookcase screens the social end from the desks. Waist height, so
-    // it separates the two without walling either of them in — which is the
-    // whole trick with an open plan.
-    { kind: "shelf", x: 1080, y: 800, solid: true },
-    { kind: "shelf", x: 1280, y: 800, solid: true },
-    { kind: "plant", x: 1180, y: 795, model: "plant-big" },
-
-    // The hangout proper. Not the shared loungeSet: this one is built around a
-    // corner sofa nearly three metres deep, which needs its own spacing, and it
-    // is the only group in the office that seats six.
-    //
-    // The rug does the work of the missing walls. Everything sits on it, so the
-    // group reads as one place rather than as furniture that happens to be near
-    // other furniture — and it is drawn rather than loaded so it can be sized to
-    // the group and coloured to contrast with the pale boards.
-    { kind: "areaRug", x: 1180, y: 1120 },
+    // Against the left of the studio rather than the middle of it, which leaves
+    // the lower right open. Nothing screens it from the desks any more — the rug
+    // draws the boundary on its own, and a bookcase across the room was doing
+    // less work than it cost in floor.
+    { kind: "areaRug", x: 978, y: 1120 },
 
     // The sofa is an L. Its two legs run along the top and left of the rug, so
     // the group's focus is the crook they enclose — not the middle of the rug,
     // which is where a straight sofa would have put it. Everything else rings
     // that crook from the open side.
-    { kind: "sofa", x: 1102, y: 1052, w: 207, h: 226, solid: true, model: "sofa-l" },
-    { kind: "coffeeTable", x: 1210, y: 1140, solid: true },
+    { kind: "sofa", x: 900, y: 1052, w: 207, h: 226, solid: true, model: "sofa-l" },
+    { kind: "coffeeTable", x: 1008, y: 1140, solid: true },
 
     // Facing back into the crook. Rotation 0 faces north and negative turns
     // clockwise, so a seat east of the table needs +90 to look west.
-    { kind: "armchair", x: 1330, y: 1105, w: 57, h: 69, rotation: deg(90), solid: true, model: "lounge-chair" },
-    { kind: "armchair", x: 1288, y: 1252, w: 57, h: 69, rotation: deg(140), solid: true, model: "lounge-chair" },
+    { kind: "armchair", x: 1128, y: 1105, w: 57, h: 69, rotation: deg(90), solid: true, model: "lounge-chair" },
+    { kind: "armchair", x: 1086, y: 1252, w: 57, h: 69, rotation: deg(140), solid: true, model: "lounge-chair" },
 
     // Two stools closing the ring on the open side, for when the whole team is
     // in. Nothing sits off the rug: the point of it is that the group reads as
     // one place.
-    { kind: "sideChair", x: 1148, y: 1272, rotation: deg(180), solid: true },
-    { kind: "sideChair", x: 1046, y: 1244, rotation: deg(214), solid: true },
+    { kind: "sideChair", x: 946, y: 1272, rotation: deg(180), solid: true },
+    { kind: "sideChair", x: 844, y: 1244, rotation: deg(214), solid: true },
 
-    // Beside the sofa, where a lamp belongs. On its own in the middle of the
-    // floor it just reads as an object.
-    { kind: "lamp", x: 926, y: 986 },
-    { kind: "console", x: 1610, y: 940, rotation: deg(90), solid: true },
-    { kind: "plant", x: 1610, y: 850, model: "plant-big" },
-    { kind: "plant", x: 780, y: 1230, model: "tree" },
-    { kind: "plant", x: 1560, y: 1250, model: "plant-b" },
+    // Tucked against the sofa's outer corner. A floor lamp standing on its own
+    // a metre clear of the furniture reads as an object, not as a lamp.
+    { kind: "lamp", x: 752, y: 946 },
 
     /* ── Meeting room ─────────────────────────────────────────────── */
     { kind: "meetingTable", x: 2180, y: 300, solid: true },
