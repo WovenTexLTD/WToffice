@@ -113,22 +113,29 @@ export interface Floor {
 }
 
 /** Default footprint per kind, in world pixels. */
+/**
+ * Footprints, in world pixels.
+ *
+ * Taken from each bought model's real size at 85 world units per metre, so
+ * collision matches what is drawn. Measure a replacement before swapping it in:
+ *   node tools/inspect-models.mjs <pack-dir> <prefix> --zup
+ */
 export const FURNITURE_SIZE: Record<FurnitureKind, { w: number; h: number }> = {
-  desk: { w: 116, h: 62 },
-  chair: { w: 34, h: 34 },
-  sofa: { w: 168, h: 68 },
-  armchair: { w: 64, h: 62 },
-  meetingTable: { w: 280, h: 118 },
-  coffeeTable: { w: 92, h: 56 },
-  stool: { w: 32, h: 32 },
-  counter: { w: 300, h: 56 },
-  plant: { w: 46, h: 46 },
-  rug: { w: 250, h: 170 },
-  shelf: { w: 150, h: 30 },
-  whiteboard: { w: 170, h: 14 },
-  lamp: { w: 26, h: 26 },
-  bench: { w: 130, h: 40 },
-  console: { w: 140, h: 40 },
+  desk: { w: 139, h: 74 }, //          1.63 × 0.87 m
+  chair: { w: 55, h: 56 }, //          0.65 × 0.66 m
+  sofa: { w: 174, h: 74 }, //          2.05 × 0.87 m
+  armchair: { w: 73, h: 74 }, //       0.86 × 0.87 m
+  meetingTable: { w: 163, h: 121 }, // 1.92 × 1.42 m
+  coffeeTable: { w: 85, h: 50 }, //    1.00 × 0.59 m
+  stool: { w: 30, h: 30 }, //          0.35 × 0.35 m
+  counter: { w: 281, h: 48 }, //       3.30 × 0.57 m
+  plant: { w: 39, h: 39 }, //          0.46 × 0.46 m
+  rug: { w: 252, h: 172 }, //          2.97 × 2.02 m
+  shelf: { w: 112, h: 20 }, //         1.32 × 0.23 m
+  whiteboard: { w: 170, h: 14 }, //    still a primitive
+  lamp: { w: 37, h: 37 }, //           0.44 × 0.44 m
+  bench: { w: 82, h: 31 }, //          0.97 × 0.36 m
+  console: { w: 105, h: 30 }, //       1.24 × 0.35 m
 };
 
 /**

@@ -19,6 +19,7 @@
     "models:optimise": "node tools/optimise-models.mjs"
   },
   "devDependencies": {
+    "@gltf-transform/core": "^4.4.2",
     "concurrently": "^9.1.2",
     "fbx2gltf": "^0.9.7-p1",
     "typescript": "^5.7.3"

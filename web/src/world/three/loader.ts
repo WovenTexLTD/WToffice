@@ -55,7 +55,18 @@ function loadOnce(url: string): Promise<THREE.Group> {
 function normalise(source: THREE.Group, spec: ModelSpec, width: number, depth: number): THREE.Group {
   const model = source.clone(true);
 
-  const bounds = new THREE.Box3().setFromObject(model);
+  // Correct the up axis before measuring anything.
+  //
+  // glTF specifies Y-up, but packs exported from Blender or 3ds Max routinely
+  // ship Z-up with no correcting rotation. Measured as-is, such a model reports
+  // its height as depth — so it is fitted on its side, and every chair in the
+  // room lies down.
+  const oriented = new THREE.Group();
+  if (spec.upAxis === "z") oriented.rotation.x = -Math.PI / 2;
+  oriented.add(model);
+  oriented.updateMatrixWorld(true);
+
+  const bounds = new THREE.Box3().setFromObject(oriented);
   const size = new THREE.Vector3();
   const centre = new THREE.Vector3();
   bounds.getSize(size);
@@ -69,10 +80,12 @@ function normalise(source: THREE.Group, spec: ModelSpec, width: number, depth: n
     scale = spec.fitMode === "cover" ? Math.max(byWidth, byDepth) : Math.min(byWidth, byDepth);
   }
 
-  model.scale.setScalar(scale);
+  const placed = new THREE.Group();
+  placed.add(oriented);
+  placed.scale.setScalar(scale);
   // Centre on the footprint horizontally, and sit the base on the floor —
   // packs put the origin at the centre, a corner or the top, inconsistently.
-  model.position.set(
+  placed.position.set(
     -centre.x * scale,
     -bounds.min.y * scale + (spec.offsetY ?? 0),
     -centre.z * scale,
@@ -83,7 +96,7 @@ function normalise(source: THREE.Group, spec: ModelSpec, width: number, depth: n
   // mean the caller's rotation silently overwrites the spec's.
   const spin = new THREE.Group();
   spin.rotation.y = spec.rotationY ?? 0;
-  spin.add(model);
+  spin.add(placed);
 
   const wrapper = new THREE.Group();
   wrapper.add(spin);

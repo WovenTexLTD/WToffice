@@ -35,16 +35,53 @@ export interface ModelSpec {
   scale?: number;
   /** Nudges the model up or down if its origin is not at its base. */
   offsetY?: number;
+  /**
+   * Which axis the pack treats as up.
+   *
+   * glTF says Y, but exports from Blender and 3ds Max frequently ship Z-up
+   * without a correcting rotation — and a Z-up model loaded as Y-up lies on its
+   * side. Check with `node tools/inspect-models.mjs <dir> <prefix> --zup`: if a
+   * floor lamp only reads as 2m tall with the flag, the pack is Z-up.
+   */
+  upAxis?: "y" | "z";
 }
 
 /**
- * The manifest. Empty until a pack lands — every kind currently falls back to
- * its primitive.
+ * World units per metre.
  *
- * Example once files exist:
+ * The pack is modelled in metres, and every piece gets this scale rather than
+ * being auto-fitted to its footprint. Auto-fit would enlarge a 2m table to fill
+ * a 3.3m footprint and make it 1.2m tall — pieces have to share one scale, or
+ * the room reads as a dolls' house with a few giants in it.
  *
- *   desk:  { url: "/models/desk.glb" },
- *   chair: { url: "/models/task-chair.glb", rotationY: Math.PI },
- *   rug:   { url: "/models/rug.glb", fitMode: "cover" },
+ * FURNITURE_SIZE in shared/src/types.ts is set from each model's real footprint
+ * times this number, so collision matches what is drawn.
  */
-export const MODELS: Partial<Record<FurnitureKind, ModelSpec>> = {};
+const M = 85;
+
+/**
+ * The manifest.
+ *
+ * ithappy "Office 2" — every piece is Z-up, which is why each entry says so.
+ * Anything not listed keeps its primitive, so `whiteboard` is still built in
+ * code: nothing in the pack read as a wall-mounted board.
+ *
+ * To swap a piece, run the inspector over the pack and change one filename:
+ *   node tools/inspect-models.mjs ~/Downloads/Separate_assets_glb sofa --zup
+ */
+export const MODELS: Partial<Record<FurnitureKind, ModelSpec>> = {
+  desk: { url: "/models/desk.glb", scale: M, upAxis: "z" },
+  chair: { url: "/models/task-chair.glb", scale: M, upAxis: "z" },
+  meetingTable: { url: "/models/meeting-table.glb", scale: M, upAxis: "z" },
+  sofa: { url: "/models/sofa.glb", scale: M, upAxis: "z" },
+  armchair: { url: "/models/armchair.glb", scale: M, upAxis: "z" },
+  coffeeTable: { url: "/models/coffee-table.glb", scale: M, upAxis: "z" },
+  stool: { url: "/models/stool.glb", scale: M, upAxis: "z" },
+  counter: { url: "/models/counter.glb", scale: M, upAxis: "z" },
+  plant: { url: "/models/plant.glb", scale: M, upAxis: "z" },
+  rug: { url: "/models/rug.glb", scale: M, upAxis: "z" },
+  shelf: { url: "/models/shelf.glb", scale: M, upAxis: "z" },
+  lamp: { url: "/models/floor-lamp.glb", scale: M, upAxis: "z" },
+  bench: { url: "/models/bench.glb", scale: M, upAxis: "z" },
+  console: { url: "/models/console.glb", scale: M, upAxis: "z" },
+};
