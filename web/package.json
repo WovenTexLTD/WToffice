@@ -8,11 +8,13 @@
     "start": "next start -p 3000"
   },
   "dependencies": {
+    "@types/three": "^0.185.4",
     "@wtoffice/shared": "*",
     "next": "^16.3.0",
     "pixi.js": "^8.6.6",
     "react": "^19.0.0",
-    "react-dom": "^19.0.0"
+    "react-dom": "^19.0.0",
+    "three": "^0.185.1"
   },
   "devDependencies": {
     "@types/node": "^22.10.5",

@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { OfficeScene } from "@/world/OfficeScene";
+import { ThreeScene as OfficeScene } from "@/world/three/ThreeScene";
 import { OfficeClient, type ConnectionStatus } from "@/net/officeClient";
 import { MediaEngine, type MicState, type PeerDiagnostic, type ShareState } from "@/media/MediaEngine";
 import { VideoOverlay } from "@/video/VideoOverlay";

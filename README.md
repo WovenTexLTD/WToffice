@@ -99,27 +99,39 @@ delivered to and writable by its two participants.
 internal imports are deliberately extensionless so that tsx (server) and
 Turbopack (web) both resolve them.
 
-## Art
+## Rendering
 
-Everything is drawn procedurally in `web/src/world/render/` — no image assets,
-no atlas, no licences, and it stays sharp at any zoom. Warm neutrals rather than
-the cold greys this started with: a textile company's office should look like
-linen and walnut. The ground is deliberately low-contrast so avatars, which are
-saturated and ringed in near-white, stay the most legible thing on screen.
+The office is rendered in 3D with **Three.js** — `web/src/world/three/`.
 
-Furniture is what makes it read as an office rather than a floor plan. Solid
-pieces are the ones you walk around; chairs, rugs and plants are not, so nobody
-gets wedged behind a stool.
+The world model never changed to allow it. Collision, proximity, netcode, media
+and chat all operate on a flat plan; only the renderer ever cared how it looked.
+Swapping PixiJS for Three.js touched one import.
 
-### If an illustrator delivers real art
+- **Geometry, not sprites.** A desk is a top on four legs with a monitor and an
+  open laptop on it. The things are actually there, so lighting and shadows do
+  the work that hand-drawn shading used to. No bundle weight, no licences,
+  instant start-up.
+- **Materials are generated onto a canvas** at start-up — oak with grain and
+  per-board tone, glazed tile with grout, carpet as a plain weave — each with a
+  matching roughness map so highlights break up the way real surfaces do.
+- **One world unit is roughly 1.2cm**, which is what sets proportions: desks at
+  75cm, counters at 90, walls at ~250.
+- **`RoomEnvironment` + ACES tone mapping.** Image-based lighting gives every
+  material something to reflect; without it PBR surfaces read as matte paint.
 
-Two seams, both clean:
+Faces stay as DOM elements above the canvas rather than textures in the scene —
+sharper, no per-frame texture upload, and it reuses the overlay that already
+existed. The scene projects each head to screen coordinates every frame.
 
-- `floorArt.ts` — replace the body of `drawMaterial` with a `Sprite` and the
-  ground becomes a rendered floorplan. Nothing above it changes.
-- `furniture.ts` — return a `Sprite` from `build()` instead of a `Graphics` and
-  every piece becomes an illustrated one, keeping position, rotation and
-  collision exactly as they are.
+### Dropping in scanned models
+
+`loadModel()` in `models.ts` is the seam. Anywhere a photoscanned glTF is worth
+its download — [Poly Haven](https://polyhaven.com/models/furniture/office) has
+CC0 office furniture — load it there and return it in place of the built group.
+Position, rotation and collision all stay exactly as they are.
+
+The old PixiJS renderer is still in `web/src/world/` as a fallback. Delete it
+and drop the `pixi.js` dependency once the 3D view is confirmed good.
 
 ### The floor is a source file
 
