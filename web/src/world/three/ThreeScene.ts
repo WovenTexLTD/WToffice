@@ -32,7 +32,7 @@ import {
 } from "@wtoffice/shared";
 
 import { buildFurniture } from "./models";
-import { modelFor } from "./loader";
+import { groundTiles, modelFor } from "./loader";
 import { labelSprite, surfaces } from "./textures";
 
 /* ── Scale ────────────────────────────────────────────────────────── */
@@ -159,7 +159,9 @@ export class ThreeScene {
     renderer.domElement.style.display = "block";
 
     this.scene.background = new THREE.Color("#0F1416");
-    this.scene.fog = new THREE.Fog("#0F1416", 1800, 3200);
+    // Far enough out to sit beyond the far corner of the floor. Pulled in, it
+    // greys out the rooms at the other end of the office.
+    this.scene.fog = new THREE.Fog("#0F1416", 3000, 5200);
     this.scene.add(this.worldGroup);
     this.scene.add(this.avatarGroup);
 
@@ -197,16 +199,20 @@ export class ThreeScene {
     sun.shadow.bias = -0.0006;
     sun.shadow.normalBias = 2;
 
+    // Sized to the whole floor and aimed at its centre. A shadow camera that
+    // covers only part of the plan leaves the far rooms unshadowed, which reads
+    // as those rooms being unlit.
     const cam = sun.shadow.camera;
-    cam.left = -1100;
-    cam.right = 1100;
-    cam.top = 900;
-    cam.bottom = -900;
+    cam.left = -1450;
+    cam.right = 1450;
+    cam.top = 1000;
+    cam.bottom = -1000;
     cam.near = 200;
-    cam.far = 2800;
+    cam.far = 3600;
     cam.updateProjectionMatrix();
 
-    sun.target.position.set(800, 0, 500);
+    sun.position.set(-500, 1900, -700);
+    sun.target.position.set(1300, 0, 850);
     this.scene.add(sun);
     this.scene.add(sun.target);
 
@@ -311,6 +317,14 @@ export class ThreeScene {
     slab.position.set(floor.width / 2, 0, floor.height / 2);
     slab.receiveShadow = true;
     this.worldGroup.add(slab);
+
+    // The real ground goes on top once it loads. The plain slab underneath
+    // means there is never a hole, and it is what shows if the tile fails.
+    void groundTiles(floor.width, floor.height).then((tiles) => {
+      if (!tiles || this.floor !== floor) return;
+      tiles.position.y = 0.2;
+      this.worldGroup.add(tiles);
+    });
 
     const patch = (r: Rect, material: THREE.Material, lift: number) => {
       const mesh = new THREE.Mesh(new THREE.PlaneGeometry(r.w, r.h), material);

@@ -69,6 +69,20 @@ const M = 85;
  * To swap a piece, run the inspector over the pack and change one filename:
  *   node tools/inspect-models.mjs ~/Downloads/Separate_assets_glb sofa --zup
  */
+/**
+ * The ground the building sits on, tiled across the whole floor.
+ *
+ * Packs ship floors as a single square tile meant to be repeated, so this
+ * carries the tile's size in metres alongside the usual spec. Area patches —
+ * kitchen tile, studio oak — are drawn on top of it.
+ */
+export const GROUND: ModelSpec & { tileMetres: number } = {
+  url: "/models/floor-tile.glb",
+  scale: M,
+  upAxis: "z",
+  tileMetres: 4,
+};
+
 export const MODELS: Partial<Record<FurnitureKind, ModelSpec>> = {
   desk: { url: "/models/desk.glb", scale: M, upAxis: "z" },
   chair: { url: "/models/task-chair.glb", scale: M, upAxis: "z" },

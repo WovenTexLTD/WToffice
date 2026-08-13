@@ -12,7 +12,7 @@
 
 import * as THREE from "three";
 import { FURNITURE_SIZE, type Furniture } from "@wtoffice/shared";
-import { MODELS, type ModelSpec } from "./assets";
+import { GROUND, MODELS, type ModelSpec } from "./assets";
 
 const cache = new Map<string, Promise<THREE.Group>>();
 
@@ -130,6 +130,56 @@ export async function modelFor(item: Furniture): Promise<THREE.Group | null> {
     return normalise(source, spec, width, depth);
   } catch (error) {
     console.warn(`[office] could not load ${spec.url}, keeping the built-in shape`, error);
+    return null;
+  }
+}
+
+/**
+ * The ground, tiled to cover the floor exactly.
+ *
+ * Sized to divide the world evenly rather than overhanging it — a tile poking
+ * out past the outer wall is visible from this camera, and a few percent of
+ * stretch on a floor texture is not.
+ */
+export async function groundTiles(width: number, height: number): Promise<THREE.Group | null> {
+  try {
+    const source = await loadOnce(GROUND.url);
+
+    const oriented = new THREE.Group();
+    if (GROUND.upAxis === "z") oriented.rotation.x = Math.PI / 2;
+    oriented.add(source.clone(true));
+    oriented.updateMatrixWorld(true);
+
+    const bounds = new THREE.Box3().setFromObject(oriented);
+    const size = new THREE.Vector3();
+    bounds.getSize(size);
+    if (size.x <= 0 || size.z <= 0) return null;
+
+    const nominal = GROUND.tileMetres * (GROUND.scale ?? 1);
+    const cols = Math.max(1, Math.round(width / nominal));
+    const rows = Math.max(1, Math.round(height / nominal));
+    const tileW = width / cols;
+    const tileH = height / rows;
+
+    const group = new THREE.Group();
+    for (let row = 0; row < rows; row++) {
+      for (let col = 0; col < cols; col++) {
+        const tile = oriented.clone(true);
+        tile.scale.set(tileW / size.x, (tileW / size.x + tileH / size.z) / 2, tileH / size.z);
+        tile.position.set(
+          col * tileW + tileW / 2 - (bounds.min.x + size.x / 2) * (tileW / size.x),
+          -bounds.min.y,
+          row * tileH + tileH / 2 - (bounds.min.z + size.z / 2) * (tileH / size.z),
+        );
+        tile.traverse((child) => {
+          if (child instanceof THREE.Mesh) child.receiveShadow = true;
+        });
+        group.add(tile);
+      }
+    }
+    return group;
+  } catch (error) {
+    console.warn("[office] could not load the ground tile, keeping the plain slab", error);
     return null;
   }
 }
