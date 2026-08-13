@@ -2,7 +2,7 @@
   "name": "wtoffice",
   "private": true,
   "version": "0.1.0",
-  "description": "WovenTex virtual office \u2014 spatial 2D workspace with proximity audio",
+  "description": "WovenTex virtual office — spatial 2D workspace with proximity audio",
   "workspaces": [
     "shared",
     "server",
@@ -20,6 +20,7 @@
   },
   "devDependencies": {
     "concurrently": "^9.1.2",
+    "fbx2gltf": "^0.9.7-p1",
     "typescript": "^5.7.3"
   },
   "engines": {

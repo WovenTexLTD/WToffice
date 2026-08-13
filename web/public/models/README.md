@@ -12,12 +12,14 @@ floor.
 
 ## What to buy
 
-**Format — this is the one that matters**
+**Format — mostly solved, so buy on looks**
 
-- **glTF 2.0, `.glb`** (single file, textures embedded). FBX and OBJ are fine if
-  you are willing to convert; `.blend`, `.max` and `.c4d` are not usable.
+- **`.glb` or `.fbx` both work.** `npm run models:optimise` converts FBX
+  automatically, which matters because most realistic packs ship FBX for Unity
+  and Unreal. `.obj` works too. Only `.blend`, `.max`, `.c4d` and Unreal
+  `.uasset` are unusable.
 - Search terms that find the right thing: **"game ready"**, **"real-time"**,
-  **"low poly PBR"**, **"glb"**, **"Unity"**, **"Unreal"**.
+  **"low poly PBR"**, **"Unity"**, **"Unreal"**.
 - Search terms that find the wrong thing: "high poly", "subdivision ready",
   "V-Ray", "Corona", "3ds Max scene", "for rendering". Those are built for
   offline rendering and arrive at 20–50 MB per object.
@@ -70,7 +72,7 @@ setups and Victorian furniture will not.
 ## After the files land
 
 ```bash
-npm run models:optimise    # shrinks textures, compresses meshes
+npm run models:optimise    # converts FBX, shrinks textures, compresses meshes
 ```
 
 Then add entries to `assets.ts`:
