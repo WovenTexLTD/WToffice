@@ -16,7 +16,7 @@ import {
   canAccessChannel,
   toIdentity,
   resolveMove,
-  wallsWithShutDoors,
+  collisionRects,
   zoneAt,
   distance,
   AVATAR_COLORS,
@@ -44,9 +44,9 @@ const floor = woventexFloor;
 const shutDoors = new Set<string>();
 
 /** Collision geometry for right now. Recomputed only when a door moves. */
-let activeWalls = floor.walls;
+let activeWalls: ReturnType<typeof collisionRects> = collisionRects(floor, new Set());
 function refreshWalls(): void {
-  activeWalls = wallsWithShutDoors(floor, shutDoors);
+  activeWalls = collisionRects(floor, shutDoors);
 }
 
 interface Connection {

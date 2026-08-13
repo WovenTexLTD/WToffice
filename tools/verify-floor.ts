@@ -7,16 +7,21 @@
  *
  *   npm run verify:floor
  */
-import { woventexFloor as f, hitsAnyWall, pointInRect, PLAYER_RADIUS } from "../shared/src/index";
+import { woventexFloor as f, collisionRects, hitsAnyWall, pointInRect, PLAYER_RADIUS } from "../shared/src/index";
 
 const STEP = 10;
 const cols = Math.ceil(f.width / STEP);
 const rows = Math.ceil(f.height / STEP);
 
+// Doors open — a shut door is meant to block, so it would be a false failure.
+// Solid furniture is included: a badly placed desk seals a room just as well
+// as a wall does.
+const BLOCKERS = collisionRects(f, []);
+
 const walkable = (x: number, y: number) =>
   x >= PLAYER_RADIUS && y >= PLAYER_RADIUS &&
   x <= f.width - PLAYER_RADIUS && y <= f.height - PLAYER_RADIUS &&
-  !hitsAnyWall(x, y, PLAYER_RADIUS, f.walls);
+  !hitsAnyWall(x, y, PLAYER_RADIUS, BLOCKERS);
 
 if (!walkable(f.spawn.x, f.spawn.y)) {
   console.error("FAIL: spawn point is inside a wall");

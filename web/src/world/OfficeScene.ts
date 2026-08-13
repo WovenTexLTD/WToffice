@@ -21,22 +21,25 @@ import {
   doorAt,
   resolveMove,
   videoVisible,
-  wallsWithShutDoors,
+  collisionRects,
   zoneAt,
   type Floor,
   type PlayerState,
   type Rect,
 } from "@wtoffice/shared";
 
+import { PALETTE } from "./render/palette";
+import { drawMaterial, drawRoomFloor, drawWalls } from "./render/floorArt";
+import { build as buildFurniture, isUnderlay } from "./render/furniture";
+
 const COLORS = {
-  ground: "#E4E9EA",
-  roomFill: "#F2F5F5",
-  areaFill: "#DCE3E4",
-  wall: "#2B3B43",
-  label: "#7C929C",
-  nameText: "#15222A",
-  earshot: "#1D5D86",
-  doorHandle: "#C08A2E",
+  ground: PALETTE.shell,
+  wall: PALETTE.wall,
+  label: PALETTE.label,
+  roomLabel: PALETTE.roomLabel,
+  nameText: PALETTE.nameText,
+  earshot: PALETTE.earshot,
+  doorHandle: PALETTE.doorHandle,
 } as const;
 
 const STATUS_COLOR = {
@@ -167,7 +170,7 @@ export class OfficeScene {
     this.floor = floor;
     this.selfId = selfId;
     this.shutDoors = new Set(shutDoors);
-    this.walls = wallsWithShutDoors(floor, this.shutDoors);
+    this.walls = collisionRects(floor, this.shutDoors);
 
     const self = players.find((p) => p.id === selfId);
     this.local = { x: self?.x ?? floor.spawn.x, y: self?.y ?? floor.spawn.y };
@@ -182,6 +185,13 @@ export class OfficeScene {
     for (const p of players) this.addAvatar(p);
   }
 
+  /**
+   * Build the static world, bottom to top: ground, materials, room floors,
+   * labels, rugs, furniture, wall shadows, walls, doors.
+   *
+   * All of it is drawn once into a handful of Graphics. Nothing here changes
+   * per frame, so the render loop only moves avatars and the camera.
+   */
   private drawFloor(floor: Floor): Container {
     const layer = new Container();
 
@@ -189,49 +199,56 @@ export class OfficeScene {
     ground.rect(0, 0, floor.width, floor.height).fill(COLORS.ground);
     layer.addChild(ground);
 
-    // Named open areas — wayfinding only, no behaviour.
+    const materials = new Graphics();
     for (const area of floor.areas) {
-      const g = new Graphics();
-      g.roundRect(area.x, area.y, area.w, area.h, 10).fill({ color: COLORS.areaFill, alpha: 0.75 });
-      layer.addChild(g);
+      drawMaterial(materials, area, area.material, 10);
+    }
+    for (const zone of floor.zones) {
+      drawRoomFloor(materials, zone);
+    }
+    layer.addChild(materials);
 
+    const labelStyle = {
+      fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace",
+      fontSize: 12,
+      letterSpacing: 2.6,
+    };
+
+    for (const area of floor.areas) {
       const label = new Text({
         text: area.label.toUpperCase(),
-        style: {
-          fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace",
-          fontSize: 13,
-          letterSpacing: 2.5,
-          fill: COLORS.label,
-        },
+        style: { ...labelStyle, fill: COLORS.label },
       });
       label.anchor.set(0.5);
-      label.position.set(area.x + area.w / 2, area.y + area.h / 2);
+      // Tucked into the top-left corner, where furniture is least likely to sit.
+      label.position.set(area.x + label.width / 2 + 16, area.y + 16);
+      label.alpha = 0.85;
       layer.addChild(label);
     }
 
-    // Sealed rooms, drawn lighter so they read as separate spaces.
     for (const zone of floor.zones) {
-      const g = new Graphics();
-      g.rect(zone.x, zone.y, zone.w, zone.h).fill(COLORS.roomFill);
-      layer.addChild(g);
-
       const label = new Text({
         text: zone.name.toUpperCase(),
-        style: {
-          fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace",
-          fontSize: 13,
-          letterSpacing: 2.5,
-          fill: COLORS.label,
-        },
+        style: { ...labelStyle, fill: COLORS.roomLabel },
       });
       label.anchor.set(0.5, 0);
-      label.position.set(zone.x + zone.w / 2, zone.y + 18);
+      label.position.set(zone.x + zone.w / 2, zone.y + 14);
+      label.alpha = 0.85;
       layer.addChild(label);
     }
 
+    // Rugs first so everything else sits on top of them.
+    for (const item of floor.furniture) {
+      if (isUnderlay(item.kind)) layer.addChild(buildFurniture(item));
+    }
+    for (const item of floor.furniture) {
+      if (!isUnderlay(item.kind)) layer.addChild(buildFurniture(item));
+    }
+
+    const wallShadows = new Graphics();
     const walls = new Graphics();
-    for (const w of floor.walls) walls.rect(w.x, w.y, w.w, w.h);
-    walls.fill(COLORS.wall);
+    drawWalls(wallShadows, walls, floor.walls);
+    layer.addChild(wallShadows);
     layer.addChild(walls);
 
     // Redrawn whenever a door opens or shuts, so it lives on its own layer.
@@ -245,7 +262,7 @@ export class OfficeScene {
   /** Apply an authoritative door update from the server. */
   setDoors(shut: string[]): void {
     this.shutDoors = new Set(shut);
-    if (this.floor) this.walls = wallsWithShutDoors(this.floor, this.shutDoors);
+    if (this.floor) this.walls = collisionRects(this.floor, this.shutDoors);
     this.redrawDoors();
   }
 
@@ -289,6 +306,15 @@ export class OfficeScene {
       view.addChild(ring);
     }
 
+    // Contact shadow — without one, avatars look pasted on rather than standing
+    // in the room. Below the halo, or it darkens it.
+    const shadow = new Graphics();
+    shadow.ellipse(1, 5, PLAYER_RADIUS * 0.95, PLAYER_RADIUS * 0.72).fill({
+      color: PALETTE.shadow,
+      alpha: 0.18,
+    });
+    view.addChild(shadow);
+
     // Sits behind the body so it reads as a halo rather than an outline.
     const speakingRing = new Graphics();
     speakingRing.circle(0, 0, PLAYER_RADIUS + 7).fill({ color: state.color, alpha: 0.35 });
@@ -297,7 +323,7 @@ export class OfficeScene {
 
     const body = new Graphics();
     body.circle(0, 0, PLAYER_RADIUS).fill(state.color);
-    body.circle(0, 0, PLAYER_RADIUS).stroke({ width: 3, color: "#F8FAFA" });
+    body.circle(0, 0, PLAYER_RADIUS).stroke({ width: 3, color: PALETTE.paper });
     view.addChild(body);
 
     const initials = new Text({
@@ -586,7 +612,7 @@ export class OfficeScene {
         const fill = STATUS_COLOR[status] ?? STATUS_COLOR.away;
         avatar.statusDot.clear();
         avatar.statusDot.circle(0, 0, 5.5).fill(fill);
-        avatar.statusDot.circle(0, 0, 5.5).stroke({ width: 2.5, color: "#F8FAFA" });
+        avatar.statusDot.circle(0, 0, 5.5).stroke({ width: 2.5, color: PALETTE.paper });
       }
     }
   }

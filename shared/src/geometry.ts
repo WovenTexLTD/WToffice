@@ -6,7 +6,7 @@
  * there is deliberately only one copy.
  */
 
-import type { Door, Floor, Rect, Vec2, Zone } from "./types";
+import { FURNITURE_SIZE, type Door, type Floor, type Furniture, type Rect, type Vec2, type Zone } from "./types";
 
 export function clamp(v: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, v));
@@ -189,17 +189,44 @@ export function videoVisible(viewer: AudioActor, subject: AudioActor): boolean {
 }
 
 /**
- * Collision geometry including any shut doors.
+ * Axis-aligned bounding box of a piece of furniture.
  *
- * An open door is a gap in the wall; a shut one is wall. Client and server must
- * derive this identically or a shut door would be passable on one side only.
+ * Collision uses the enclosing box rather than the rotated outline. At this
+ * scale the difference is a few pixels of standoff on a diagonal item, and it
+ * keeps the resolver working on rectangles only.
  */
-export function wallsWithShutDoors(floor: Floor, shutDoorIds: Iterable<string>): Rect[] {
-  const shut = shutDoorIds instanceof Set ? shutDoorIds : new Set(shutDoorIds);
-  if (shut.size === 0) return floor.walls;
+export function furnitureRect(item: Furniture): Rect {
+  const size = FURNITURE_SIZE[item.kind];
+  const w = item.w ?? size.w;
+  const h = item.h ?? size.h;
 
-  const extra = floor.doors.filter((d) => shut.has(d.id));
-  return extra.length === 0 ? floor.walls : [...floor.walls, ...extra];
+  const rot = item.rotation ?? 0;
+  const c = Math.abs(Math.cos(rot));
+  const s = Math.abs(Math.sin(rot));
+  const bw = w * c + h * s;
+  const bh = w * s + h * c;
+
+  return { x: item.x - bw / 2, y: item.y - bh / 2, w: bw, h: bh };
+}
+
+/**
+ * Everything you cannot walk through right now: walls, solid furniture, and any
+ * shut door.
+ *
+ * Client and server must derive this identically or movement rubber-bands — a
+ * desk that exists on one side only is the same bug as a one-sided door.
+ */
+export function collisionRects(floor: Floor, shutDoorIds: Iterable<string>): Rect[] {
+  const shut = shutDoorIds instanceof Set ? shutDoorIds : new Set(shutDoorIds);
+
+  const rects: Rect[] = [...floor.walls];
+  for (const item of floor.furniture) {
+    if (item.solid) rects.push(furnitureRect(item));
+  }
+  for (const door of floor.doors) {
+    if (shut.has(door.id)) rects.push(door);
+  }
+  return rects;
 }
 
 /** The door under a point, if any. Padded so small doors stay clickable. */

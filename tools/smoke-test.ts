@@ -14,7 +14,7 @@ import {
   doorAt,
   resolveMove,
   videoVisible,
-  wallsWithShutDoors,
+  collisionRects,
   zoneAt,
   EARSHOT,
   PLAYER_RADIUS,
@@ -81,21 +81,24 @@ check("video is hidden between two rooms", !videoVisible(inRoom("focus"), inRoom
 check("a broadcaster is visible from anywhere", videoVisible(inRoom("focus"), shouting));
 
 const doorId = floor.doors[0].id;
-check(
-  "an open door is not collision geometry",
-  wallsWithShutDoors(floor, []).length === floor.walls.length,
-);
+const d0 = floor.doors[0];
+const openGeometry = collisionRects(floor, []);
+check("an open door is not collision geometry", !openGeometry.some((r) => r === d0));
 check(
   "a shut door becomes collision geometry",
-  wallsWithShutDoors(floor, [doorId]).length === floor.walls.length + 1,
+  collisionRects(floor, [doorId]).length === openGeometry.length + 1,
+);
+check(
+  "solid furniture is collision geometry",
+  openGeometry.length > floor.walls.length,
+  `${openGeometry.length - floor.walls.length} solid pieces`,
 );
 
-const d0 = floor.doors[0];
 check("doorAt finds a door under the pointer", doorAt(d0.x + 5, d0.y + 40, floor.doors)?.id === doorId);
 check("doorAt returns null away from any door", doorAt(300, 520, floor.doors) === null);
 
 // A shut door must actually stop someone walking through the gap.
-const shutWalls = wallsWithShutDoors(floor, [doorId]);
+const shutWalls = collisionRects(floor, [doorId]);
 const blocked = resolveMove(
   { x: 1000, y: 255 },
   { x: 1100, y: 255 },
@@ -109,7 +112,7 @@ const throughOpen = resolveMove(
   { x: 1000, y: 255 },
   { x: 1100, y: 255 },
   PLAYER_RADIUS,
-  floor.walls,
+  openGeometry,
   floor,
 );
 check("an open door allows passage", throughOpen.x > d0.x + d0.w, `reached x = ${throughOpen.x.toFixed(1)}`);

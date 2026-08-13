@@ -28,10 +28,48 @@ export interface Door extends Rect {
   zoneId: string;
 }
 
-/** Decorative floor labels — kitchen, lounge. No behaviour, purely wayfinding. */
+/** Ground covering. Purely visual, but it is most of what makes a room read. */
+export type Material = "oak" | "carpet" | "tile" | "concrete";
+
+/** Named open areas — kitchen, lounge. No behaviour, purely wayfinding. */
 export interface Area extends Rect {
   id: string;
   label: string;
+  material: Material;
+}
+
+export type FurnitureKind =
+  | "desk"
+  | "chair"
+  | "sofa"
+  | "armchair"
+  | "meetingTable"
+  | "coffeeTable"
+  | "stool"
+  | "counter"
+  | "plant"
+  | "rug"
+  | "shelf"
+  | "whiteboard"
+  | "lamp";
+
+export interface Furniture {
+  kind: FurnitureKind;
+  x: number;
+  y: number;
+  /** Radians. Rotation is about the item's centre. */
+  rotation?: number;
+  /** Overrides the kind's default footprint. */
+  w?: number;
+  h?: number;
+  /**
+   * Whether you have to walk around it.
+   *
+   * Solid furniture is what stops the floor feeling like an empty car park, but
+   * every solid item is also a chance to seal a room off — run
+   * `npm run verify:floor` after moving anything.
+   */
+  solid?: boolean;
 }
 
 export interface Floor {
@@ -44,7 +82,25 @@ export interface Floor {
   zones: Zone[];
   doors: Door[];
   areas: Area[];
+  furniture: Furniture[];
 }
+
+/** Default footprint per kind, in world pixels. */
+export const FURNITURE_SIZE: Record<FurnitureKind, { w: number; h: number }> = {
+  desk: { w: 116, h: 62 },
+  chair: { w: 34, h: 34 },
+  sofa: { w: 168, h: 68 },
+  armchair: { w: 64, h: 62 },
+  meetingTable: { w: 280, h: 118 },
+  coffeeTable: { w: 92, h: 56 },
+  stool: { w: 32, h: 32 },
+  counter: { w: 300, h: 56 },
+  plant: { w: 46, h: 46 },
+  rug: { w: 250, h: 170 },
+  shelf: { w: 150, h: 30 },
+  whiteboard: { w: 170, h: 14 },
+  lamp: { w: 26, h: 26 },
+};
 
 export type PresenceStatus = "available" | "focusing" | "away";
 
@@ -215,13 +271,20 @@ export const MOVE_SPEED = 240;
  */
 export const SPEED_TOLERANCE = 2.5;
 
+/**
+ * Avatar colours.
+ *
+ * Deliberately darker and more saturated than the ground, which is warm and
+ * pale — on a linen-and-walnut floor a light avatar disappears. Each is also
+ * ringed in near-white when drawn, which does the rest of the separating.
+ */
 export const AVATAR_COLORS = [
-  "#1D5D86", // deep indigo
-  "#B9622A", // rust
-  "#2F6B4F", // moss
-  "#8A5B9E", // heather
-  "#C08A2E", // ochre
-  "#3E7A8C", // teal
-  "#A34A55", // madder
-  "#5D6B8A", // slate blue
+  "#2A4E7A", // indigo
+  "#A2412A", // rust
+  "#2C6249", // moss
+  "#654188", // heather
+  "#8A6417", // ochre
+  "#1E6270", // teal
+  "#8F3341", // madder
+  "#3C4A73", // slate blue
 ];

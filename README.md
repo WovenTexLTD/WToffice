@@ -19,7 +19,8 @@ products like Kumospace.
 | 3 | Video circles + screenshare | ✅ done |
 | 4 | Doors, broadcast | ✅ done |
 | 5 | Chat, status | ✅ done |
-| 6 | Art pass | ← next |
+| 6a | Art direction, furniture | ✅ done |
+| 6b | Motion + sound | ← next |
 | 7 | Auth, deploy, harden | |
 
 ### The gate
@@ -97,6 +98,28 @@ delivered to and writable by its two participants.
 `shared/` is imported as raw TypeScript by both sides — no build step. Its
 internal imports are deliberately extensionless so that tsx (server) and
 Turbopack (web) both resolve them.
+
+## Art
+
+Everything is drawn procedurally in `web/src/world/render/` — no image assets,
+no atlas, no licences, and it stays sharp at any zoom. Warm neutrals rather than
+the cold greys this started with: a textile company's office should look like
+linen and walnut. The ground is deliberately low-contrast so avatars, which are
+saturated and ringed in near-white, stay the most legible thing on screen.
+
+Furniture is what makes it read as an office rather than a floor plan. Solid
+pieces are the ones you walk around; chairs, rugs and plants are not, so nobody
+gets wedged behind a stool.
+
+### If an illustrator delivers real art
+
+Two seams, both clean:
+
+- `floorArt.ts` — replace the body of `drawMaterial` with a `Sprite` and the
+  ground becomes a rendered floorplan. Nothing above it changes.
+- `furniture.ts` — return a `Sprite` from `build()` instead of a `Graphics` and
+  every piece becomes an illustrated one, keeping position, rotation and
+  collision exactly as they are.
 
 ### The floor is a source file
 
