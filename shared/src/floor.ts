@@ -371,9 +371,12 @@ export const woventexFloor: Floor = {
     // the two and turn — nobody crosses the pool table to reach a desk.
 
     // Work end, north.
-    { kind: "meetingTable", x: 1980, y: 920, solid: true },
-    { kind: "chair", x: 1938, y: 1030, rotation: deg(180) },
-    { kind: "chair", x: 2022, y: 1030, rotation: deg(180) },
+    { kind: "meetingTable", x: 1980, y: 920, w: 128, h: 52, solid: true, model: "annex-table" },
+    // Pulled up to y 990: the new table is 0.61m deep against the old one's
+    // 1.42, so seats left where they were would be sitting half a metre back
+    // from an edge that has moved toward them.
+    { kind: "chair", x: 1950, y: 990, rotation: deg(180), model: STUDIO_SEAT },
+    { kind: "chair", x: 2010, y: 990, rotation: deg(180), model: STUDIO_SEAT },
     { kind: "garmentRail", x: 2290, y: 900, solid: true },
     { kind: "garmentRail", x: 2440, y: 900, solid: true, model: "rail-b" },
     { kind: "plant", x: 1862, y: 872, model: "plant-c" },
