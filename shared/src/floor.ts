@@ -334,9 +334,6 @@ export const woventexFloor: Floor = {
     { kind: "meetingTable", x: 1240, y: 250, solid: true },
     ...seatsAround(1240, 250, 200, 105, 3),
     { kind: "tv", x: 1240, y: 30 },
-    { kind: "console", x: 1530, y: 250, rotation: deg(-90), solid: true },
-    { kind: "plant", x: 1500, y: 430, model: "tree" },
-    { kind: "plant", x: 880, y: 80, model: "plant-big" },
 
     /* ── The unnamed room ─────────────────────────────────────────── */
 
