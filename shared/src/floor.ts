@@ -300,6 +300,9 @@ export const woventexFloor: Floor = {
     { kind: "coffeeTable", x: 34, y: 207, rotation: deg(90), w: 77, h: 29, solid: true, model: "side-table" },
     // North-west corner, turned so its face is flat to the west wall.
     { kind: "instrument", x: 22, y: 52, rotation: deg(-90) },
+    { kind: "instrument", x: 22, y: 92, rotation: deg(-90), w: 33, h: 7, model: "instrument-b" },
+    // Under the desk and the chair behind it: 1.60 x 1.83m covers both.
+    { kind: "officeRug", x: 250, y: 114 },
     { kind: "tv", x: 22, y: 252, rotation: deg(-90), elevation: 72, model: "wall-screen" },
 
     /* ── ABD's office ─────────────────────────────────────────────── */
