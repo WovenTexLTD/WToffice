@@ -78,13 +78,20 @@ function deskBank(cx: number, cy: number): Furniture[] {
 }
 
 /** Chairs evenly along both long sides of a table. */
-function seatsAround(cx: number, cy: number, spread: number, offset: number, perSide: number): Furniture[] {
+function seatsAround(
+  cx: number,
+  cy: number,
+  spread: number,
+  offset: number,
+  perSide: number,
+  seat?: { model: string; w: number; h: number },
+): Furniture[] {
   const out: Furniture[] = [];
   for (let i = 0; i < perSide; i++) {
     const t = perSide === 1 ? 0.5 : i / (perSide - 1);
     const x = cx - spread / 2 + t * spread;
-    out.push({ kind: "chair", x, y: cy - offset, rotation: 0 });
-    out.push({ kind: "chair", x, y: cy + offset, rotation: deg(180) });
+    out.push({ kind: "chair", x, y: cy - offset, rotation: 0, ...seat });
+    out.push({ kind: "chair", x, y: cy + offset, rotation: deg(180), ...seat });
   }
   return out;
 }
@@ -329,11 +336,15 @@ export const woventexFloor: Floor = {
 
     /* ── Meeting room ─────────────────────────────────────────────── */
 
-    // The table sits east of the doorway so you walk in beside it rather than
-    // into the back of a chair.
-    { kind: "meetingTable", x: 1240, y: 250, solid: true },
-    ...seatsAround(1240, 250, 200, 105, 3),
-    { kind: "tv", x: 1240, y: 30 },
+    // A 2.79 x 1.29m table rather than the 1.92 x 1.42 desk that was standing
+    // in for one: at that size people on opposite sides are close enough to
+    // pass a laptop across, which is not a meeting table.
+    //
+    // It sits east of the doorway so you walk in beside it rather than into the
+    // back of a chair, with the screen on the east wall at the head of the room.
+    { kind: "meetingTable", x: 1200, y: 250, w: 237, h: 110, solid: true, model: "boardroom-table" },
+    ...seatsAround(1200, 250, 200, 100, 3, { model: "visitor-chair", w: 59, h: 55 }),
+    { kind: "tvWall", x: 1532, y: 250, rotation: deg(90), solid: true },
 
     /* ── The unnamed room ─────────────────────────────────────────── */
 
