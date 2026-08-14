@@ -312,19 +312,13 @@ export const woventexFloor: Floor = {
 
     /* ── ABD's office ─────────────────────────────────────────────── */
 
-    // Same kit as Karim's, laid out the other way round because the door is on
-    // the west wall rather than the south: the shelf takes the far wall and the
-    // armchair the far corner, so the lane in from the door stays clear.
+    // Desk, its chair, and the two seats opposite. Whoever is in the room
+    // faces the door rather than the window.
     { kind: "desk", x: 2350, y: 150, rotation: deg(180), solid: true, model: "office-desk" },
     { kind: "monitor", x: 2350, y: 154, rotation: deg(180), elevation: DESK_TOP },
-    { kind: "deskLamp", x: 2416, y: 136, elevation: DESK_TOP },
     { kind: "chair", x: 2350, y: 78, model: "desk-chair" },
     { kind: "chair", x: 2270, y: 250, rotation: deg(180), w: 59, h: 55, model: "visitor-chair" },
     { kind: "chair", x: 2430, y: 250, rotation: deg(180), w: 59, h: 55, model: "visitor-chair" },
-    { kind: "shelf", x: 2560, y: 300, rotation: deg(-90), solid: true },
-    { kind: "armchair", x: 2440, y: 350, rotation: deg(50), solid: true },
-    { kind: "lamp", x: 2340, y: 340 },
-    { kind: "plant", x: 2150, y: 70, model: "plant-c" },
 
     /* ── Meeting room ─────────────────────────────────────────────── */
 
