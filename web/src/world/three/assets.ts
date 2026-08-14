@@ -140,5 +140,8 @@ export const MODELS: Partial<Record<FurnitureKind, ModelSpec>> = {
   // The same file as sideChair, on its own entry so the repaint does not reach
   // the three of these standing in the hangout.
   redChair: { url: "/models/side-chair.glb", scale: M, upAxis: "z", paint: "#B0362C" },
+  // 0.88x because the unit is 2.17m and the walls are 1.94 — at true size its
+  // top stands proud of the wall it is meant to sit against.
+  tvWall: { url: "/models/tv-wall.glb", scale: M * 0.88, upAxis: "z" },
   floorCushion: { url: "/models/floor-cushion.glb", scale: M, upAxis: "z" },
 };

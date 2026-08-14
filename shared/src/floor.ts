@@ -319,6 +319,8 @@ export const woventexFloor: Floor = {
     { kind: "chair", x: 2350, y: 78, model: "desk-chair" },
     { kind: "chair", x: 2270, y: 250, rotation: deg(180), w: 59, h: 55, model: "visitor-chair" },
     { kind: "chair", x: 2430, y: 250, rotation: deg(180), w: 59, h: 55, model: "visitor-chair" },
+    // Against the middle of the east wall, turned to face into the room.
+    { kind: "tvWall", x: 2566, y: 207, rotation: deg(90), solid: true },
 
     /* ── Meeting room ─────────────────────────────────────────────── */
 
