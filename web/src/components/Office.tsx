@@ -27,7 +27,7 @@ export function Office() {
   if (!joined) {
     return <Entry name={name} setName={setName} onJoin={() => setJoined(true)} />;
   }
-  return <Stage name={name.trim()} />;
+  return <Stage name={name.trim()} onLeave={() => setJoined(false)} />;
 }
 
 /* ── Entry ─────────────────────────────────────────────────────── */
@@ -83,7 +83,7 @@ function Entry({
 
 /* ── Stage ─────────────────────────────────────────────────────── */
 
-function Stage({ name }: { name: string }) {
+function Stage({ name, onLeave }: { name: string; onLeave: () => void }) {
   const hostRef = useRef<HTMLDivElement>(null);
   const sceneRef = useRef<OfficeScene | null>(null);
   const clientRef = useRef<OfficeClient | null>(null);
@@ -355,6 +355,18 @@ function Stage({ name }: { name: string }) {
 
   const self = players.find((p) => p.id === selfId);
 
+  // Near enough to the front doors to walk out of them. Measured from the
+  // player the server reports rather than the one the scene is drawing, so the
+  // prompt agrees with where everyone else thinks you are.
+  const doorway = floor?.entrance;
+  const atDoor =
+    !!self &&
+    !!doorway &&
+    Math.hypot(
+      self.x - (doorway.x + doorway.w / 2),
+      self.y - (doorway.y + doorway.h / 2),
+    ) < 190;
+
   // Socket handlers are created once, so they read the current view from a ref.
   useEffect(() => {
     viewRef.current = {
@@ -521,6 +533,12 @@ function Stage({ name }: { name: string }) {
           }
           version={mediaVersion}
         />
+      )}
+
+      {atDoor && (
+        <button type="button" className="leave-prompt" onClick={onLeave}>
+          Leave office
+        </button>
       )}
 
       <div className="hud">

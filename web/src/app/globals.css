@@ -934,6 +934,29 @@ body {
   right: calc(var(--panel-w) + 16px);
 }
 
+/* Appears only when you are standing at the front doors. */
+.leave-prompt {
+  position: absolute;
+  left: 50%;
+  bottom: 92px;
+  transform: translateX(-50%);
+  z-index: 6;
+  padding: 10px 20px;
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  border-radius: 999px;
+  background: rgba(21, 22, 18, 0.9);
+  color: #f2efe9;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  box-shadow: 0 6px 22px -6px rgba(0, 0, 0, 0.7);
+}
+
+.leave-prompt:hover {
+  background: rgba(140, 52, 44, 0.95);
+  border-color: rgba(255, 255, 255, 0.4);
+}
+
 /* A file input styled as one of the HUD buttons. */
 .hud-file {
   position: relative;
