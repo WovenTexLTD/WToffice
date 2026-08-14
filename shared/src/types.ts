@@ -336,6 +336,20 @@ export interface RTCIceCandidateInitLike {
   usernameFragment?: string | null;
 }
 
+/**
+ * One Notion database the office can file into.
+ *
+ * Which columns exist differs per database, so the board asks rather than
+ * assumes: offering a priority on a database that has no such column would
+ * silently drop it.
+ */
+export interface NotionSource {
+  id: string;
+  title: string;
+  hasPriority: boolean;
+  hasDue: boolean;
+}
+
 /** A row from the team's Notion task database, flattened for the panel. */
 export interface NotionTask {
   id: string;
@@ -364,10 +378,10 @@ export type ClientMessage =
   | { t: "signal"; to: string; data: SignalData }
   /** Set or clear the profile picture for your identity. Empty string clears. */
   | { t: "avatar"; data: string }
-  /** Ask for the current task list. */
-  | { t: "tasks" }
-  /** File a new task. */
-  | { t: "task"; title: string; priority?: string; due?: string };
+  /** Ask for a task list. Omit `database` for the default one. */
+  | { t: "tasks"; database?: string }
+  /** File a new task, into `database` or the default one. */
+  | { t: "task"; title: string; priority?: string; due?: string; database?: string };
 
 export type ServerMessage =
   | { t: "welcome"; selfId: string; floor: Floor; players: PlayerState[]; shutDoors: string[] }
@@ -378,7 +392,16 @@ export type ServerMessage =
    * panel says out loud rather than showing an empty list that looks like "no
    * tasks".
    */
-  | { t: "tasks"; items: NotionTask[]; configured: boolean; error?: string }
+  | {
+      t: "tasks";
+      items: NotionTask[];
+      sources: NotionSource[];
+      database: string;
+      /** The open statuses this database defines, in its own order. */
+      statuses: string[];
+      configured: boolean;
+      error?: string;
+    }
   /** Door state changed. Sent on change only — doors move rarely. */
   | { t: "doors"; shut: string[] }
   /** Somebody outside wants in. Delivered only to people inside that room. */

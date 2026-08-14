@@ -9,6 +9,7 @@ import type {
   ChatMessage,
   ClientMessage,
   Floor,
+  NotionSource,
   NotionTask,
   PlayerState,
   PresenceStatus,
@@ -28,7 +29,14 @@ export interface OfficeClientHandlers {
   onKnock(doorId: string, name: string): void;
   onChat(message: ChatMessage): void;
   onHistory(channel: string, messages: ChatMessage[], hasMore: boolean): void;
-  onTasks(items: NotionTask[], configured: boolean, error?: string): void;
+  onTasks(
+    items: NotionTask[],
+    sources: NotionSource[],
+    database: string,
+    statuses: string[],
+    configured: boolean,
+    error?: string,
+  ): void;
 }
 
 export type ConnectionStatus = "connecting" | "online" | "reconnecting" | "offline";
@@ -95,7 +103,14 @@ export class OfficeClient {
           this.handlers.onHistory(msg.channel, msg.messages, msg.hasMore);
           break;
         case "tasks":
-          this.handlers.onTasks(msg.items, msg.configured, msg.error);
+          this.handlers.onTasks(
+            msg.items,
+            msg.sources,
+            msg.database,
+            msg.statuses,
+            msg.configured,
+            msg.error,
+          );
           break;
         case "state":
           this.handlers.onState(msg.players);
@@ -170,14 +185,14 @@ export class OfficeClient {
     this.send({ t: "knock", doorId });
   }
 
-  /** Ask the server for the current task list. */
-  requestTasks(): void {
-    this.send({ t: "tasks" });
+  /** Ask for a task list. Omit the database for the server's default. */
+  requestTasks(database?: string): void {
+    this.send({ t: "tasks", database });
   }
 
   /** File a task. The server answers with a refreshed list. */
-  createTask(title: string, priority?: string, due?: string): void {
-    this.send({ t: "task", title, priority, due });
+  createTask(title: string, priority?: string, due?: string, database?: string): void {
+    this.send({ t: "task", title, priority, due, database });
   }
 
   /** Set the profile picture for this identity, or clear it with "". */

@@ -934,79 +934,184 @@ body {
   right: calc(var(--panel-w) + 16px);
 }
 
-/* ── Tasks tab ──────────────────────────────────────────────────── */
+/* ── Tasks board ────────────────────────────────────────────────── */
 
-.task-add {
+.tasks-open {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  z-index: 7;
+  width: 38px;
+  height: 38px;
+  display: grid;
+  place-items: center;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 10px;
+  background: rgba(21, 22, 18, 0.82);
+  color: #e6e1d8;
+  cursor: pointer;
+  backdrop-filter: blur(6px);
+}
+
+.tasks-open:hover,
+.tasks-open.on {
+  background: rgba(38, 40, 34, 0.94);
+  border-color: rgba(255, 255, 255, 0.3);
+  color: #fff;
+}
+
+.tasks-scrim {
+  position: absolute;
+  inset: 0;
+  z-index: 9;
+  display: grid;
+  place-items: center;
+  padding: 28px;
+  background: rgba(8, 9, 7, 0.55);
+  backdrop-filter: blur(3px);
+}
+
+.tasks-board {
+  width: min(980px, 100%);
+  max-height: 100%;
   display: flex;
-  gap: 6px;
-  padding: 10px 12px;
+  flex-direction: column;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 14px;
+  background: #1a1b17;
+  box-shadow: 0 26px 70px -20px rgba(0, 0, 0, 0.8);
+  overflow: hidden;
+}
+
+.tasks-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 16px;
   border-bottom: 1px solid rgba(255, 255, 255, 0.08);
 }
 
-.task-add input {
+.tasks-head h2 {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+  color: #f2efe9;
+}
+
+.tasks-count {
+  font-size: 11px;
+  color: rgba(242, 239, 233, 0.45);
+}
+
+.tasks-grow {
+  flex: 1;
+}
+
+.tasks-ghost,
+.tasks-close {
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 7px;
+  background: transparent;
+  color: rgba(242, 239, 233, 0.75);
+  padding: 5px 10px;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.tasks-close {
+  padding: 3px 9px;
+  font-size: 17px;
+  line-height: 1.1;
+}
+
+.tasks-ghost:hover,
+.tasks-close:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: #fff;
+}
+
+.tasks-new {
+  display: flex;
+  gap: 8px;
+  padding: 12px 16px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.tasks-new input[type="text"],
+.tasks-new input:not([type]) {
   flex: 1;
   min-width: 0;
 }
 
-.task-add select {
-  flex: 0 0 auto;
-}
-
-.task-note {
-  padding: 14px 12px;
-  color: rgba(242, 239, 233, 0.55);
-  font-size: 13px;
-}
-
-.task-list {
-  list-style: none;
-  margin: 0;
-  padding: 4px 0;
+.tasks-columns {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  padding: 14px 16px 18px;
   overflow-y: auto;
 }
 
-.task-row {
+.tasks-column h3 {
   display: flex;
-  flex-direction: column;
-  gap: 3px;
-  padding: 9px 12px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  justify-content: space-between;
+  margin: 0 0 8px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: rgba(242, 239, 233, 0.5);
 }
 
-.task-title {
+.tasks-card {
+  display: block;
+  margin-bottom: 7px;
+  padding: 9px 10px;
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.035);
   color: #f2efe9;
   text-decoration: none;
   font-size: 13px;
   line-height: 1.35;
 }
 
-.task-title:hover {
-  text-decoration: underline;
+.tasks-card:hover {
+  background: rgba(255, 255, 255, 0.075);
+  border-color: rgba(255, 255, 255, 0.16);
 }
 
-.task-meta {
+.tasks-card-meta {
   display: flex;
-  flex-wrap: wrap;
   gap: 6px;
-  font-size: 11px;
+  margin-top: 6px;
+  font-size: 10px;
   color: rgba(242, 239, 233, 0.45);
 }
 
-.task-status,
-.task-pri {
-  padding: 1px 6px;
+.tasks-pri {
+  padding: 1px 5px;
   border-radius: 3px;
   background: rgba(255, 255, 255, 0.08);
 }
 
-.task-status.s-in-progress {
-  background: rgba(224, 183, 106, 0.22);
-  color: #e0b76a;
+.tasks-pri.p-high {
+  background: rgba(190, 82, 70, 0.28);
+  color: #e79486;
 }
 
-.task-pri.p-high {
-  background: rgba(190, 82, 70, 0.25);
+.tasks-late {
   color: #e08a7e;
+}
+
+.tasks-none,
+.tasks-empty {
+  color: rgba(242, 239, 233, 0.3);
+  font-size: 12px;
+}
+
+.tasks-empty {
+  padding: 28px 16px;
+  text-align: center;
 }
 
 /* Appears only when you are standing at the front doors. */

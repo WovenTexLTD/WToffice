@@ -6,11 +6,13 @@ import { OfficeClient, type ConnectionStatus } from "@/net/officeClient";
 import { MediaEngine, type MicState, type PeerDiagnostic, type ShareState } from "@/media/MediaEngine";
 import { VideoOverlay, type AvatarLook } from "@/video/VideoOverlay";
 import { SidePanel, type PanelTab } from "@/components/SidePanel";
+import { TasksBoard, type TasksState } from "@/components/TasksBoard";
 import {
   TEAM_CHANNEL,
   pointInRect,
   type ChatMessage,
   type Floor,
+  type NotionSource,
   type NotionTask,
   type PlayerState,
   type PresenceStatus,
@@ -105,9 +107,11 @@ function Stage({ name, onLeave }: { name: string; onLeave: () => void }) {
   const [zone, setZone] = useState<string | null>(null);
   const [floor, setFloor] = useState<Floor | null>(null);
   const [tasks, setTasks] = useState<NotionTask[]>([]);
-  const [tasksState, setTasksState] = useState<"loading" | "ready" | "error" | "unconfigured">(
-    "loading",
-  );
+  const [taskSources, setTaskSources] = useState<NotionSource[]>([]);
+  const [taskDb, setTaskDb] = useState("");
+  const [taskStatuses, setTaskStatuses] = useState<string[]>([]);
+  const [tasksOpen, setTasksOpen] = useState(false);
+  const [tasksState, setTasksState] = useState<TasksState>("loading");
 
   /** Bumped when remote tracks arrive or earshot membership changes. */
   const [mediaVersion, setMediaVersion] = useState(0);
@@ -223,8 +227,11 @@ function Stage({ name, onLeave }: { name: string; onLeave: () => void }) {
         }
       },
 
-      onTasks: (items, configured, error) => {
+      onTasks: (items, sources, database, statuses, configured, error) => {
         setTasks(items);
+        setTaskSources(sources);
+        setTaskDb(database);
+        setTaskStatuses(statuses);
         setTasksState(!configured ? "unconfigured" : error ? "error" : "ready");
       },
       onHistory: (channel, page, more) => {
@@ -338,9 +345,11 @@ function Stage({ name, onLeave }: { name: string; onLeave: () => void }) {
     clientRef.current?.sendAvatar(canvas.toDataURL("image/webp", 0.82));
   }, []);
 
+  // Fetched when the board is opened rather than at join: most sessions never
+  // open it, and it is a round trip to Notion.
   useEffect(() => {
-    if (panelOpen && panelTab === "tasks") clientRef.current?.requestTasks();
-  }, [panelOpen, panelTab]);
+    if (tasksOpen) clientRef.current?.requestTasks(taskDb || undefined);
+  }, [tasksOpen]);
 
   const toggleMute = useCallback(() => {
     const media = mediaRef.current;
@@ -644,19 +653,55 @@ function Stage({ name, onLeave }: { name: string; onLeave: () => void }) {
         </button>
       </div>
 
+      <button
+        type="button"
+        className={`tasks-open${tasksOpen ? " on" : ""}`}
+        onClick={() => setTasksOpen((v) => !v)}
+        title="Tasks"
+        aria-label="Tasks"
+        aria-pressed={tasksOpen}
+      >
+        <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
+          <path
+            d="M4 6.5l2 2 3.5-3.5M4 13.5l2 2 3.5-3.5M4 20.5l2 2 3.5-3.5M13 6h7M13 13h7M13 20h7"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.9"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+        </svg>
+      </button>
+
+      {tasksOpen && (
+        <TasksBoard
+          tasks={tasks}
+          sources={taskSources}
+          database={taskDb}
+          statuses={taskStatuses}
+          state={tasksState}
+          onPick={(db) => {
+            setTaskDb(db);
+            setTasksState("loading");
+            clientRef.current?.requestTasks(db);
+          }}
+          onCreate={(title, priority, due) =>
+            clientRef.current?.createTask(title, priority, due, taskDb || undefined)
+          }
+          onRefresh={() => {
+            setTasksState("loading");
+            clientRef.current?.requestTasks(taskDb || undefined);
+          }}
+          onClose={() => setTasksOpen(false)}
+        />
+      )}
+
       {panelOpen && (
         <SidePanel
           players={players}
           self={self}
           tab={panelTab}
           onTab={setPanelTab}
-          tasks={tasks}
-          tasksState={tasksState}
-          onCreateTask={(title, priority) => clientRef.current?.createTask(title, priority)}
-          onRefreshTasks={() => {
-            setTasksState("loading");
-            clientRef.current?.requestTasks();
-          }}
           onClose={() => setPanelOpen(false)}
           activeChannel={activeChannel}
           onChannel={setActiveChannel}

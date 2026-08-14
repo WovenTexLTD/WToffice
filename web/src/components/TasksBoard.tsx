@@ -1,0 +1,210 @@
+"use client";
+
+import { useEffect, useMemo, useRef, useState } from "react";
+import type { NotionSource, NotionTask } from "@wtoffice/shared";
+
+export type TasksState = "loading" | "ready" | "error" | "unconfigured";
+
+export interface TasksBoardProps {
+  tasks: NotionTask[];
+  sources: NotionSource[];
+  /** Which database is being shown. */
+  database: string;
+  /** Its own status names, in its own order — one column each. */
+  statuses: string[];
+  state: TasksState;
+  onPick(database: string): void;
+  onCreate(title: string, priority?: string, due?: string): void;
+  onRefresh(): void;
+  onClose(): void;
+}
+
+/** Today, as the same YYYY-MM-DD string Notion returns, in local time. */
+function today(): string {
+  const now = new Date();
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
+}
+
+/**
+ * The task board.
+ *
+ * Its own screen rather than a tab, because a list of everything the team owes
+ * is not a sidebar-width thing — it wants columns, and columns want room.
+ */
+export function TasksBoard({
+  tasks,
+  sources,
+  database,
+  statuses,
+  state,
+  onPick,
+  onCreate,
+  onRefresh,
+  onClose,
+}: TasksBoardProps) {
+  const [title, setTitle] = useState("");
+  const [priority, setPriority] = useState("");
+  const [due, setDue] = useState("");
+
+  // What this database can actually hold. Offering a priority field on a
+  // database with no such column would silently drop whatever was typed.
+  const current = sources.find((s) => s.id.replace(/-/g, "") === database.replace(/-/g, ""));
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    inputRef.current?.focus();
+  }, []);
+
+  // Escape closes, which is what every overlay in the world does.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onClose]);
+
+  // Columns come from the database, not from this file. One calls them To Do /
+  // In Progress / On Hold and the next Not started / In progress; three
+  // hard-coded columns filed half of them under the wrong heading.
+  const columns = useMemo(() => {
+    const byStatus = new Map<string, NotionTask[]>(statuses.map((name) => [name, []]));
+    const loose: NotionTask[] = [];
+    // A status the database did not declare still has to go somewhere, or the
+    // task vanishes from the only view of it.
+    for (const task of tasks) {
+      const bucket = byStatus.get(task.status);
+      if (bucket) bucket.push(task);
+      else loose.push(task);
+    }
+    const named = statuses.map((name) => ({ name, items: byStatus.get(name) ?? [] }));
+    return loose.length ? [...named, { name: "Other", items: loose }] : named;
+  }, [tasks, statuses]);
+
+  const submit = (e: React.FormEvent) => {
+    e.preventDefault();
+    const text = title.trim();
+    if (!text) return;
+    onCreate(text, priority || undefined, due || undefined);
+    setTitle("");
+    setPriority("");
+    setDue("");
+  };
+
+  const now = today();
+
+  return (
+    <div className="tasks-scrim" onPointerDown={onClose}>
+      <section
+        className="tasks-board"
+        onPointerDown={(e) => e.stopPropagation()}
+        role="dialog"
+        aria-label="Tasks"
+      >
+        <header className="tasks-head">
+          <h2>Tasks</h2>
+          <select
+            className="tasks-source"
+            value={database}
+            onChange={(e) => onPick(e.target.value)}
+            aria-label="Database"
+          >
+            {sources.length === 0 && <option value={database}>Loading…</option>}
+            {sources.map((source) => (
+              <option key={source.id} value={source.id}>
+                {source.title}
+              </option>
+            ))}
+          </select>
+          <span className="tasks-count mono">{tasks.length} open</span>
+          <span className="tasks-grow" />
+          <button type="button" className="tasks-ghost" onClick={onRefresh}>
+            Refresh
+          </button>
+          <button type="button" className="tasks-close" onClick={onClose} aria-label="Close">
+            ×
+          </button>
+        </header>
+
+        <form className="tasks-new" onSubmit={submit}>
+          <input
+            ref={inputRef}
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            placeholder="What needs doing?"
+            maxLength={200}
+          />
+          {current?.hasPriority !== false && (
+            <select
+              value={priority}
+              onChange={(e) => setPriority(e.target.value)}
+              aria-label="Priority"
+            >
+              <option value="">No priority</option>
+              <option value="High">High</option>
+              <option value="Medium">Medium</option>
+              <option value="Low">Low</option>
+            </select>
+          )}
+          {current?.hasDue !== false && (
+            <input
+              type="date"
+              value={due}
+              onChange={(e) => setDue(e.target.value)}
+              aria-label="Due date"
+            />
+          )}
+          <button type="submit" disabled={!title.trim()}>
+            Add task
+          </button>
+        </form>
+
+        {state === "unconfigured" ? (
+          <p className="tasks-empty">Notion is not connected on the server.</p>
+        ) : state === "error" ? (
+          <p className="tasks-empty">Could not reach Notion.</p>
+        ) : state === "loading" && tasks.length === 0 ? (
+          <p className="tasks-empty">Loading…</p>
+        ) : (
+          <div className="tasks-columns" style={{ gridTemplateColumns: `repeat(${Math.max(1, columns.length)}, minmax(0, 1fr))` }}>
+            {columns.map((column) => (
+              <div key={column.name} className="tasks-column">
+                <h3>
+                  {column.name}
+                  <span className="mono">{column.items.length}</span>
+                </h3>
+                {column.items.map((task) => (
+                  <a
+                    key={task.id}
+                    className="tasks-card"
+                    href={task.url}
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    <span className="tasks-card-title">{task.title}</span>
+                    {(task.priority || task.due) && (
+                      <span className="tasks-card-meta mono">
+                        {task.priority && (
+                          <span className={`tasks-pri p-${task.priority.toLowerCase()}`}>
+                            {task.priority}
+                          </span>
+                        )}
+                        {task.due && (
+                          <span className={task.due < now ? "tasks-late" : undefined}>
+                            {task.due}
+                          </span>
+                        )}
+                      </span>
+                    )}
+                  </a>
+                ))}
+                {column.items.length === 0 && <p className="tasks-none">—</p>}
+              </div>
+            ))}
+          </div>
+        )}
+      </section>
+    </div>
+  );
+}
