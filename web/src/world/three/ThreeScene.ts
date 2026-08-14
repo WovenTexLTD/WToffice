@@ -165,7 +165,11 @@ export class ThreeScene {
 
   async init(): Promise<void> {
     const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    // 1.5 rather than 2. On a retina display 2 means four times the pixels of
+    // 1, and with an occlusion pass and MSAA on top of that it is the single
+    // most expensive number in the renderer. At this camera distance the
+    // difference between 1.5 and 2 is not visible; the frame rate is.
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
     renderer.shadowMap.enabled = true;
     renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     // Filmic tone mapping is most of why a rendered room looks photographic
@@ -247,13 +251,19 @@ export class ThreeScene {
       const buffer = renderer.getDrawingBufferSize(new THREE.Vector2());
       const target = new THREE.WebGLRenderTarget(buffer.x, buffer.y, {
         type: THREE.HalfFloatType,
-        samples: 4,
+        samples: 2,
       });
 
       const composer = new EffectComposer(renderer, target);
       composer.addPass(new RenderPass(this.scene, this.camera));
 
       const ao = new GTAOPass(this.scene, this.camera, w, h);
+      // Occlusion at half resolution, blended back at full. It is a broad, soft
+      // signal — the contact shadow under a chair leg is several pixels wide —
+      // so halving it costs almost nothing visible and a quarter of the work.
+      const resize = ao.setSize.bind(ao);
+      ao.setSize = (width: number, height: number) =>
+        resize(Math.max(1, Math.round(width / 2)), Math.max(1, Math.round(height / 2)));
       // Radius in world units. The floor is 2600 across and a chair is 55, so a
       // radius of a few units keeps the darkening at the contacts rather than
       // smearing it across whole rooms.
@@ -285,10 +295,10 @@ export class ThreeScene {
     // closer to overhead, and the shadows are short and diffuse.
     const sun = new THREE.DirectionalLight(0xfff4e4, 2.35);
     sun.castShadow = true;
-    sun.shadow.mapSize.set(2048, 2048);
+    sun.shadow.mapSize.set(1024, 1024);
     sun.shadow.bias = -0.0006;
     sun.shadow.normalBias = 2;
-    sun.shadow.radius = 5;
+    sun.shadow.radius = 3.5;
 
     // Sized to the whole floor and aimed at its centre. A shadow camera that
     // covers only part of the plan leaves the far rooms unshadowed, which reads
