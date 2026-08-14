@@ -34,12 +34,18 @@ const near = (a: number, b: number, tol = 0.01) => Math.abs(a - b) <= tol;
 
 console.log("\nGeometry\n");
 
-const meetingCentre = { x: 2180, y: 300 };
+// Derived from the floor rather than written out, because these coordinates
+// have now been invalidated three times by rooms moving, and a fixture that
+// has to be hand-edited every time the plan changes is a fixture that will
+// eventually be edited wrong.
+const meetingZone = floor.zones.find((z) => z.id === "meeting")!;
+const meetingCentre = { x: meetingZone.x + meetingZone.w / 2, y: meetingZone.y + meetingZone.h / 2 };
 check("zoneAt finds the meeting room", zoneAt(meetingCentre.x, meetingCentre.y, floor.zones) === "meeting");
 check("zoneAt returns null on the open floor", zoneAt(300, 870, floor.zones) === null);
+const meetingDoor = floor.doors.find((d) => d.zoneId === "meeting")!;
 check(
   "a doorway is outside the zone",
-  zoneAt(floor.doors[0].x + 7, floor.doors[0].y + 45, floor.zones) === null,
+  zoneAt(meetingDoor.x + 7, meetingDoor.y + 45, floor.zones) === null,
   "you are not in the meeting until you walk in",
 );
 
@@ -83,8 +89,12 @@ check("video is shared inside a room", videoVisible(inRoom("meeting"), inRoom("m
 check("video is hidden between two rooms", !videoVisible(inRoom("focus"), inRoom("meeting")));
 check("a broadcaster is visible from anywhere", videoVisible(inRoom("focus"), shouting));
 
-const doorId = floor.doors[0].id;
-const d0 = floor.doors[0];
+const doorId = meetingDoor.id;
+const d0 = meetingDoor;
+// The meeting door hangs in a vertical wall, so it is approached from the west
+// and passed through heading east. Both probes are offset from the door itself.
+const approach = { x: d0.x - 90, y: d0.y + d0.h / 2 };
+const beyond = { x: d0.x + d0.w + 170, y: d0.y + d0.h / 2 };
 const openGeometry = collisionRects(floor, []);
 check("an open door is not collision geometry", !openGeometry.some((r) => r === d0));
 check(
@@ -102,22 +112,10 @@ check("doorAt returns null away from any door", doorAt(300, 870, floor.doors) ==
 
 // A shut door must actually stop someone walking through the gap.
 const shutWalls = collisionRects(floor, [doorId]);
-const blocked = resolveMove(
-  { x: 1700, y: 300 },
-  { x: 1900, y: 300 },
-  PLAYER_RADIUS,
-  shutWalls,
-  floor,
-);
+const blocked = resolveMove(approach, beyond, PLAYER_RADIUS, shutWalls, floor);
 check("a shut door blocks passage", blocked.x < d0.x - PLAYER_RADIUS + 1, `stopped at x = ${blocked.x.toFixed(1)}`);
 
-const throughOpen = resolveMove(
-  { x: 1700, y: 300 },
-  { x: 1900, y: 300 },
-  PLAYER_RADIUS,
-  openGeometry,
-  floor,
-);
+const throughOpen = resolveMove(approach, beyond, PLAYER_RADIUS, openGeometry, floor);
 check("an open door allows passage", throughOpen.x > d0.x + d0.w, `reached x = ${throughOpen.x.toFixed(1)}`);
 
 /* ── Part B: live server ─────────────────────────────────────────── */
@@ -332,11 +330,12 @@ async function run(): Promise<void> {
   const arrived = await walkTo(
     alice,
     { x: before?.x ?? floor.spawn.x, y: before?.y ?? floor.spawn.y },
+    // West of the desk banks, north up the open floor between Karim's office
+    // and the meeting room, then east through the doorway.
     [
-      { x: 700, y: 850 },
-      { x: 1700, y: 850 },
-      { x: 1700, y: 300 },
-      { x: 1900, y: 300 },
+      { x: 620, y: 920 },
+      { x: 620, y: meetingDoor.y + meetingDoor.h / 2 },
+      { x: meetingDoor.x + 160, y: meetingDoor.y + meetingDoor.h / 2 },
     ],
   );
   const aliceInside = playerIn(alice, alice.id);

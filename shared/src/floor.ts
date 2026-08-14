@@ -141,38 +141,38 @@ export const woventexFloor: Floor = {
     { x: 0, y: 0, w: WALL, h: H },
     { x: W - WALL, y: 0, w: WALL, h: H },
 
-    // The three rooms are glazed partitions, so the floor stays legible
-    // from anywhere and you can see whether a room is occupied before you walk
-    // over. They still seal audio.
-    // Meeting room, door on its left wall.
-    { x: ROOM_LEFT, y: 60, w: W - ROOM_LEFT - WALL, h: WALL, glass: true },
-    { x: ROOM_LEFT, y: 546, w: W - ROOM_LEFT - WALL, h: WALL, glass: true },
-    { x: ROOM_LEFT, y: 60, w: WALL, h: 190, glass: true },
-    { x: ROOM_LEFT, y: 350, w: WALL, h: 210, glass: true },
+    // The rooms are glazed partitions, so the floor stays legible from anywhere
+    // and you can see whether a room is occupied before you walk over. They
+    // still seal audio.
+    //
+    // ABD's office takes the top-right corner, at the same 472 x 386 as
+    // Karim's. The building's own north and east walls make two of its sides,
+    // so it needs a west wall and a south one, with the door on the west like
+    // the rooms stacked below it.
+    { x: 2100, y: WALL, w: WALL, h: 186, glass: true },
+    { x: 2100, y: 300, w: WALL, h: 114, glass: true },
+    { x: 2100, y: 400, w: 486, h: WALL, glass: true },
+
+    // The meeting room, centre top, at the size it always was: 772 x 472
+    // inside. Its door is on the west wall so it is reached across the open
+    // floor between it and Karim's office, which keeps its whole south
+    // elevation solid glass onto the studio.
+    { x: 900, y: WALL, w: WALL, h: 186, glass: true },
+    { x: 900, y: 300, w: WALL, h: 200, glass: true },
+    { x: 1686, y: WALL, w: WALL, h: 486, glass: true },
+    { x: 900, y: 486, w: 800, h: WALL, glass: true },
+
+    // Karim's office, top-left corner. Same idea as ABD's: the building's own
+    // north and west glazing make two of its four walls.
+    { x: 486, y: WALL, w: WALL, h: 400, glass: true },
+    { x: WALL, y: 400, w: 196, h: WALL, glass: true },
+    { x: 310, y: 400, w: 190, h: WALL, glass: true },
 
     // Focus room.
     { x: ROOM_LEFT, y: 660, w: W - ROOM_LEFT - WALL, h: WALL, glass: true },
     { x: ROOM_LEFT, y: 1046, w: W - ROOM_LEFT - WALL, h: WALL, glass: true },
     { x: ROOM_LEFT, y: 660, w: WALL, h: 140, glass: true },
     { x: ROOM_LEFT, y: 900, w: WALL, h: 160, glass: true },
-
-    // Two private offices along the north-west glazing, where the kitchen used
-    // to be. Same language as the three rooms opposite — glazed, so the plan
-    // stays legible and you can see whether someone is in before you knock.
-    //
-    // Wide rather than deep: 5.6 x 4.5 metres each. Run the other way they read
-    // as corridors, and an office wants its window wall long.
-    //
-    // Karim's is the corner: the building's own north and west glazing make two
-    // of its four walls, so it only needs an east wall and a south one.
-    { x: 486, y: WALL, w: WALL, h: 400, glass: true },
-    { x: WALL, y: 400, w: 196, h: WALL, glass: true },
-    { x: 310, y: 400, w: 190, h: WALL, glass: true },
-
-    // ABD's, alongside it, running east to just short of the studio floor.
-    { x: 986, y: WALL, w: WALL, h: 400, glass: true },
-    { x: 500, y: 400, w: 200, h: WALL, glass: true },
-    { x: 800, y: 400, w: 186, h: WALL, glass: true },
 
     // Breakout room.
     { x: ROOM_LEFT, y: 1160, w: W - ROOM_LEFT - WALL, h: WALL, glass: true },
@@ -182,19 +182,19 @@ export const woventexFloor: Floor = {
   ],
 
   zones: [
-    { id: "meeting", name: "Meeting Room", x: 1814, y: 74, w: 772, h: 472, material: "walnut" },
+    { id: "meeting", name: "Meeting Room", x: 914, y: WALL, w: 772, h: 472, material: "walnut" },
     { id: "focus", name: "Focus Room", x: 1814, y: 674, w: 772, h: 372, material: "walnut" },
     { id: "breakout", name: "Breakout", x: 1814, y: 1174, w: 772, h: 452, material: "walnut" },
     { id: "karim", name: "Karim's Office", x: WALL, y: WALL, w: 472, h: 386, material: "walnut" },
-    { id: "abd", name: "ABD's Office", x: 500, y: WALL, w: 486, h: 386, material: "walnut" },
+    { id: "abd", name: "ABD's Office", x: 2114, y: WALL, w: 472, h: 386, material: "walnut" },
   ],
 
   doors: [
-    { id: "meeting-door", zoneId: "meeting", x: ROOM_LEFT, y: 250, w: WALL, h: 100 },
+    { id: "meeting-door", zoneId: "meeting", x: 900, y: 200, w: WALL, h: 100 },
     { id: "focus-door", zoneId: "focus", x: ROOM_LEFT, y: 800, w: WALL, h: 100 },
     { id: "breakout-door", zoneId: "breakout", x: ROOM_LEFT, y: 1310, w: WALL, h: 100 },
     { id: "karim-door", zoneId: "karim", x: 210, y: 400, w: 100, h: WALL },
-    { id: "abd-door", zoneId: "abd", x: 700, y: 400, w: 100, h: WALL },
+    { id: "abd-door", zoneId: "abd", x: 2100, y: 200, w: WALL, h: 100 },
   ],
 
   // Boards throughout, with the areas laid over the top.
@@ -205,7 +205,7 @@ export const woventexFloor: Floor = {
     { id: "lounge", label: "Lounge", x: 60, y: 1160, w: 520, h: 480, material: "carpet" },
     // The warm boards, matching the rooms — the pale ones outside then read as
     // circulation around the places people actually work.
-    { id: "studio", label: "Studio Floor", x: 700, y: 440, w: 960, h: 920, material: "walnut" },
+    { id: "studio", label: "Studio Floor", x: 700, y: 520, w: 960, h: 910, material: "walnut" },
   ],
 
   furniture: [
@@ -219,8 +219,8 @@ export const woventexFloor: Floor = {
     { kind: "plant", x: 90, y: 720, model: "plant-c" },
 
     /* ── Studio floor: two desk banks, eight workstations ─────────── */
-    ...deskBank(900, 650),
-    ...deskBank(1400, 650),
+    ...deskBank(900, 720),
+    ...deskBank(1400, 720),
 
     /* ── Hangout, filling the lower half of the studio ────────────── */
 
@@ -228,29 +228,29 @@ export const woventexFloor: Floor = {
     // the lower right open. Nothing screens it from the desks any more — the rug
     // draws the boundary on its own, and a bookcase across the room was doing
     // less work than it cost in floor.
-    { kind: "areaRug", x: 978, y: 1120 },
+    { kind: "areaRug", x: 978, y: 1190 },
 
     // The sofa is an L. Its two legs run along the top and left of the rug, so
     // the group's focus is the crook they enclose — not the middle of the rug,
     // which is where a straight sofa would have put it. Everything else rings
     // that crook from the open side.
-    { kind: "sofa", x: 900, y: 1052, w: 207, h: 226, solid: true, model: "sofa-l" },
-    { kind: "coffeeTable", x: 1008, y: 1140, solid: true },
+    { kind: "sofa", x: 900, y: 1122, w: 207, h: 226, solid: true, model: "sofa-l" },
+    { kind: "coffeeTable", x: 1008, y: 1210, solid: true },
 
     // Facing back into the crook. Rotation 0 faces north and negative turns
     // clockwise, so a seat east of the table needs +90 to look west.
-    { kind: "armchair", x: 1128, y: 1105, w: 57, h: 69, rotation: deg(90), solid: true, model: "lounge-chair" },
-    { kind: "armchair", x: 1086, y: 1252, w: 57, h: 69, rotation: deg(140), solid: true, model: "lounge-chair" },
+    { kind: "armchair", x: 1128, y: 1175, w: 57, h: 69, rotation: deg(90), solid: true, model: "lounge-chair" },
+    { kind: "armchair", x: 1086, y: 1322, w: 57, h: 69, rotation: deg(140), solid: true, model: "lounge-chair" },
 
     // Two stools closing the ring on the open side, for when the whole team is
     // in. Nothing sits off the rug: the point of it is that the group reads as
     // one place.
-    { kind: "sideChair", x: 946, y: 1272, rotation: deg(180), solid: true },
-    { kind: "sideChair", x: 844, y: 1244, rotation: deg(214), solid: true },
+    { kind: "sideChair", x: 946, y: 1342, rotation: deg(180), solid: true },
+    { kind: "sideChair", x: 844, y: 1314, rotation: deg(214), solid: true },
 
     // Tucked against the sofa's outer corner. A floor lamp standing on its own
     // a metre clear of the furniture reads as an object, not as a lamp.
-    { kind: "lamp", x: 752, y: 946 },
+    { kind: "lamp", x: 752, y: 1016 },
 
     /* ── Sample bay: where the fabric actually lives ──────────────── */
 
@@ -270,28 +270,28 @@ export const woventexFloor: Floor = {
     // tucked in above it, the chairs would otherwise crowd the east-west lane
     // at y 850. Rotation 0 faces south, which is what the desk banks use for
     // the seat above a desk.
-    { kind: "benchDesk", x: 1400, y: 1010, solid: true },
-    { kind: "chair", x: 1330, y: 937 },
-    { kind: "chair", x: 1462, y: 937 },
-    { kind: "fabricRoll", x: 1310, y: 998, rotation: deg(18), elevation: 62 },
-    { kind: "fabricRoll", x: 1352, y: 1012, rotation: deg(-12), elevation: 62, model: "fabric-roll-b" },
-    { kind: "fabricRoll", x: 1394, y: 996, rotation: deg(32), elevation: 62, model: "fabric-roll-c" },
-    { kind: "fabricStack", x: 1470, y: 1010, rotation: deg(-8), elevation: 62 },
-    { kind: "fabricStack", x: 1516, y: 1014, rotation: deg(14), elevation: 62, model: "fabric-stack-c" },
+    { kind: "benchDesk", x: 1400, y: 1080, solid: true },
+    { kind: "chair", x: 1330, y: 1007 },
+    { kind: "chair", x: 1462, y: 1007 },
+    { kind: "fabricRoll", x: 1310, y: 1068, rotation: deg(18), elevation: 62 },
+    { kind: "fabricRoll", x: 1352, y: 1082, rotation: deg(-12), elevation: 62, model: "fabric-roll-b" },
+    { kind: "fabricRoll", x: 1394, y: 1066, rotation: deg(32), elevation: 62, model: "fabric-roll-c" },
+    { kind: "fabricStack", x: 1470, y: 1080, rotation: deg(-8), elevation: 62 },
+    { kind: "fabricStack", x: 1516, y: 1084, rotation: deg(14), elevation: 62, model: "fabric-stack-c" },
 
     // The rails behind the bench, against the bottom of the studio. The third
     // is turned ten degrees out of line: a perfect row of three reads as a
     // shop, one off-angle reads as someone working through it.
-    { kind: "garmentRail", x: 1280, y: 1210, solid: true },
-    { kind: "garmentRail", x: 1428, y: 1210, solid: true, model: "rail-b" },
-    { kind: "garmentRail", x: 1578, y: 1210, rotation: deg(-10), solid: true, model: "rail-c" },
+    { kind: "garmentRail", x: 1280, y: 1280, solid: true },
+    { kind: "garmentRail", x: 1428, y: 1280, solid: true, model: "rail-b" },
+    { kind: "garmentRail", x: 1578, y: 1280, rotation: deg(-10), solid: true, model: "rail-c" },
 
     // Stock crates on the floor, one with a bolt left on top of it.
-    { kind: "crate", x: 1608, y: 985, rotation: deg(8), solid: true },
-    { kind: "fabricStack", x: 1608, y: 985, rotation: deg(-14), elevation: 29 },
-    { kind: "crate", x: 1600, y: 1062, rotation: deg(-6), solid: true, model: "crate-b" },
-    { kind: "crate", x: 1250, y: 1078, rotation: deg(14), solid: true, model: "crate-b" },
-    { kind: "fabricStack", x: 1250, y: 1078, rotation: deg(24), elevation: 29, model: "fabric-stack-c" },
+    { kind: "crate", x: 1608, y: 1055, rotation: deg(8), solid: true },
+    { kind: "fabricStack", x: 1608, y: 1055, rotation: deg(-14), elevation: 29 },
+    { kind: "crate", x: 1600, y: 1132, rotation: deg(-6), solid: true, model: "crate-b" },
+    { kind: "crate", x: 1250, y: 1148, rotation: deg(14), solid: true, model: "crate-b" },
+    { kind: "fabricStack", x: 1250, y: 1148, rotation: deg(24), elevation: 29, model: "fabric-stack-c" },
 
     /* ── Karim's office ───────────────────────────────────────────── */
 
@@ -312,24 +312,30 @@ export const woventexFloor: Floor = {
 
     /* ── ABD's office ─────────────────────────────────────────────── */
 
-    { kind: "desk", x: 740, y: 150, rotation: deg(180), solid: true, model: "desk-b" },
-    { kind: "monitor", x: 740, y: 154, rotation: deg(180), elevation: DESK_TOP },
-    { kind: "deskLamp", x: 806, y: 136, elevation: DESK_TOP },
-    { kind: "chair", x: 740, y: 78 },
-    { kind: "chair", x: 660, y: 250, rotation: deg(180), w: 59, h: 55, model: "visitor-chair" },
-    { kind: "chair", x: 820, y: 250, rotation: deg(180), w: 59, h: 55, model: "visitor-chair" },
-    { kind: "shelf", x: 548, y: 300, rotation: deg(-90), solid: true },
-    { kind: "armchair", x: 910, y: 300, rotation: deg(40), solid: true },
-    { kind: "lamp", x: 930, y: 214 },
-    { kind: "plant", x: 550, y: 72, model: "plant-c" },
+    // Same kit as Karim's, laid out the other way round because the door is on
+    // the west wall rather than the south: the shelf takes the far wall and the
+    // armchair the far corner, so the lane in from the door stays clear.
+    { kind: "desk", x: 2350, y: 150, rotation: deg(180), solid: true, model: "desk-b" },
+    { kind: "monitor", x: 2350, y: 154, rotation: deg(180), elevation: DESK_TOP },
+    { kind: "deskLamp", x: 2416, y: 136, elevation: DESK_TOP },
+    { kind: "chair", x: 2350, y: 78 },
+    { kind: "chair", x: 2270, y: 250, rotation: deg(180), w: 59, h: 55, model: "visitor-chair" },
+    { kind: "chair", x: 2430, y: 250, rotation: deg(180), w: 59, h: 55, model: "visitor-chair" },
+    { kind: "shelf", x: 2560, y: 300, rotation: deg(-90), solid: true },
+    { kind: "armchair", x: 2440, y: 350, rotation: deg(50), solid: true },
+    { kind: "lamp", x: 2340, y: 340 },
+    { kind: "plant", x: 2150, y: 70, model: "plant-c" },
 
     /* ── Meeting room ─────────────────────────────────────────────── */
-    { kind: "meetingTable", x: 2180, y: 300, solid: true },
-    ...seatsAround(2180, 300, 200, 105, 3),
-    { kind: "tv", x: 2180, y: 96 },
-    { kind: "console", x: 2450, y: 500, solid: true },
-    { kind: "plant", x: 2530, y: 130, model: "plant-big" },
-    { kind: "plant", x: 1900, y: 480, model: "tree" },
+
+    // The table sits east of the doorway so you walk in beside it rather than
+    // into the back of a chair.
+    { kind: "meetingTable", x: 1360, y: 250, solid: true },
+    ...seatsAround(1360, 250, 200, 105, 3),
+    { kind: "tv", x: 1360, y: 30 },
+    { kind: "console", x: 1650, y: 250, rotation: deg(-90), solid: true },
+    { kind: "plant", x: 1620, y: 430, model: "tree" },
+    { kind: "plant", x: 1000, y: 80, model: "plant-big" },
 
     /* ── Focus room: quiet desks along the far wall ───────────────── */
     { kind: "desk", x: 1980, y: 760, solid: true, model: "desk-c" },
@@ -367,11 +373,11 @@ export const woventexFloor: Floor = {
    * entrance across the studio floor.
    */
   signs: [
-    { id: "brand", x: 940, y: WALL, w: 420, h: WALL_HEIGHT, text: "WOVENTEX", mark: true },
-    { id: "meeting-plaque", x: 1826, y: 60 + WALL, w: 180, h: WALL_HEIGHT, text: "MEETING" },
+    { id: "brand", x: 580, y: WALL, w: 420, h: WALL_HEIGHT, text: "WOVENTEX", mark: true },
+    { id: "meeting-plaque", x: 926, y: 34, w: 180, h: WALL_HEIGHT, text: "MEETING" },
     { id: "focus-plaque", x: 1826, y: 660 + WALL, w: 180, h: WALL_HEIGHT, text: "FOCUS" },
     { id: "breakout-plaque", x: 1826, y: 1160 + WALL, w: 180, h: WALL_HEIGHT, text: "BREAKOUT" },
     { id: "karim-plaque", x: 310, y: 418, w: 180, h: WALL_HEIGHT, text: "KARIM" },
-    { id: "abd-plaque", x: 800, y: 418, w: 180, h: WALL_HEIGHT, text: "ABD" },
+    { id: "abd-plaque", x: 2126, y: 34, w: 180, h: WALL_HEIGHT, text: "ABD" },
   ],
 };

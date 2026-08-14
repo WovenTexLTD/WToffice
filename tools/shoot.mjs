@@ -72,8 +72,33 @@ await page.goto(url, { waitUntil: "networkidle" });
 
 // Walk in.
 await page.fill("#name", "camera");
-await page.click('button[type="submit"]', { timeout: 15000 });
-await page.waitForSelector("canvas", { timeout: 20000 });
+// noWaitAfter because this form never navigates — it swaps the React tree in
+// place. Playwright otherwise blocks on a navigation that will never happen,
+// and under the dev server's hot reload that turns into a flat 15s timeout.
+await page.click('button[type="submit"]', { timeout: 15000, noWaitAfter: true });
+// Generous, because the dev server recompiles the shared floor module on every
+// edit and the first load after one is slow. Failing here used to abort with a
+// bare Playwright timeout and throw away every console error the page had
+// already reported, which is exactly the information needed to tell "still
+// compiling" apart from "the scene threw".
+// waitForFunction rather than waitForSelector: under hot reload the canvas is
+// unmounted and remounted, so a locator handle goes stale over and over and
+// never settles even though a canvas is on the page the whole time. Asking the
+// DOM a question each poll has no handle to go stale.
+try {
+  await page.waitForFunction(
+    () => {
+      const c = document.querySelector("canvas");
+      return !!c && c.clientWidth > 0;
+    },
+    null,
+    { timeout: 60000, polling: 250 },
+  );
+} catch (error) {
+  console.log("\nno canvas after 60s");
+  for (const p of problems.slice(0, 8)) console.log("  " + p);
+  throw error;
+}
 console.log("  canvas up");
 
 // Confirm WebGL actually initialised. Headless Chromium without a working
@@ -120,7 +145,9 @@ await page.waitForTimeout(700);
 
 // The page, not the canvas element. A locator screenshot waits for its target
 // to stop moving, and a canvas rendering at 60fps never does.
-await page.screenshot({ path: out });
+// 3200x2000 through SwiftShader is a slow capture, and slower again while the
+// dev server is recompiling in the background. The default 30s is not enough.
+await page.screenshot({ path: out, timeout: 120000 });
 console.log(`\nwrote ${out}`);
 if (problems.length) {
   console.log("\npage errors:");
