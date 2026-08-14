@@ -381,7 +381,10 @@ export const woventexFloor: Floor = {
     // Games end, south. The pool table sits clear of both side walls, since a
     // cue needs about a metre and a half behind it and a table shoved against
     // a wall is a table you can only play half of.
-    { kind: "poolTable", x: 2120, y: 1300, rotation: deg(90), solid: true },
+    // Both tables in the south-east, a metre apart so there is room to stand
+    // between them and play either.
+    { kind: "poolTable", x: 2400, y: 1450, rotation: deg(90), solid: true },
+    { kind: "gameTable", x: 2100, y: 1450, rotation: deg(90), solid: true },
     { kind: "arcade", x: 2528, y: 1120, rotation: deg(90), solid: true },
     { kind: "vending", x: 2540, y: 1236, rotation: deg(90), solid: true },
 

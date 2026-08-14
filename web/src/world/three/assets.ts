@@ -151,5 +151,6 @@ export const MODELS: Partial<Record<FurnitureKind, ModelSpec>> = {
   // 0.85x: the cabinet is 2.12m and the walls are 1.94.
   arcade: { url: "/models/arcade.glb", scale: M * 0.85, upAxis: "z" },
   vending: { url: "/models/vending.glb", scale: M, upAxis: "z" },
+  gameTable: { url: "/models/game-table.glb", scale: M, upAxis: "z" },
   floorCushion: { url: "/models/floor-cushion.glb", scale: M, upAxis: "z" },
 };
