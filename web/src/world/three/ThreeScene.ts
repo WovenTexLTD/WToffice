@@ -52,6 +52,16 @@ const DOOR_H = WALL_H - 12;
  */
 const TILE_Y = 34;
 
+/**
+ * How big a person reads on screen, in world units.
+ *
+ * Deliberately not derived from PLAYER_RADIUS. That is the body's collision
+ * radius, and it wants to be small so doorways are comfortable to walk through
+ * — but the tile above it wants to be large enough to see a face in. Tying the
+ * two together means every change to one silently resizes the other.
+ */
+const TILE_RADIUS = 43;
+
 const MIN_DISTANCE = 620;
 const MAX_DISTANCE = 1900;
 const DEFAULT_DISTANCE = 1150;
@@ -763,7 +773,7 @@ export class ThreeScene {
     // In the scene they leave only a shadow and a ring, which is what ties the
     // tile to a place on the floor.
     const shadow = new THREE.Mesh(
-      new THREE.CircleGeometry(PLAYER_RADIUS * 1.15, 32),
+      new THREE.CircleGeometry(TILE_RADIUS * 0.58, 32),
       new THREE.MeshBasicMaterial({ color: 0x241d17, transparent: true, opacity: 0.26 }),
     );
     shadow.rotation.x = -Math.PI / 2;
@@ -771,7 +781,7 @@ export class ThreeScene {
     group.add(shadow);
 
     const ring = new THREE.Mesh(
-      new THREE.TorusGeometry(PLAYER_RADIUS * 1.4, 2.6, 8, 40),
+      new THREE.TorusGeometry(TILE_RADIUS * 0.72, 2.6, 8, 40),
       new THREE.MeshStandardMaterial({
         color,
         emissive: color,
@@ -1151,7 +1161,7 @@ export class ThreeScene {
 
     for (const [id, avatar] of this.avatars) {
       head.set(avatar.cur.x, TILE_Y, avatar.cur.y);
-      rim.copy(head).addScaledVector(up, PLAYER_RADIUS * 1.95);
+      rim.copy(head).addScaledVector(up, TILE_RADIUS);
 
       head.project(this.camera);
       rim.project(this.camera);

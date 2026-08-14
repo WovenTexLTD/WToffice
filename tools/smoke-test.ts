@@ -66,7 +66,11 @@ check("beyond earshot is silent", audioGain(open(500, 500), open(500 + EARSHOT +
 // a wall tests nothing.
 const slid = resolveMove({ x: 40, y: 600 }, { x: 10, y: 640 }, PLAYER_RADIUS, floor.walls, floor);
 check("sliding along a wall preserves the free axis", slid.y > 600, `y moved to ${slid.y.toFixed(1)}`);
-check("sliding along a wall blocks the blocked axis", slid.x >= 34, `x held at ${slid.x.toFixed(1)}`);
+check(
+  "sliding along a wall blocks the blocked axis",
+  slid.x >= 14 + PLAYER_RADIUS - 2,
+  `x held at ${slid.x.toFixed(1)}`,
+);
 
 /* ── Broadcast and doors ─────────────────────────────────────────── */
 

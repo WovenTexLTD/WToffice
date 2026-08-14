@@ -366,7 +366,7 @@ export const TICK_HZ = 15;
 /** Client position report rate. Matches the tick so we never send faster than we broadcast. */
 export const SEND_HZ = 15;
 
-export const PLAYER_RADIUS = 22;
+export const PLAYER_RADIUS = 14;
 
 /**
  * Audible radius on the open floor, in world pixels. Volume falls linearly to
