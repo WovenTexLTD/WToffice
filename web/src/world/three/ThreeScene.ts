@@ -104,6 +104,8 @@ export interface AvatarSurface {
 
 export class ThreeScene {
   private renderer: THREE.WebGLRenderer | null = null;
+  /** Set once the post chain loads; until then the scene renders direct. */
+  private composer: { render: () => void; setSize: (w: number, h: number) => void } | null = null;
   private scene = new THREE.Scene();
   private camera = new THREE.PerspectiveCamera(42, 1, 10, 4000);
   private raycaster = new THREE.Raycaster();
@@ -159,7 +161,7 @@ export class ThreeScene {
     // Filmic tone mapping is most of why a rendered room looks photographic
     // rather than like flat-shaded plastic.
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    renderer.toneMappingExposure = 1.05;
+    renderer.toneMappingExposure = 1.12;
 
     if (this.destroyed) {
       renderer.dispose();
@@ -179,6 +181,7 @@ export class ThreeScene {
 
     await this.setupEnvironment(renderer);
     this.setupLights();
+    void this.setupPost();
     this.bindInput();
     this.observeResize();
     this.startLoop();
@@ -195,19 +198,70 @@ export class ThreeScene {
 
     const pmrem = new THREE.PMREMGenerator(renderer);
     this.scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
-    this.scene.environmentIntensity = 0.75;
+    this.scene.environmentIntensity = 0.55;
     pmrem.dispose();
+  }
+
+  /**
+   * Ambient occlusion.
+   *
+   * This is what the room was missing. Every model in the pack is a flat colour
+   * with no surface detail — the pack ships one image of colour swatches for all
+   * 1,740 of them — so there is nothing in the materials to catch the light.
+   * Without occlusion at the contacts, a chair leg and the floor it stands on
+   * are the same brightness where they meet, and the whole floor reads flat.
+   *
+   * Loaded after the scene is up, and skipped entirely if it fails: a room that
+   * renders slightly flat beats a room that does not render.
+   */
+  private async setupPost(): Promise<void> {
+    try {
+      const [{ EffectComposer }, { RenderPass }, { GTAOPass }, { OutputPass }] = await Promise.all([
+        import("three/examples/jsm/postprocessing/EffectComposer.js"),
+        import("three/examples/jsm/postprocessing/RenderPass.js"),
+        import("three/examples/jsm/postprocessing/GTAOPass.js"),
+        import("three/examples/jsm/postprocessing/OutputPass.js"),
+      ]);
+      const renderer = this.renderer;
+      if (!renderer || this.destroyed) return;
+
+      const w = this.container.clientWidth || 1;
+      const h = this.container.clientHeight || 1;
+
+      const composer = new EffectComposer(renderer);
+      composer.addPass(new RenderPass(this.scene, this.camera));
+
+      const ao = new GTAOPass(this.scene, this.camera, w, h);
+      // Radius in world units. The floor is 2600 across and a chair is 55, so a
+      // radius of a few units keeps the darkening at the contacts rather than
+      // smearing it across whole rooms.
+      ao.updateGtaoMaterial({ radius: 12, distanceExponent: 1.2, thickness: 24, scale: 1.1 });
+      ao.blendIntensity = 0.85;
+      composer.addPass(ao);
+
+      // ACES and the colour space conversion move to the end of the chain once
+      // there is a chain; without this the whole image comes back washed out.
+      composer.addPass(new OutputPass());
+      composer.setSize(w, h);
+
+      this.composer = composer;
+    } catch (error) {
+      console.warn("[office] ambient occlusion unavailable, rendering direct", error);
+    }
   }
 
   private setupLights(): void {
     // Carries the interior. A single hard sun with little fill gives an office
     // the shadows of a car park at five o'clock.
-    this.scene.add(new THREE.HemisphereLight(0xe6edf4, 0x7a6a55, 1.25));
+    // Deliberately low. Ambient light arrives from every direction at once, so
+    // it is the one thing that cannot describe a shape — piling it on is what
+    // made the office look flat. The sun and the occlusion pass do the work now.
+    this.scene.add(new THREE.HemisphereLight(0xe6edf4, 0x7a6a55, 0.62));
 
     // High and soft. At a low angle every object throws a long hard shadow
     // across the floor, which reads as outdoors — interiors are lit from much
     // closer to overhead, and the shadows are short and diffuse.
-    const sun = new THREE.DirectionalLight(0xfff4e4, 1.7);
+    const sun = new THREE.DirectionalLight(0xfff4e4, 2.35);
     sun.castShadow = true;
     sun.shadow.mapSize.set(2048, 2048);
     sun.shadow.bias = -0.0006;
@@ -233,7 +287,7 @@ export class ThreeScene {
     this.scene.add(sun.target);
 
     // A cool bounce from the opposite side, so shadows are not dead black.
-    const fill = new THREE.DirectionalLight(0xd6e4f0, 0.62);
+    const fill = new THREE.DirectionalLight(0xd6e4f0, 0.40);
     fill.position.set(2200, 900, 1900);
     this.scene.add(fill);
   }
@@ -245,6 +299,7 @@ export class ThreeScene {
       const w = this.container.clientWidth || 1;
       const h = this.container.clientHeight || 1;
       renderer.setSize(w, h, false);
+      this.composer?.setSize(w, h);
       renderer.domElement.style.width = "100%";
       renderer.domElement.style.height = "100%";
       this.camera.aspect = w / h;
@@ -822,7 +877,8 @@ export class ThreeScene {
       this.reportPosition(dt);
     }
 
-    renderer.render(this.scene, this.camera);
+    if (this.composer) this.composer.render();
+    else renderer.render(this.scene, this.camera);
   }
 
   private moveLocal(dt: number, floor: Floor): void {
