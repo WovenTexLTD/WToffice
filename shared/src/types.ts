@@ -241,7 +241,7 @@ export const FURNITURE_SIZE: Record<FurnitureKind, { w: number; h: number }> = {
   meetingRug: { w: 313, h: 358 }, //   1.60 × 1.83 m at 2.3x
   poolTable: { w: 118, h: 201 }, //    1.39 × 2.37 m
   arcade: { w: 60, h: 65 }, //         0.83 × 0.90 m at 0.85x
-  vending: { w: 82, h: 41 }, //        0.97 × 0.48 m
+  vending: { w: 55, h: 71 }, //        0.65 × 0.83 m, 1.93 m tall
 };
 
 export type PresenceStatus = "available" | "focusing" | "away";
