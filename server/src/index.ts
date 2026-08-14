@@ -11,6 +11,7 @@
 import { createServer } from "node:http";
 import { WebSocketServer, WebSocket } from "ws";
 import { MessageStore } from "./store";
+import { createTask, notionConfigured } from "./notion";
 import {
   woventexFloor,
   canAccessChannel,
@@ -34,6 +35,15 @@ import {
 const store = new MessageStore();
 
 const STATUSES: PresenceStatus[] = ["available", "focusing", "away"];
+
+/**
+ * Who task confirmations are posted as.
+ *
+ * Deliberately not a real identity: `toIdentity` folds a name to lowercase
+ * letters and digits, so this contains a character no person's identity can,
+ * and it can never collide with a colleague's direct messages.
+ */
+const NOTION_IDENTITY = "system:notion";
 
 const PORT = Number(process.env.PORT ?? 3001);
 const floor = woventexFloor;
@@ -314,11 +324,25 @@ wss.on("connection", (socket) => {
       // A DM you are not part of is not yours to post in.
       if (!canAccessChannel(channel, player.identity)) return;
 
-      const message = store.append(channel, player.name, player.identity, body);
-      for (const other of connections.values()) {
-        if (!other.player) continue;
-        if (!canAccessChannel(channel, other.player.identity)) continue;
-        send(other.socket, { t: "chat", message });
+      const post = (author: string, identity: string, text: string) => {
+        const message = store.append(channel, author, identity, text);
+        for (const other of connections.values()) {
+          if (!other.player) continue;
+          if (!canAccessChannel(channel, other.player.identity)) continue;
+          send(other.socket, { t: "chat", message });
+        }
+      };
+
+      post(player.name, player.identity, body);
+
+      // "/task something" files it in Notion. The message goes up first and the
+      // answer follows, so the room sees what was asked even if Notion is slow.
+      const task = body.match(/^\/task\s+(.+)$/i);
+      if (task) {
+        const title = task[1].trim().slice(0, 200);
+        void createTask(title, player.name).then((result) => {
+          post("Notion", NOTION_IDENTITY, result.message);
+        });
       }
       return;
     }
@@ -419,4 +443,9 @@ setInterval(() => {
 httpServer.listen(PORT, () => {
   console.log(`WovenTex office server → ws://localhost:${PORT}`);
   console.log(`floor "${floor.name}" — ${floor.walls.length} walls, ${floor.zones.length} zones`);
+  console.log(
+    notionConfigured
+      ? "notion: connected — /task files to the Tasks database"
+      : "notion: not configured — set NOTION_TOKEN and NOTION_TASKS_DB to enable /task",
+  );
 });
