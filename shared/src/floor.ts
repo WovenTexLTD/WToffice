@@ -342,6 +342,9 @@ export const woventexFloor: Floor = {
     //
     // It sits east of the doorway so you walk in beside it rather than into the
     // back of a chair, with the screen on the east wall at the head of the room.
+    // Under the table and both rows of chairs: 3.2 x 3.7m, so no one is sitting
+    // half on it.
+    { kind: "meetingRug", x: 1200, y: 250 },
     { kind: "meetingTable", x: 1200, y: 250, w: 237, h: 110, solid: true, model: "boardroom-table" },
     ...seatsAround(1200, 250, 200, 100, 3, { model: "visitor-chair", w: 59, h: 55 }),
     { kind: "tvWall", x: 1532, y: 250, rotation: deg(90), solid: true },

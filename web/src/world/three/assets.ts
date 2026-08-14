@@ -144,5 +144,8 @@ export const MODELS: Partial<Record<FurnitureKind, ModelSpec>> = {
   // top stands proud of the wall it is meant to sit against.
   tvWall: { url: "/models/tv-wall.glb", scale: M * 0.88, upAxis: "z" },
   gadget: { url: "/models/desk-gadget.glb", scale: M, upAxis: "z" },
+  // The same rug as Karim's at twice the size, painted rather than tinted so
+  // the colour lands whatever the model's own map turns out to be.
+  meetingRug: { url: "/models/office-rug.glb", scale: M * 2, upAxis: "z", paint: "#9C3A31" },
   floorCushion: { url: "/models/floor-cushion.glb", scale: M, upAxis: "z" },
 };
