@@ -214,7 +214,6 @@ export const woventexFloor: Floor = {
   groundMaterial: "walnut",
 
   areas: [
-    { id: "entrance", label: "Entrance", x: 40, y: 700, w: 400, h: 320, material: "tile" },
     { id: "lounge", label: "Lounge", x: 60, y: 1160, w: 520, h: 480, material: "carpet" },
     // The warm boards, matching the rooms — the pale ones outside then read as
     // circulation around the places people actually work.
@@ -222,15 +221,6 @@ export const woventexFloor: Floor = {
   ],
 
   furniture: [
-    /* ── Entrance ─────────────────────────────────────────────────── */
-    { kind: "rug", x: 210, y: 870, model: "rug-b" },
-    // Along the top of the lobby, not across it: turned side-on it narrows the
-    // lane out of the front doors to less than a comfortable stride.
-    { kind: "console", x: 300, y: 720, solid: true },
-    { kind: "armchair", x: 120, y: 990, rotation: deg(-30), solid: true },
-    { kind: "plant", x: 400, y: 1000, model: "tree" },
-    { kind: "plant", x: 90, y: 720, model: "plant-c" },
-
     /* ── Studio floor: two desk banks, eight workstations ─────────── */
     ...deskBank(900, 810),
     ...deskBank(1400, 810),

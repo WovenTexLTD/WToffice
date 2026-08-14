@@ -473,22 +473,62 @@ export class ThreeScene {
       this.worldGroup.add(skirt);
     }
 
-    // Glazed entrance, set into the wall it replaces.
-    const e = floor.entrance;
-    const glass = new THREE.Mesh(
-      new THREE.BoxGeometry(e.w + 2, WALL_H * 0.82, e.h - 8),
-      new THREE.MeshPhysicalMaterial({
-        color: "#DCE9EA",
-        roughness: 0.06,
-        metalness: 0,
-        transmission: 0.85,
-        thickness: 6,
-        transparent: true,
-        opacity: 0.55,
-      }),
-    );
-    glass.position.set(e.x + e.w / 2, (WALL_H * 0.82) / 2 + 6, e.y + e.h / 2);
-    this.worldGroup.add(glass);
+    this.buildEntrance(floor.entrance);
+  }
+
+  /**
+   * The front doors.
+   *
+   * A pair of leaves in a frame, not the single translucent slab that stood
+   * here before: a sheet of glass set into a wall reads as a window at best and
+   * a rendering mistake at worst, and this is the first thing anyone sees.
+   *
+   * Hinged at the jambs and meeting on the centre line, using the same leaf as
+   * every other door on the floor so the building agrees with itself.
+   */
+  private buildEntrance(e: { x: number; y: number; w: number; h: number }): void {
+    const H = WALL_H * 0.86;
+    const frame = new THREE.MeshStandardMaterial({
+      color: "#3C4046",
+      roughness: 0.42,
+      metalness: 0.55,
+    });
+
+    const jamb = (z: number) => {
+      const mesh = new THREE.Mesh(new THREE.BoxGeometry(e.w + 5, H, 12), frame);
+      mesh.position.set(e.x + e.w / 2, H / 2, z);
+      mesh.castShadow = true;
+      mesh.receiveShadow = true;
+      this.worldGroup.add(mesh);
+    };
+    jamb(e.y + 6);
+    jamb(e.y + e.h - 6);
+
+    // The head beam is what turns two posts into a doorway.
+    const head = new THREE.Mesh(new THREE.BoxGeometry(e.w + 5, 14, e.h), frame);
+    head.position.set(e.x + e.w / 2, H - 7, e.y + e.h / 2);
+    head.castShadow = true;
+    this.worldGroup.add(head);
+
+    const span = e.h / 2 - 12;
+    for (const side of [-1, 1] as const) {
+      const hinge = new THREE.Group();
+      hinge.position.set(e.x + e.w / 2, 0, e.y + e.h / 2 - side * span);
+      this.worldGroup.add(hinge);
+
+      void doorLeaf(span, H - 14).then((leaf) => {
+        if (!leaf) return;
+        leaf.position.z = (side * span) / 2;
+        leaf.rotation.y = Math.PI / 2;
+        leaf.traverse((child) => {
+          if (child instanceof THREE.Mesh) {
+            child.castShadow = true;
+            child.receiveShadow = true;
+          }
+        });
+        hinge.add(leaf);
+      });
+    }
 
     // Daylight spilling in, which is what makes the room feel like it has an
     // outside rather than a sealed box. A point light rather than a RectAreaLight,
