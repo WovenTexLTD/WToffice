@@ -136,7 +136,7 @@ export const MODELS: Partial<Record<FurnitureKind, ModelSpec>> = {
   instrument: { url: "/models/instrument.glb", scale: M, upAxis: "z" },
   // Twelve triangles and no texture, so a tint actually takes here — colour
   // multiplies a map where one exists, and this model has none to fight.
-  officeRug: { url: "/models/office-rug.glb", scale: M, upAxis: "z", tint: "#8FB4DC" },
+  officeRug: { url: "/models/office-rug.glb", scale: M * 1.5, upAxis: "z", tint: "#8FB4DC" },
   // The same file as sideChair, on its own entry so the repaint does not reach
   // the three of these standing in the hangout.
   redChair: { url: "/models/side-chair.glb", scale: M, upAxis: "z", paint: "#B0362C" },

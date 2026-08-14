@@ -228,7 +228,7 @@ export const FURNITURE_SIZE: Record<FurnitureKind, { w: number; h: number }> = {
   fabricStack: { w: 35, h: 35 }, //    0.41 × 0.41 m
   crate: { w: 36, h: 56 }, //          0.42 × 0.66 m
   instrument: { w: 34, h: 7 }, //      0.40 × 0.08 m, 1.25 m tall
-  officeRug: { w: 136, h: 156 }, //    1.60 × 1.83 m
+  officeRug: { w: 204, h: 234 }, //    1.60 × 1.83 m at 1.5x
   redChair: { w: 75, h: 71 }, //       0.88 × 0.84 m — sideChair, repainted
 };
 
