@@ -122,7 +122,8 @@ export type FurnitureKind =
   | "garmentRail"
   | "fabricRoll"
   | "fabricStack"
-  | "crate";
+  | "crate"
+  | "instrument";
 
 export interface Furniture {
   kind: FurnitureKind;
@@ -224,6 +225,7 @@ export const FURNITURE_SIZE: Record<FurnitureKind, { w: number; h: number }> = {
   fabricRoll: { w: 26, h: 33 }, //     0.30 × 0.39 m
   fabricStack: { w: 35, h: 35 }, //    0.41 × 0.41 m
   crate: { w: 36, h: 56 }, //          0.42 × 0.66 m
+  instrument: { w: 34, h: 7 }, //      0.40 × 0.08 m, 1.25 m tall
 };
 
 export type PresenceStatus = "available" | "focusing" | "away";

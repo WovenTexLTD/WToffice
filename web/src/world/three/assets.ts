@@ -123,5 +123,6 @@ export const MODELS: Partial<Record<FurnitureKind, ModelSpec>> = {
   fabricRoll: { url: "/models/fabric-roll.glb", scale: M, upAxis: "z" },
   fabricStack: { url: "/models/fabric-stack.glb", scale: M, upAxis: "z" },
   crate: { url: "/models/crate.glb", scale: M, upAxis: "z" },
+  instrument: { url: "/models/instrument.glb", scale: M, upAxis: "z" },
   floorCushion: { url: "/models/floor-cushion.glb", scale: M, upAxis: "z" },
 };
