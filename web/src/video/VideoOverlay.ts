@@ -20,6 +20,8 @@ export interface AvatarLook {
   speaking: boolean;
   muted: boolean;
   status: string;
+  /** Profile picture as a data URL, if this person has set one. */
+  avatar?: string;
 }
 
 interface Slot {
@@ -27,6 +29,7 @@ interface Slot {
   frame: HTMLDivElement;
   video: HTMLVideoElement;
   initials: HTMLSpanElement;
+  photo: HTMLImageElement;
   nameplate: HTMLSpanElement;
   stream: MediaStream | null;
   look: AvatarLook | null;
@@ -68,6 +71,13 @@ export class VideoOverlay {
     video.muted = true;
     frame.appendChild(video);
 
+    // Under the video and over the initials: a live camera always wins, and
+    // the picture stands in for it when there is none.
+    const photo = document.createElement("img");
+    photo.className = "avatar-photo";
+    photo.alt = "";
+    frame.appendChild(photo);
+
     const initials = document.createElement("span");
     initials.className = "avatar-initials";
     frame.appendChild(initials);
@@ -84,6 +94,7 @@ export class VideoOverlay {
       frame,
       video,
       initials,
+      photo,
       nameplate,
       stream: null,
       look: null,
@@ -121,6 +132,13 @@ export class VideoOverlay {
     }
     if (!prev || prev.color !== look.color) {
       slot.frame.style.background = look.color;
+    }
+    if (!prev || prev.avatar !== look.avatar) {
+      // Only touch src when it actually changes: reassigning it restarts the
+      // decode, and this runs on every look update.
+      if (look.avatar) slot.photo.src = look.avatar;
+      else slot.photo.removeAttribute("src");
+      slot.root.classList.toggle("has-photo", !!look.avatar);
     }
     if (!prev || prev.speaking !== look.speaking || prev.muted !== look.muted) {
       slot.root.classList.toggle("speaking", look.speaking && !look.muted);

@@ -277,6 +277,15 @@ export interface PlayerState {
   status: PresenceStatus;
   /** Free-text note beside the status — "heads down till 3". */
   note: string;
+
+  /**
+   * Profile picture, as a data URL, or absent if none has been set.
+   *
+   * Stored against the identity rather than the connection, so it survives a
+   * reconnect and follows the name: sign in as Karim tomorrow and the picture
+   * is already there.
+   */
+  avatar?: string;
   x: number;
   y: number;
   /** id of the audio zone this player currently occupies, or null for the open floor */
@@ -341,7 +350,9 @@ export type ClientMessage =
   | { t: "door"; id: string; open: boolean }
   /** Ask to be let in. Only meaningful from outside a shut door. */
   | { t: "knock"; doorId: string }
-  | { t: "signal"; to: string; data: SignalData };
+  | { t: "signal"; to: string; data: SignalData }
+  /** Set or clear the profile picture for your identity. Empty string clears. */
+  | { t: "avatar"; data: string };
 
 export type ServerMessage =
   | { t: "welcome"; selfId: string; floor: Floor; players: PlayerState[]; shutDoors: string[] }
@@ -367,6 +378,15 @@ export const TICK_HZ = 15;
 export const SEND_HZ = 15;
 
 export const PLAYER_RADIUS = 14;
+
+/**
+ * Cap on a profile picture, as data URL characters.
+ *
+ * The client downscales to 128px before sending, which lands well under this;
+ * the cap is here to stop a hand-crafted message putting a megabyte of image
+ * into every state broadcast.
+ */
+export const MAX_AVATAR_CHARS = 90_000;
 
 /**
  * Audible radius on the open floor, in world pixels. Volume falls linearly to

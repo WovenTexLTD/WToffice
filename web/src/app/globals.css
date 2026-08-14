@@ -934,6 +934,20 @@ body {
   right: calc(var(--panel-w) + 16px);
 }
 
+/* A file input styled as one of the HUD buttons. */
+.hud-file {
+  position: relative;
+  overflow: hidden;
+  cursor: pointer;
+}
+
+.hud-file input {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
 /* ── Avatar tiles ──────────────────────────────────────────────── */
 
 .avatar-tile {
@@ -978,6 +992,24 @@ body {
 }
 
 .avatar-tile.has-video .avatar-initials {
+  display: none;
+}
+
+.avatar-photo {
+  grid-area: 1 / 1;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: none;
+}
+
+.avatar-tile.has-photo .avatar-photo {
+  display: block;
+}
+
+/* A live camera outranks a still. */
+.avatar-tile.has-photo.has-video .avatar-photo,
+.avatar-tile.has-photo .avatar-initials {
   display: none;
 }
 

@@ -502,6 +502,55 @@ async function run(): Promise<void> {
   );
 
   bob.socket.close();
+
+  /* ── Profiles: a picture outlives the connection that set it ───── */
+
+  console.log("\nProfiles\n");
+
+  // A one-pixel webp is not a real photo, but it is a real data URL and it is
+  // what the server actually validates.
+  const PIXEL =
+    "data:image/webp;base64,UklGRhoAAABXRUJQVlA4TA0AAAAvAAAAEAcQERGIiP4HAA==";
+
+  const name = `Profile${Date.now() % 100000}`;
+  const first = await connect(name);
+  first.socket.send(JSON.stringify({ t: "avatar", data: PIXEL }));
+  await wait(300);
+
+  const witness = await connect("Witness");
+  await wait(300);
+  const seen = playerIn(witness, first.id);
+  check("a picture reaches the other people in the room", seen?.avatar === PIXEL);
+
+  // Junk must not be stored, and must not clear what is stored either.
+  first.socket.send(JSON.stringify({ t: "avatar", data: "javascript:alert(1)" }));
+  await wait(250);
+  check(
+    "a non-image payload is rejected",
+    playerIn(witness, first.id)?.avatar === PIXEL,
+  );
+
+  first.socket.close();
+  await wait(400);
+
+  // The whole point: same name, new connection, picture still there.
+  const again = await connect(name);
+  await wait(300);
+  const welcomeAgain = again.inbox.find((m) => m.t === "welcome");
+  const restored =
+    welcomeAgain?.t === "welcome" ? welcomeAgain.players.find((p) => p.id === again.id) : undefined;
+  check(
+    "the picture is still there on the next sign-in",
+    restored?.avatar === PIXEL,
+    `identity = ${restored?.identity ?? "?"}`,
+  );
+
+  again.socket.send(JSON.stringify({ t: "avatar", data: "" }));
+  await wait(250);
+  check("clearing removes it", playerIn(witness, again.id)?.avatar === undefined);
+
+  again.socket.close();
+  witness.socket.close();
 }
 
 run()

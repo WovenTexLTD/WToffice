@@ -165,6 +165,11 @@ export class OfficeClient {
     this.send({ t: "knock", doorId });
   }
 
+  /** Set the profile picture for this identity, or clear it with "". */
+  sendAvatar(data: string): void {
+    this.send({ t: "avatar", data });
+  }
+
   sendStatus(status: PresenceStatus, note: string): void {
     this.send({ t: "status", status, note });
   }

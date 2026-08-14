@@ -15,6 +15,7 @@ import {
   woventexFloor,
   canAccessChannel,
   toIdentity,
+  MAX_AVATAR_CHARS,
   resolveMove,
   collisionRects,
   zoneAt,
@@ -173,6 +174,11 @@ wss.on("connection", (socket) => {
         screenOn: false,
         broadcasting: false,
       };
+      // Whatever this identity last set, if anything. This is the whole point
+      // of keying profiles by identity rather than connection.
+      const stored = store.avatarFor(player.identity);
+      if (stored) player.avatar = stored;
+
       conn.player = player;
       conn.lastMoveAt = Date.now();
 
@@ -277,6 +283,23 @@ wss.on("connection", (socket) => {
       if (!player) return;
       if (STATUSES.includes(msg.status)) player.status = msg.status;
       player.note = typeof msg.note === "string" ? msg.note.trim().slice(0, 80) : "";
+      return;
+    }
+
+    if (msg.t === "avatar") {
+      const player = conn.player;
+      if (!player) return;
+
+      const data = typeof msg.data === "string" ? msg.data : "";
+      // Only images, only inline, and only within the cap. A data URL is the
+      // simplest thing that works for five people and needs no file serving,
+      // but it does travel in every state broadcast, so the size matters.
+      if (data && !/^data:image\/(png|jpeg|webp);base64,/.test(data)) return;
+      if (data.length > MAX_AVATAR_CHARS) return;
+
+      store.saveAvatar(player.identity, data);
+      if (data) player.avatar = data;
+      else delete player.avatar;
       return;
     }
 

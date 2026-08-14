@@ -275,6 +275,7 @@ function Stage({ name }: { name: string }) {
         speaking: p.speaking,
         muted: p.muted,
         status: p.status,
+        avatar: p.avatar,
       });
     }
     overlay.setPlayers(looks);
@@ -294,6 +295,39 @@ function Stage({ name }: { name: string }) {
   }, [players, selfId, mediaVersion]);
 
   /* ── Controls ──────────────────────────────────────────────────── */
+
+  /**
+   * Take a picture from disk, square it off and shrink it before sending.
+   *
+   * A phone photo is several megabytes, and this travels inside every state
+   * broadcast — 128px covers the tile at any zoom this camera reaches, and
+   * webp at that size lands in single-digit kilobytes.
+   */
+  const pickAvatar = useCallback(async (file: File) => {
+    const bitmap = await createImageBitmap(file);
+    const side = Math.min(bitmap.width, bitmap.height);
+    const canvas = document.createElement("canvas");
+    canvas.width = 128;
+    canvas.height = 128;
+
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+    // Centre crop, so a portrait photo does not arrive squashed.
+    ctx.drawImage(
+      bitmap,
+      (bitmap.width - side) / 2,
+      (bitmap.height - side) / 2,
+      side,
+      side,
+      0,
+      0,
+      128,
+      128,
+    );
+    bitmap.close();
+
+    clientRef.current?.sendAvatar(canvas.toDataURL("image/webp", 0.82));
+  }, []);
 
   const toggleMute = useCallback(() => {
     const media = mediaRef.current;
@@ -522,6 +556,20 @@ function Stage({ name }: { name: string }) {
           <span className={`dot ${micState === "live" ? (muted ? "reconnecting" : "online") : "offline"}`} />
           {micLabel[micState]}
         </button>
+
+        <label className="hud-btn hud-file">
+          {self?.avatar ? "Change photo" : "Add photo"}
+          <input
+            type="file"
+            accept="image/*"
+            onChange={(e) => {
+              const file = e.target.files?.[0];
+              // Cleared so choosing the same file twice still fires a change.
+              e.target.value = "";
+              if (file) void pickAvatar(file);
+            }}
+          />
+        </label>
 
         <button
           type="button"

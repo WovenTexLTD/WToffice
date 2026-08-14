@@ -35,6 +35,39 @@ export class MessageStore {
     `);
     // Paging walks backwards from the newest id within one channel.
     this.db.exec("CREATE INDEX IF NOT EXISTS idx_messages_channel ON messages (channel, id DESC)");
+
+    // Profiles are keyed by identity, not by connection: the whole point is
+    // that the picture is still there next time you sign in under the same
+    // name.
+    this.db.exec(`
+      CREATE TABLE IF NOT EXISTS profiles (
+        identity   TEXT    PRIMARY KEY,
+        avatar     TEXT    NOT NULL,
+        updated_at INTEGER NOT NULL
+      )
+    `);
+  }
+
+  /** The stored picture for an identity, or null if it has never set one. */
+  avatarFor(identity: string): string | null {
+    const row = this.db
+      .prepare("SELECT avatar FROM profiles WHERE identity = ?")
+      .get(identity) as { avatar?: string } | undefined;
+    return row?.avatar ?? null;
+  }
+
+  /** Store a picture, or clear it when given an empty string. */
+  saveAvatar(identity: string, avatar: string): void {
+    if (!avatar) {
+      this.db.prepare("DELETE FROM profiles WHERE identity = ?").run(identity);
+      return;
+    }
+    this.db
+      .prepare(
+        "INSERT INTO profiles (identity, avatar, updated_at) VALUES (?, ?, ?)" +
+          " ON CONFLICT(identity) DO UPDATE SET avatar = excluded.avatar, updated_at = excluded.updated_at",
+      )
+      .run(identity, avatar, Date.now());
   }
 
   append(channel: string, author: string, identity: string, body: string): ChatMessage {
