@@ -291,21 +291,13 @@ export const woventexFloor: Floor = {
 
     /* ── Karim's office ───────────────────────────────────────────── */
 
-    // Desk against the north glazing with the chair behind it, so whoever is in
-    // the room faces the door and the visitor chairs rather than the window.
-    // Nothing else sits in the door lane — a room you cannot walk into is worse
-    // than a room with a bare corner.
+    // Stripped back to the desk and the table on the west wall. The chair sits
+    // behind the desk facing the door, so whoever is in the room looks at
+    // whoever comes in rather than at the window.
     { kind: "desk", x: 250, y: 150, rotation: deg(180), solid: true, model: "office-desk" },
     { kind: "monitor", x: 250, y: 154, rotation: deg(180), elevation: DESK_TOP },
-    { kind: "deskLamp", x: 316, y: 136, elevation: DESK_TOP },
     { kind: "chair", x: 250, y: 78, model: "desk-chair" },
-    { kind: "chair", x: 170, y: 250, rotation: deg(180), w: 59, h: 55, model: "visitor-chair" },
-    { kind: "chair", x: 330, y: 250, rotation: deg(180), w: 59, h: 55, model: "visitor-chair" },
-    { kind: "shelf", x: 60, y: 210, rotation: deg(-90), solid: true },
     { kind: "coffeeTable", x: 34, y: 348, rotation: deg(90), w: 77, h: 29, solid: true, model: "side-table" },
-    { kind: "armchair", x: 420, y: 300, rotation: deg(40), solid: true },
-    { kind: "lamp", x: 440, y: 214 },
-    { kind: "plant", x: 62, y: 72, model: "plant-big" },
 
     /* ── ABD's office ─────────────────────────────────────────────── */
 
