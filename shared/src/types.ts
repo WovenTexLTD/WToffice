@@ -373,7 +373,7 @@ export const PLAYER_RADIUS = 22;
  * zero at this distance. Sized so two conversations can coexist on the studio
  * floor without bleeding into each other — expect to tune it by ear in Phase 2.
  */
-export const EARSHOT = 300;
+export const EARSHOT = 215;
 
 /**
  * Exponential smoothing rate for volume, per second.

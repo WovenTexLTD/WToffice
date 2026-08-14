@@ -1151,7 +1151,7 @@ export class ThreeScene {
 
     for (const [id, avatar] of this.avatars) {
       head.set(avatar.cur.x, TILE_Y, avatar.cur.y);
-      rim.copy(head).addScaledVector(up, PLAYER_RADIUS * 1.35);
+      rim.copy(head).addScaledVector(up, PLAYER_RADIUS * 1.95);
 
       head.project(this.camera);
       rim.project(this.camera);
