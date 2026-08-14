@@ -217,6 +217,79 @@ function brickCanvas(): HTMLCanvasElement {
   });
 }
 
+/* ── Outside ──────────────────────────────────────────────────────── */
+
+/** Rough grass: a mat of short strokes rather than a flat green field. */
+function grassCanvas(): HTMLCanvasElement {
+  return surface((ctx, size) => {
+    ctx.fillStyle = "hsl(96, 22%, 34%)";
+    ctx.fillRect(0, 0, size, size);
+    ctx.lineWidth = 2;
+    for (let i = 0; i < 9000; i++) {
+      const x = rand(i * 1.7) * size;
+      const y = rand(i * 2.3 + 11) * size;
+      const light = 26 + rand(i * 3.1) * 20;
+      ctx.strokeStyle = `hsl(${92 + rand(i) * 16}, ${18 + rand(i * 5) * 14}%, ${light}%)`;
+      ctx.beginPath();
+      ctx.moveTo(x, y);
+      ctx.lineTo(x + (rand(i * 7) - 0.5) * 5, y - 3 - rand(i * 9) * 5);
+      ctx.stroke();
+    }
+  });
+}
+
+/** Paving slabs, for the apron the building stands on. */
+function pavingCanvas(): HTMLCanvasElement {
+  return surface((ctx, size) => {
+    const n = 6;
+    const cell = size / n;
+    ctx.fillStyle = "hsl(40, 5%, 52%)";
+    ctx.fillRect(0, 0, size, size);
+    for (let row = 0; row < n; row++) {
+      for (let col = 0; col < n; col++) {
+        const shade = rand(row * 31 + col * 17);
+        ctx.fillStyle = `hsl(40, 5%, ${58 + shade * 9}%)`;
+        ctx.fillRect(col * cell + 2, row * cell + 2, cell - 4, cell - 4);
+      }
+    }
+  });
+}
+
+/**
+ * The sky, as a vertical gradient.
+ *
+ * Mapped equirectangularly, so the canvas's vertical axis becomes elevation:
+ * deep blue overhead easing to a pale haze at the horizon, which is where this
+ * camera actually looks.
+ */
+export function skyTexture(): THREE.Texture {
+  const canvas = document.createElement("canvas");
+  canvas.width = 8;
+  canvas.height = 512;
+  const ctx = canvas.getContext("2d");
+  if (ctx) {
+    const grad = ctx.createLinearGradient(0, 0, 0, 512);
+    grad.addColorStop(0, "#3E76B8");
+    grad.addColorStop(0.42, "#7FA9D6");
+    grad.addColorStop(0.52, "#CBDCE9");
+    grad.addColorStop(0.66, "#B9C6CE");
+    grad.addColorStop(1, "#8E9AA1");
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, 8, 512);
+  }
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.mapping = THREE.EquirectangularReflectionMapping;
+  texture.colorSpace = THREE.SRGBColorSpace;
+  return texture;
+}
+
+/** Ground covering outside the building, sized to the patch it covers. */
+export function outdoorMaterial(name: "grass" | "paving", size: number): THREE.MeshStandardMaterial {
+  const canvas = name === "grass" ? grassCanvas() : pavingCanvas();
+  const map = toTexture(canvas, Math.max(1, Math.round(size / (name === "grass" ? 600 : 400))));
+  return new THREE.MeshStandardMaterial({ map, roughness: name === "grass" ? 0.98 : 0.86 });
+}
+
 /* ── Roughness ────────────────────────────────────────────────────── */
 
 /** Greyscale noise, used as a roughness map so highlights break up. */

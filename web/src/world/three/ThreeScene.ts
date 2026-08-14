@@ -34,7 +34,7 @@ import {
 
 import { buildFurniture } from "./models";
 import { doorLeaf, groundTiles, modelFor, tileFloor } from "./loader";
-import { floorMaterial, labelSprite, wallMaterial } from "./textures";
+import { floorMaterial, labelSprite, outdoorMaterial, skyTexture, wallMaterial } from "./textures";
 
 /* ── Scale ────────────────────────────────────────────────────────── */
 
@@ -172,10 +172,11 @@ export class ThreeScene {
     this.container.appendChild(renderer.domElement);
     renderer.domElement.style.display = "block";
 
-    this.scene.background = new THREE.Color("#0F1416");
-    // Far enough out to sit beyond the far corner of the floor. Pulled in, it
-    // greys out the rooms at the other end of the office.
-    this.scene.fog = new THREE.Fog("#0F1416", 3000, 5200);
+    this.scene.background = skyTexture();
+    // Pushed well out, and the colour of the horizon rather than of nothing:
+    // the surroundings need to fade into the sky at the far edge instead of
+    // stopping dead, and the office itself must not be greyed out on the way.
+    this.scene.fog = new THREE.Fog("#B9C6CE", 5200, 15000);
     this.scene.add(this.worldGroup);
     this.scene.add(this.avatarGroup);
 
@@ -361,6 +362,7 @@ export class ThreeScene {
     this.avatars.clear();
     this.doorMeshes = [];
 
+    this.buildSurroundings(floor);
     this.buildGround(floor);
     this.buildWalls(floor);
     this.buildDoors(floor);
@@ -386,6 +388,63 @@ export class ThreeScene {
     }
 
     for (const p of players) this.addAvatar(p);
+  }
+
+  /**
+   * Outside.
+   *
+   * The building stood in flat black, which reads as a model on a table rather
+   * than a place. From this camera the sky is barely in frame and the ground is
+   * most of it, so that is where the work goes: grass out to the fog, a paved
+   * apron the building sits on, and enough neighbouring massing at the edges to
+   * suggest the office is somewhere rather than nowhere.
+   *
+   * Deliberately coarse. None of it is ever closer than a few metres past the
+   * outer wall, and detail spent out here is detail not spent on the floor.
+   */
+  private buildSurroundings(floor: Floor): void {
+    const cx = floor.width / 2;
+    const cz = floor.height / 2;
+
+    const grass = new THREE.Mesh(
+      new THREE.PlaneGeometry(26000, 26000),
+      outdoorMaterial("grass", 26000),
+    );
+    grass.rotation.x = -Math.PI / 2;
+    grass.position.set(cx, -10, cz);
+    grass.receiveShadow = true;
+    this.worldGroup.add(grass);
+
+    const apron = new THREE.Mesh(
+      new THREE.PlaneGeometry(floor.width + 430, floor.height + 430),
+      outdoorMaterial("paving", floor.width + 430),
+    );
+    apron.rotation.x = -Math.PI / 2;
+    apron.position.set(cx, -4, cz);
+    apron.receiveShadow = true;
+    this.worldGroup.add(apron);
+
+    // Neighbours. Placed on a ring well outside the apron and varied by index
+    // rather than at random, so the view is the same for everyone in the room.
+    const brick = new THREE.MeshStandardMaterial({ color: "#7C5B4E", roughness: 0.9 });
+    const rendered = new THREE.MeshStandardMaterial({ color: "#9AA0A2", roughness: 0.85 });
+    for (let i = 0; i < 14; i++) {
+      const angle = (i / 14) * Math.PI * 2 + 0.3;
+      const radius = 1980 + (i % 4) * 430;
+      const w = 420 + (i % 5) * 190;
+      const d = 380 + (i % 3) * 240;
+      const h = 300 + (i % 6) * 220;
+
+      const block = new THREE.Mesh(
+        new THREE.BoxGeometry(w, h, d),
+        i % 2 === 0 ? brick : rendered,
+      );
+      block.position.set(cx + Math.cos(angle) * radius, h / 2, cz + Math.sin(angle) * radius);
+      block.rotation.y = angle;
+      block.castShadow = true;
+      block.receiveShadow = true;
+      this.worldGroup.add(block);
+    }
   }
 
   private buildGround(floor: Floor): void {
