@@ -488,6 +488,11 @@ export class ThreeScene {
    */
   private buildEntrance(e: { x: number; y: number; w: number; h: number }): void {
     const H = WALL_H * 0.86;
+    // Stood proud of the wall's inner face rather than inside it. The opening
+    // is decorative — the wall behind stays solid — so anything sharing the
+    // wall's own 14 units is drawn over by the brick and invisible from the
+    // room, which is exactly what happened the first time.
+    const px = e.x + e.w + 9;
     const frame = new THREE.MeshStandardMaterial({
       color: "#3C4046",
       roughness: 0.42,
@@ -495,8 +500,8 @@ export class ThreeScene {
     });
 
     const jamb = (z: number) => {
-      const mesh = new THREE.Mesh(new THREE.BoxGeometry(e.w + 5, H, 12), frame);
-      mesh.position.set(e.x + e.w / 2, H / 2, z);
+      const mesh = new THREE.Mesh(new THREE.BoxGeometry(18, H, 14), frame);
+      mesh.position.set(px, H / 2, z);
       mesh.castShadow = true;
       mesh.receiveShadow = true;
       this.worldGroup.add(mesh);
@@ -505,15 +510,15 @@ export class ThreeScene {
     jamb(e.y + e.h - 6);
 
     // The head beam is what turns two posts into a doorway.
-    const head = new THREE.Mesh(new THREE.BoxGeometry(e.w + 5, 14, e.h), frame);
-    head.position.set(e.x + e.w / 2, H - 7, e.y + e.h / 2);
+    const head = new THREE.Mesh(new THREE.BoxGeometry(18, 15, e.h), frame);
+    head.position.set(px, H - 8, e.y + e.h / 2);
     head.castShadow = true;
     this.worldGroup.add(head);
 
     const span = e.h / 2 - 12;
     for (const side of [-1, 1] as const) {
       const hinge = new THREE.Group();
-      hinge.position.set(e.x + e.w / 2, 0, e.y + e.h / 2 - side * span);
+      hinge.position.set(px, 0, e.y + e.h / 2 - side * span);
       this.worldGroup.add(hinge);
 
       void doorLeaf(span, H - 14).then((leaf) => {

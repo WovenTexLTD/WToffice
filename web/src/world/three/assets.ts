@@ -152,5 +152,8 @@ export const MODELS: Partial<Record<FurnitureKind, ModelSpec>> = {
   arcade: { url: "/models/arcade.glb", scale: M * 0.85, upAxis: "z" },
   vending: { url: "/models/vending.glb", scale: M, upAxis: "z" },
   gameTable: { url: "/models/game-table.glb", scale: M, upAxis: "z" },
+  // The same flat rug the offices use, painted dark and shrunk — a mat is what
+  // an entrance has, and it marks where the doors put you.
+  doormat: { url: "/models/office-rug.glb", scale: M * 0.9, upAxis: "z", paint: "#3B3F45" },
   floorCushion: { url: "/models/floor-cushion.glb", scale: M, upAxis: "z" },
 };

@@ -132,7 +132,8 @@ export type FurnitureKind =
   | "poolTable"
   | "arcade"
   | "vending"
-  | "gameTable";
+  | "gameTable"
+  | "doormat";
 
 export interface Furniture {
   kind: FurnitureKind;
@@ -244,6 +245,7 @@ export const FURNITURE_SIZE: Record<FurnitureKind, { w: number; h: number }> = {
   arcade: { w: 60, h: 65 }, //         0.83 × 0.90 m at 0.85x
   vending: { w: 55, h: 71 }, //        0.65 × 0.83 m, 1.93 m tall
   gameTable: { w: 118, h: 201 }, //    1.39 × 2.37 m
+  doormat: { w: 122, h: 140 }, //      1.60 × 1.83 m at 0.9x
 };
 
 export type PresenceStatus = "available" | "focusing" | "away";

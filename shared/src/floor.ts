@@ -221,6 +221,16 @@ export const woventexFloor: Floor = {
   ],
 
   furniture: [
+    /* ── Entrance ─────────────────────────────────────────────────── */
+
+    // Enough to be a lobby and no more: a mat where the doors put you, a bench
+    // to wait on against the wall beside them, and one plant. What was here
+    // before was a tall cabinet, an armchair and two trees filling a tiled
+    // square, none of which anyone arriving would use.
+    { kind: "doormat", x: 92, y: 870, rotation: deg(90) },
+    { kind: "bench", x: 58, y: 1120, rotation: deg(-90), solid: true },
+    { kind: "plant", x: 74, y: 634, model: "plant-big" },
+
     /* ── Studio floor: two desk banks, eight workstations ─────────── */
     ...deskBank(900, 810),
     ...deskBank(1400, 810),
