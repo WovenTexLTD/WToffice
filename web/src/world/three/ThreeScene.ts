@@ -372,8 +372,14 @@ export class ThreeScene {
   }
 
   private buildWalls(floor: Floor): void {
-    const material = new THREE.MeshStandardMaterial({ color: "#EFEAE1", roughness: 0.94 });
-    const skirting = new THREE.MeshStandardMaterial({ color: "#D8D0C4", roughness: 0.8 });
+    // wall_003's colour. That model is a 4m plane whose 312 vertices all map to
+    // a single texel of the pack's shared palette atlas — the whole pack is one
+    // 23KB image of swatches, which is how 1,740 models ship with 2.6KB of
+    // texture between them. So there is no wall pattern to apply, only the
+    // colour it points at, and a flat mesh laid over these walls would have
+    // added geometry for nothing.
+    const material = new THREE.MeshStandardMaterial({ color: "#8D6E63", roughness: 0.94 });
+    const skirting = new THREE.MeshStandardMaterial({ color: "#6E564E", roughness: 0.8 });
 
     for (const w of floor.walls) {
       if (w.glass) {
