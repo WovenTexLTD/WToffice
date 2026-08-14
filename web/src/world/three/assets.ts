@@ -45,6 +45,16 @@ export interface ModelSpec {
    */
   upAxis?: "y" | "z";
   /**
+   * Recolours the model outright, discarding its base colour texture.
+   *
+   * `tint` multiplies, which is right for shading a model that is already close
+   * to the colour you want, and useless otherwise: this pack's office_chair_002
+   * carries a turquoise texture, and multiplying that by red gives black, since
+   * red has no green or blue for the texture's green and blue to survive in.
+   * Dropping the map is the only way to actually repaint it.
+   */
+  paint?: string;
+  /**
    * Repaints every material on the model.
    *
    * The pack ships almost no texture imagery — 2.6 KB for 1,740 models — so its
@@ -129,6 +139,6 @@ export const MODELS: Partial<Record<FurnitureKind, ModelSpec>> = {
   officeRug: { url: "/models/office-rug.glb", scale: M, upAxis: "z", tint: "#8FB4DC" },
   // The same file as sideChair, on its own entry so the repaint does not reach
   // the three of these standing in the hangout.
-  redChair: { url: "/models/side-chair.glb", scale: M, upAxis: "z", tint: "#B0362C" },
+  redChair: { url: "/models/side-chair.glb", scale: M, upAxis: "z", paint: "#B0362C" },
   floorCushion: { url: "/models/floor-cushion.glb", scale: M, upAxis: "z" },
 };

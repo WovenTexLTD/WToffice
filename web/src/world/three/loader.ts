@@ -57,10 +57,14 @@ function normalise(source: THREE.Group, spec: ModelSpec, width: number, depth: n
 
   // Materials are shared with the cached source, so they must be copied before
   // being repainted or every instance of the model changes with them.
-  if (spec.tint) {
+  const colour = spec.paint ?? spec.tint;
+  if (colour) {
     const paint = (material: THREE.Material) => {
-      const copy = material.clone();
-      if ("color" in copy) (copy as THREE.MeshStandardMaterial).color.set(spec.tint!);
+      const copy = material.clone() as THREE.MeshStandardMaterial;
+      if ("color" in copy) copy.color.set(colour);
+      // A base colour map multiplies the colour, so a repaint has to drop it.
+      // A tint keeps it — that is the difference between the two.
+      if (spec.paint && "map" in copy) copy.map = null;
       return copy;
     };
     model.traverse((child) => {
