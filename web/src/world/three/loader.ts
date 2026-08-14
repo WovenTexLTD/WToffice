@@ -123,6 +123,55 @@ function normalise(source: THREE.Group, spec: ModelSpec, width: number, depth: n
 }
 
 /**
+ * A door leaf, sized to its opening.
+ *
+ * Not routed through `modelFor` because a door is not furniture: it has no
+ * entry in the manifest, no footprint in FURNITURE_SIZE, and it is stretched to
+ * fill its frame rather than fitted inside one. A leaf that keeps its
+ * proportions leaves a gap down the side of the opening you can see straight
+ * through, which is worse than a slightly wide door.
+ *
+ * Returns a group centred on the opening with its base on the floor, so the
+ * caller can position and swing it exactly as it did the box it replaces.
+ */
+export async function doorLeaf(width: number, height: number): Promise<THREE.Group | null> {
+  try {
+    const source = await loadOnce("/models/door.glb");
+    const model = source.clone(true);
+
+    // Same Z-up correction as everything else from this pack.
+    const oriented = new THREE.Group();
+    oriented.rotation.x = Math.PI / 2;
+    oriented.add(model);
+    oriented.updateMatrixWorld(true);
+
+    const bounds = new THREE.Box3().setFromObject(oriented);
+    const size = new THREE.Vector3();
+    const centre = new THREE.Vector3();
+    bounds.getSize(size);
+    bounds.getCenter(centre);
+    if (size.x <= 0 || size.y <= 0) return null;
+
+    const across = width / size.x;
+    const up = height / size.y;
+
+    const placed = new THREE.Group();
+    placed.add(oriented);
+    // Thickness scales with the width, not the height, so a door in a tall
+    // frame does not become a slab.
+    placed.scale.set(across, up, across);
+    placed.position.set(-centre.x * across, -bounds.min.y * up, -centre.z * across);
+
+    const wrapper = new THREE.Group();
+    wrapper.add(placed);
+    return wrapper;
+  } catch (error) {
+    console.warn("[office] could not load the door model, keeping the built-in one", error);
+    return null;
+  }
+}
+
+/**
  * The model for a piece, if one is configured.
  *
  * Resolves to null when there is no entry or the file fails to load, so the

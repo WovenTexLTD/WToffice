@@ -33,12 +33,15 @@ import {
 } from "@wtoffice/shared";
 
 import { buildFurniture } from "./models";
-import { groundTiles, modelFor, tileFloor } from "./loader";
+import { doorLeaf, groundTiles, modelFor, tileFloor } from "./loader";
 import { floorMaterial, labelSprite } from "./textures";
 
 /* ── Scale ────────────────────────────────────────────────────────── */
 
 const WALL_H = 165;
+
+/** A door leaf stops just short of the ceiling line, as a real one does. */
+const DOOR_H = WALL_H - 12;
 
 /**
  * How high a video tile floats above the floor.
@@ -107,7 +110,7 @@ export class ThreeScene {
 
   private worldGroup = new THREE.Group();
   private avatarGroup = new THREE.Group();
-  private doorMeshes: THREE.Mesh[] = [];
+  private doorMeshes: THREE.Object3D[] = [];
   private groundPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
 
   private avatars = new Map<string, Avatar>();
@@ -484,16 +487,60 @@ export class ThreeScene {
     const material = new THREE.MeshStandardMaterial({ color: "#6B4A32", roughness: 0.55 });
 
     for (const door of floor.doors) {
-      const mesh = new THREE.Mesh(
-        new THREE.BoxGeometry(door.w, WALL_H - 12, door.h),
-        material,
+      const vertical = door.h > door.w;
+      const span = Math.max(door.w, door.h);
+
+      // Which way the room lies, so the door opens into it rather than out into
+      // the corridor. Taken from the zone the door belongs to rather than
+      // hard-coded, because the rooms have moved four times.
+      const zone = floor.zones.find((z) => z.id === door.zoneId);
+      const inward = zone
+        ? vertical
+          ? Math.sign(zone.x + zone.w / 2 - (door.x + door.w / 2))
+          : Math.sign(zone.y + zone.h / 2 - (door.y + door.h / 2))
+        : 1;
+
+      // The group sits on the hinge, at one end of the opening, and the leaf
+      // hangs off it along the opening. Rotating the group then swings the door
+      // about its hinge — the box this replaces pivoted about its own middle
+      // and had to be shoved sideways to clear the frame, which read as a panel
+      // floating in the doorway rather than a door on hinges.
+      const group = new THREE.Group();
+      group.position.set(
+        vertical ? door.x + door.w / 2 : door.x,
+        0,
+        vertical ? door.y : door.y + door.h / 2,
       );
-      mesh.position.set(door.x + door.w / 2, (WALL_H - 12) / 2, door.y + door.h / 2);
-      mesh.castShadow = true;
-      mesh.receiveShadow = true;
-      mesh.userData.doorId = door.id;
-      this.worldGroup.add(mesh);
-      this.doorMeshes.push(mesh);
+      group.userData.doorId = door.id;
+      group.userData.openAngle = vertical ? (inward > 0 ? Math.PI / 2 : -Math.PI / 2) : (inward > 0 ? -Math.PI / 2 : Math.PI / 2);
+
+      const hang = (object: THREE.Object3D) => {
+        object.position.set(vertical ? 0 : span / 2, 0, vertical ? span / 2 : 0);
+        if (vertical) object.rotation.y = Math.PI / 2;
+      };
+
+      const placeholder = new THREE.Mesh(new THREE.BoxGeometry(span, DOOR_H, 8), material);
+      hang(placeholder);
+      placeholder.position.y = DOOR_H / 2;
+      placeholder.castShadow = true;
+      placeholder.receiveShadow = true;
+      group.add(placeholder);
+
+      this.worldGroup.add(group);
+      this.doorMeshes.push(group);
+
+      void doorLeaf(span, DOOR_H).then((leaf) => {
+        if (!leaf) return;
+        hang(leaf);
+        leaf.traverse((child) => {
+          if (child instanceof THREE.Mesh) {
+            child.castShadow = true;
+            child.receiveShadow = true;
+          }
+        });
+        group.remove(placeholder);
+        group.add(leaf);
+      });
     }
     this.refreshDoors();
   }
@@ -517,20 +564,11 @@ export class ThreeScene {
     return this.shutDoors.has(doorId);
   }
 
-  /** A shut door fills its frame; an open one swings back against the wall. */
+  /** A shut door fills its frame; an open one swings back into the room. */
   private refreshDoors(): void {
     for (const mesh of this.doorMeshes) {
       const id = mesh.userData.doorId as string;
-      const door = this.floor?.doors.find((d) => d.id === id);
-      if (!door) continue;
-
-      const shut = this.shutDoors.has(id);
-      mesh.rotation.y = shut ? 0 : -Math.PI / 2.1;
-      mesh.position.set(
-        door.x + door.w / 2 + (shut ? 0 : door.h / 2.4),
-        (WALL_H - 12) / 2,
-        door.y + door.h / 2 - (shut ? 0 : door.h / 2.4),
-      );
+      mesh.rotation.y = this.shutDoors.has(id) ? 0 : (mesh.userData.openAngle as number);
     }
   }
 
