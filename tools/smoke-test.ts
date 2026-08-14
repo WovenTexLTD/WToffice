@@ -7,9 +7,7 @@
 import WebSocket from "ws";
 import {
   woventexFloor as floor,
-  TEAM_CHANNEL,
   audioGain,
-  dmChannel,
   toIdentity,
   doorAt,
   resolveMove,
@@ -403,72 +401,14 @@ async function run(): Promise<void> {
     bob.inbox.some((m) => m.t === "left" && m.id === alice.id),
   );
 
-  /* ── Chat ──────────────────────────────────────────────────────── */
+  /* ── Presence ──────────────────────────────────────────────────── */
 
-  console.log("\nChat\n");
+  console.log("\nPresence\n");
 
   // Fresh clients: Alice was disconnected above to prove the room release.
   const ann = await connect("Ann");
   const ben = await connect("Ben");
-  const eve = await connect("Eve");
-  await wait(250);
-
-  const dm = dmChannel(toIdentity("Ann"), toIdentity("Ben"));
-  const stamp = `smoke-${Date.now()}`;
-
-  for (const c of [ann, ben, eve]) c.inbox.length = 0;
-  ann.socket.send(JSON.stringify({ t: "chat", channel: TEAM_CHANNEL, body: `team ${stamp}` }));
   await wait(300);
-
-  const teamMsg = (c: Client) =>
-    c.inbox.find((m) => m.t === "chat" && m.message.body === `team ${stamp}`);
-  check("team messages reach the sender", !!teamMsg(ann));
-  check("team messages reach everyone else", !!teamMsg(ben) && !!teamMsg(eve));
-
-  for (const c of [ann, ben, eve]) c.inbox.length = 0;
-  ann.socket.send(JSON.stringify({ t: "chat", channel: dm, body: `dm ${stamp}` }));
-  await wait(300);
-
-  const dmMsg = (c: Client) => c.inbox.find((m) => m.t === "chat" && m.message.body === `dm ${stamp}`);
-  check("a DM reaches both participants", !!dmMsg(ann) && !!dmMsg(ben));
-  check("a DM reaches nobody else", !dmMsg(eve), "Eve is not in the thread");
-
-  // Eve must not be able to post into someone else's thread either.
-  for (const c of [ann, ben]) c.inbox.length = 0;
-  eve.socket.send(JSON.stringify({ t: "chat", channel: dm, body: `intrusion ${stamp}` }));
-  await wait(300);
-  check(
-    "an outsider cannot post into a DM",
-    !ann.inbox.some((m) => m.t === "chat" && m.message.body.startsWith("intrusion")),
-  );
-
-  // Nor read it.
-  eve.inbox.length = 0;
-  eve.socket.send(JSON.stringify({ t: "history", channel: dm }));
-  await wait(300);
-  check("an outsider cannot read a DM", !eve.inbox.some((m) => m.t === "history"));
-
-  // Empty and whitespace-only messages are not messages.
-  ben.inbox.length = 0;
-  ann.socket.send(JSON.stringify({ t: "chat", channel: TEAM_CHANNEL, body: "   " }));
-  await wait(250);
-  check("blank messages are dropped", !ben.inbox.some((m) => m.t === "chat"));
-
-  // History is persisted, not just relayed.
-  ben.inbox.length = 0;
-  ben.socket.send(JSON.stringify({ t: "history", channel: TEAM_CHANNEL }));
-  await wait(300);
-  const history = ben.inbox.find((m) => m.t === "history");
-  check("history comes back for a channel", !!history);
-  check(
-    "history contains the message we just sent",
-    history?.t === "history" && history.messages.some((m) => m.body === `team ${stamp}`),
-  );
-  check(
-    "history is oldest-first",
-    history?.t === "history" &&
-      history.messages.every((m, i, all) => i === 0 || all[i - 1].id < m.id),
-  );
 
   /* ── Status ────────────────────────────────────────────────────── */
 
@@ -487,9 +427,6 @@ async function run(): Promise<void> {
     playerIn(ann, ben.id)?.identity === "ben",
     `identity = ${playerIn(ann, ben.id)?.identity}`,
   );
-
-  eve.socket.close();
-  await wait(200);
 
   /* ── Teardown ──────────────────────────────────────────────────── */
 

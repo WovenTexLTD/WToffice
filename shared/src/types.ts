@@ -250,18 +250,6 @@ export const FURNITURE_SIZE: Record<FurnitureKind, { w: number; h: number }> = {
 
 export type PresenceStatus = "available" | "focusing" | "away";
 
-export interface ChatMessage {
-  id: number;
-  channel: string;
-  /** Display name as it was when the message was sent. */
-  author: string;
-  /** Stable identity, so history survives reconnects and renames. */
-  identity: string;
-  body: string;
-  /** ms since epoch */
-  at: number;
-}
-
 export interface PlayerState {
   id: string;
   name: string;
@@ -368,9 +356,6 @@ export type ClientMessage =
   | { t: "media"; cameraOn: boolean; screenOn: boolean }
   | { t: "broadcast"; on: boolean }
   | { t: "status"; status: PresenceStatus; note: string }
-  | { t: "chat"; channel: string; body: string }
-  /** Page backwards through a channel. Omit `before` for the newest page. */
-  | { t: "history"; channel: string; before?: number }
   /** Open or shut a door. Only permitted from inside the room it belongs to. */
   | { t: "door"; id: string; open: boolean }
   /** Ask to be let in. Only meaningful from outside a shut door. */
@@ -411,9 +396,7 @@ export type ServerMessage =
   | { t: "left"; id: string }
   /** Server rejected a move as illegal — snap back to this position. */
   | { t: "correct"; x: number; y: number }
-  | { t: "signal"; from: string; data: SignalData }
-  | { t: "chat"; message: ChatMessage }
-  | { t: "history"; channel: string; messages: ChatMessage[]; hasMore: boolean };
+  | { t: "signal"; from: string; data: SignalData };
 
 /* ── Tunables ────────────────────────────────────────────────────── */
 

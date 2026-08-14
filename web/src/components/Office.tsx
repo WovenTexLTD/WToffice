@@ -5,12 +5,10 @@ import { ThreeScene as OfficeScene } from "@/world/three/ThreeScene";
 import { OfficeClient, type ConnectionStatus } from "@/net/officeClient";
 import { MediaEngine, type MicState, type PeerDiagnostic, type ShareState } from "@/media/MediaEngine";
 import { VideoOverlay, type AvatarLook } from "@/video/VideoOverlay";
-import { SidePanel, type PanelTab } from "@/components/SidePanel";
+import { SidePanel } from "@/components/SidePanel";
 import { TasksBoard, type TasksState } from "@/components/TasksBoard";
 import {
-  TEAM_CHANNEL,
   pointInRect,
-  type ChatMessage,
   type Floor,
   type NotionSource,
   type NotionTask,
@@ -122,16 +120,6 @@ function Stage({ name, onLeave }: { name: string; onLeave: () => void }) {
   const [diagnostics, setDiagnostics] = useState<PeerDiagnostic[] | null>(null);
 
   const [panelOpen, setPanelOpen] = useState(true);
-  const [panelTab, setPanelTab] = useState<PanelTab>("chat");
-  const [activeChannel, setActiveChannel] = useState(TEAM_CHANNEL);
-  const [threads, setThreads] = useState<Record<string, ChatMessage[]>>({});
-  const [hasMore, setHasMore] = useState<Record<string, boolean>>({});
-  const [unread, setUnread] = useState<Record<string, number>>({});
-
-  /** Channels we have already asked the server for. */
-  const loadedRef = useRef<Set<string>>(new Set());
-  /** Read by socket handlers, which close over their first render otherwise. */
-  const viewRef = useRef({ open: true, tab: "chat" as PanelTab, channel: TEAM_CHANNEL, identity: "" });
 
   useEffect(() => {
     const host = hostRef.current;
@@ -213,37 +201,12 @@ function Stage({ name, onLeave }: { name: string; onLeave: () => void }) {
       onStatus: setStatus,
       onSignal: (from, data) => void media.handleSignal(from, data),
 
-      onChat: (message) => {
-        setThreads((prev) => ({
-          ...prev,
-          [message.channel]: [...(prev[message.channel] ?? []), message],
-        }));
-
-        // Unread only counts what you are not already looking at.
-        const view = viewRef.current;
-        const watching = view.open && view.tab === "chat" && view.channel === message.channel;
-        if (!watching && message.identity !== view.identity) {
-          setUnread((prev) => ({ ...prev, [message.channel]: (prev[message.channel] ?? 0) + 1 }));
-        }
-      },
-
       onTasks: (items, sources, database, statuses, configured, error) => {
         setTasks(items);
         setTaskSources(sources);
         setTaskDb(database);
         setTaskStatuses(statuses);
         setTasksState(!configured ? "unconfigured" : error ? "error" : "ready");
-      },
-      onHistory: (channel, page, more) => {
-        setThreads((prev) => {
-          const existing = prev[channel] ?? [];
-          // A page whose newest message predates what we hold is older history
-          // being paged in; anything else replaces.
-          const isOlder =
-            existing.length > 0 && page.length > 0 && page[page.length - 1].id < existing[0].id;
-          return { ...prev, [channel]: isOlder ? [...page, ...existing] : page };
-        });
-        setHasMore((prev) => ({ ...prev, [channel]: more }));
       },
     });
     clientRef.current = client;
@@ -373,8 +336,6 @@ function Stage({ name, onLeave }: { name: string; onLeave: () => void }) {
     void media.setScreen(media.getScreenState() !== "on");
   }, []);
 
-  /* ── Chat plumbing ─────────────────────────────────────────────── */
-
   const self = players.find((p) => p.id === selfId);
 
   // Near enough to the front doors to walk out of them. Measured from the
@@ -388,38 +349,6 @@ function Stage({ name, onLeave }: { name: string; onLeave: () => void }) {
       self.x - (doorway.x + doorway.w / 2),
       self.y - (doorway.y + doorway.h / 2),
     ) < 190;
-
-  // Socket handlers are created once, so they read the current view from a ref.
-  useEffect(() => {
-    viewRef.current = {
-      open: panelOpen,
-      tab: panelTab,
-      channel: activeChannel,
-      identity: self?.identity ?? "",
-    };
-  }, [panelOpen, panelTab, activeChannel, self?.identity]);
-
-  // Fetch a channel the first time it is opened, and clear its badge.
-  useEffect(() => {
-    if (!selfId) return;
-    if (!loadedRef.current.has(activeChannel)) {
-      loadedRef.current.add(activeChannel);
-      clientRef.current?.requestHistory(activeChannel);
-    }
-    if (panelOpen && panelTab === "chat") {
-      setUnread((prev) => (prev[activeChannel] ? { ...prev, [activeChannel]: 0 } : prev));
-    }
-  }, [activeChannel, selfId, panelOpen, panelTab]);
-
-  const sendChat = useCallback(
-    (body: string) => clientRef.current?.sendChat(activeChannel, body),
-    [activeChannel],
-  );
-
-  const loadOlder = useCallback(() => {
-    const oldest = threads[activeChannel]?.[0]?.id;
-    if (oldest !== undefined) clientRef.current?.requestHistory(activeChannel, oldest);
-  }, [threads, activeChannel]);
 
   const updatePresence = useCallback((status: PresenceStatus, note: string) => {
     clientRef.current?.sendStatus(status, note);
@@ -538,8 +467,6 @@ function Stage({ name, onLeave }: { name: string; onLeave: () => void }) {
     unavailable: "No microphone",
   };
 
-  const totalUnread = Object.values(unread).reduce((a, b) => a + b, 0);
-
   return (
     <div className={`office${panelOpen ? " with-panel" : ""}`}>
       <div className="stage" ref={hostRef} />
@@ -648,8 +575,7 @@ function Stage({ name, onLeave }: { name: string; onLeave: () => void }) {
           onClick={() => setPanelOpen((open) => !open)}
           aria-pressed={panelOpen}
         >
-          Chat
-          {!panelOpen && totalUnread > 0 && <span className="pip">{totalUnread}</span>}
+          People
         </button>
       </div>
 
@@ -700,16 +626,7 @@ function Stage({ name, onLeave }: { name: string; onLeave: () => void }) {
         <SidePanel
           players={players}
           self={self}
-          tab={panelTab}
-          onTab={setPanelTab}
           onClose={() => setPanelOpen(false)}
-          activeChannel={activeChannel}
-          onChannel={setActiveChannel}
-          messages={threads[activeChannel] ?? []}
-          hasMore={hasMore[activeChannel] ?? false}
-          unread={unread}
-          onSend={sendChat}
-          onLoadOlder={loadOlder}
           onStatus={updatePresence}
           onFind={(id) => sceneRef.current?.walkToPlayer(id)}
           locationOf={locationOf}

@@ -10,11 +10,10 @@
 
 import { createServer } from "node:http";
 import { WebSocketServer, WebSocket } from "ws";
-import { MessageStore } from "./store";
+import { ProfileStore } from "./store";
 import { createTask, listTasks, notionConfigured } from "./notion";
 import {
   woventexFloor,
-  canAccessChannel,
   toIdentity,
   MAX_AVATAR_CHARS,
   resolveMove,
@@ -32,18 +31,9 @@ import {
   type ServerMessage,
 } from "@wtoffice/shared";
 
-const store = new MessageStore();
+const store = new ProfileStore();
 
 const STATUSES: PresenceStatus[] = ["available", "focusing", "away"];
-
-/**
- * Who task confirmations are posted as.
- *
- * Deliberately not a real identity: `toIdentity` folds a name to lowercase
- * letters and digits, so this contains a character no person's identity can,
- * and it can never collide with a colleague's direct messages.
- */
-const NOTION_IDENTITY = "system:notion";
 
 /** Accepted `Priority` values. Anything else is dropped rather than sent on. */
 const PRIORITIES = ["High", "Medium", "Low"];
@@ -316,80 +306,6 @@ wss.on("connection", (socket) => {
       return;
     }
 
-    if (msg.t === "chat") {
-      const player = conn.player;
-      if (!player) return;
-
-      const body = typeof msg.body === "string" ? msg.body.trim() : "";
-      if (!body) return;
-
-      const channel = String(msg.channel);
-      // A DM you are not part of is not yours to post in.
-      if (!canAccessChannel(channel, player.identity)) return;
-
-      const post = (author: string, identity: string, text: string) => {
-        const message = store.append(channel, author, identity, text);
-        for (const other of connections.values()) {
-          if (!other.player) continue;
-          if (!canAccessChannel(channel, other.player.identity)) continue;
-          send(other.socket, { t: "chat", message });
-        }
-      };
-
-      post(player.name, player.identity, body);
-
-      // "/task something" files it in Notion. The message goes up first and the
-      // answer follows, so the room sees what was asked even if Notion is slow.
-      const task = body.match(/^\/task\s+(.+)$/i);
-      if (task) {
-        const title = task[1].trim().slice(0, 200);
-        void createTask(title, player.name).then((result) => {
-          post("Notion", NOTION_IDENTITY, result.message);
-        });
-      }
-      return;
-    }
-
-    if (msg.t === "tasks") {
-      if (!conn.player) return;
-      const database = typeof msg.database === "string" ? msg.database : undefined;
-      void listTasks(database).then((result) => send(socket, { t: "tasks", ...result }));
-      return;
-    }
-
-    if (msg.t === "task") {
-      const player = conn.player;
-      if (!player) return;
-
-      const title = typeof msg.title === "string" ? msg.title.trim().slice(0, 200) : "";
-      if (!title) return;
-
-      const priority = PRIORITIES.includes(String(msg.priority)) ? String(msg.priority) : undefined;
-      const due = /^\d{4}-\d{2}-\d{2}$/.test(String(msg.due)) ? String(msg.due) : undefined;
-      const database = typeof msg.database === "string" ? msg.database : undefined;
-
-      void createTask(title, player.name, priority, due, database).then(async () => {
-        // Refetch rather than splice the new row in locally: Notion decides the
-        // ordering and the status, and guessing them here is how a list starts
-        // disagreeing with the thing it is showing.
-        send(socket, { t: "tasks", ...(await listTasks(database)) });
-      });
-      return;
-    }
-
-    if (msg.t === "history") {
-      const player = conn.player;
-      if (!player) return;
-
-      const channel = String(msg.channel);
-      if (!canAccessChannel(channel, player.identity)) return;
-
-      const before = typeof msg.before === "number" ? msg.before : undefined;
-      const { messages, hasMore } = store.history(channel, before);
-      send(socket, { t: "history", channel, messages, hasMore });
-      return;
-    }
-
     if (msg.t === "signal") {
       // Relay WebRTC signalling verbatim. The server never inspects the payload
       // and never joins the call — media is peer-to-peer.
@@ -475,7 +391,7 @@ httpServer.listen(PORT, () => {
   console.log(`floor "${floor.name}" — ${floor.walls.length} walls, ${floor.zones.length} zones`);
   console.log(
     notionConfigured
-      ? "notion: connected — /task files to the Tasks database"
+      ? "notion: connected — the tasks board can read and write"
       : "notion: not configured — set NOTION_TOKEN and NOTION_TASKS_DB to enable /task",
   );
 });
