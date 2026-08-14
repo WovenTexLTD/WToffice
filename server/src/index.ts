@@ -11,7 +11,7 @@
 import { createServer } from "node:http";
 import { WebSocketServer, WebSocket } from "ws";
 import { MessageStore } from "./store";
-import { createTask, notionConfigured } from "./notion";
+import { createTask, listTasks, notionConfigured } from "./notion";
 import {
   woventexFloor,
   canAccessChannel,
@@ -44,6 +44,9 @@ const STATUSES: PresenceStatus[] = ["available", "focusing", "away"];
  * and it can never collide with a colleague's direct messages.
  */
 const NOTION_IDENTITY = "system:notion";
+
+/** Accepted `Priority` values. Anything else is dropped rather than sent on. */
+const PRIORITIES = ["High", "Medium", "Low"];
 
 const PORT = Number(process.env.PORT ?? 3001);
 const floor = woventexFloor;
@@ -344,6 +347,31 @@ wss.on("connection", (socket) => {
           post("Notion", NOTION_IDENTITY, result.message);
         });
       }
+      return;
+    }
+
+    if (msg.t === "tasks") {
+      if (!conn.player) return;
+      void listTasks().then((result) => send(socket, { t: "tasks", ...result }));
+      return;
+    }
+
+    if (msg.t === "task") {
+      const player = conn.player;
+      if (!player) return;
+
+      const title = typeof msg.title === "string" ? msg.title.trim().slice(0, 200) : "";
+      if (!title) return;
+
+      const priority = PRIORITIES.includes(String(msg.priority)) ? String(msg.priority) : undefined;
+      const due = /^\d{4}-\d{2}-\d{2}$/.test(String(msg.due)) ? String(msg.due) : undefined;
+
+      void createTask(title, player.name, priority, due).then(async () => {
+        // Refetch rather than splice the new row in locally: Notion decides the
+        // ordering and the status, and guessing them here is how a list starts
+        // disagreeing with the thing it is showing.
+        send(socket, { t: "tasks", ...(await listTasks()) });
+      });
       return;
     }
 

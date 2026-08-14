@@ -336,6 +336,17 @@ export interface RTCIceCandidateInitLike {
   usernameFragment?: string | null;
 }
 
+/** A row from the team's Notion task database, flattened for the panel. */
+export interface NotionTask {
+  id: string;
+  title: string;
+  status: string;
+  priority: string | null;
+  /** ISO date, or null when nothing is set. */
+  due: string | null;
+  url: string;
+}
+
 export type ClientMessage =
   | { t: "join"; name: string }
   | { t: "move"; x: number; y: number }
@@ -352,10 +363,22 @@ export type ClientMessage =
   | { t: "knock"; doorId: string }
   | { t: "signal"; to: string; data: SignalData }
   /** Set or clear the profile picture for your identity. Empty string clears. */
-  | { t: "avatar"; data: string };
+  | { t: "avatar"; data: string }
+  /** Ask for the current task list. */
+  | { t: "tasks" }
+  /** File a new task. */
+  | { t: "task"; title: string; priority?: string; due?: string };
 
 export type ServerMessage =
   | { t: "welcome"; selfId: string; floor: Floor; players: PlayerState[]; shutDoors: string[] }
+  /**
+   * The task list, or why there is not one.
+   *
+   * `configured` is false when the server has no Notion credentials, which the
+   * panel says out loud rather than showing an empty list that looks like "no
+   * tasks".
+   */
+  | { t: "tasks"; items: NotionTask[]; configured: boolean; error?: string }
   /** Door state changed. Sent on change only — doors move rarely. */
   | { t: "doors"; shut: string[] }
   /** Somebody outside wants in. Delivered only to people inside that room. */

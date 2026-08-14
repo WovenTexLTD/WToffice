@@ -11,6 +11,7 @@ import {
   pointInRect,
   type ChatMessage,
   type Floor,
+  type NotionTask,
   type PlayerState,
   type PresenceStatus,
 } from "@wtoffice/shared";
@@ -103,6 +104,10 @@ function Stage({ name, onLeave }: { name: string; onLeave: () => void }) {
   const [selfId, setSelfId] = useState("");
   const [zone, setZone] = useState<string | null>(null);
   const [floor, setFloor] = useState<Floor | null>(null);
+  const [tasks, setTasks] = useState<NotionTask[]>([]);
+  const [tasksState, setTasksState] = useState<"loading" | "ready" | "error" | "unconfigured">(
+    "loading",
+  );
 
   /** Bumped when remote tracks arrive or earshot membership changes. */
   const [mediaVersion, setMediaVersion] = useState(0);
@@ -218,6 +223,10 @@ function Stage({ name, onLeave }: { name: string; onLeave: () => void }) {
         }
       },
 
+      onTasks: (items, configured, error) => {
+        setTasks(items);
+        setTasksState(!configured ? "unconfigured" : error ? "error" : "ready");
+      },
       onHistory: (channel, page, more) => {
         setThreads((prev) => {
           const existing = prev[channel] ?? [];
@@ -328,6 +337,10 @@ function Stage({ name, onLeave }: { name: string; onLeave: () => void }) {
 
     clientRef.current?.sendAvatar(canvas.toDataURL("image/webp", 0.82));
   }, []);
+
+  useEffect(() => {
+    if (panelOpen && panelTab === "tasks") clientRef.current?.requestTasks();
+  }, [panelOpen, panelTab]);
 
   const toggleMute = useCallback(() => {
     const media = mediaRef.current;
@@ -637,6 +650,13 @@ function Stage({ name, onLeave }: { name: string; onLeave: () => void }) {
           self={self}
           tab={panelTab}
           onTab={setPanelTab}
+          tasks={tasks}
+          tasksState={tasksState}
+          onCreateTask={(title, priority) => clientRef.current?.createTask(title, priority)}
+          onRefreshTasks={() => {
+            setTasksState("loading");
+            clientRef.current?.requestTasks();
+          }}
           onClose={() => setPanelOpen(false)}
           activeChannel={activeChannel}
           onChannel={setActiveChannel}

@@ -6,11 +6,12 @@ import {
   dmChannel,
   dmParticipants,
   type ChatMessage,
+  type NotionTask,
   type PlayerState,
   type PresenceStatus,
 } from "@wtoffice/shared";
 
-export type PanelTab = "chat" | "people";
+export type PanelTab = "chat" | "people" | "tasks";
 
 const STATUS_LABEL: Record<PresenceStatus, string> = {
   available: "Available",
@@ -38,6 +39,12 @@ export interface SidePanelProps {
   onFind(playerId: string): void;
   /** Where each player is, by area or room name. */
   locationOf(player: PlayerState): string;
+
+  tasks: NotionTask[];
+  /** Why the list looks the way it does, so the panel can say so. */
+  tasksState: "loading" | "ready" | "error" | "unconfigured";
+  onCreateTask(title: string, priority?: string): void;
+  onRefreshTasks(): void;
 }
 
 export function SidePanel(props: SidePanelProps) {
@@ -63,13 +70,26 @@ export function SidePanel(props: SidePanelProps) {
         >
           People
         </button>
+        <button
+          type="button"
+          className={tab === "tasks" ? "on" : ""}
+          onClick={() => onTab("tasks")}
+        >
+          Tasks
+        </button>
         <span className="panel-spacer" />
         <button type="button" className="panel-close" onClick={onClose} aria-label="Close panel">
           ×
         </button>
       </header>
 
-      {tab === "chat" ? <ChatTab {...props} /> : <PeopleTab {...props} />}
+      {tab === "chat" ? (
+        <ChatTab {...props} />
+      ) : tab === "tasks" ? (
+        <TasksTab {...props} />
+      ) : (
+        <PeopleTab {...props} />
+      )}
     </aside>
   );
 }
@@ -300,4 +320,78 @@ function PeopleTab({ players, self, onStatus, onFind, onChannel, onTab, location
 
 function formatTime(at: number): string {
   return new Date(at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+}
+
+/* ── Tasks ─────────────────────────────────────────────────────── */
+
+/**
+ * The team's Notion tasks, and a line to add one.
+ *
+ * Read as well as write: a form that only files tasks is half a feature, and
+ * the list is the part you look at while deciding whether to add another.
+ */
+function TasksTab({ tasks, tasksState, onCreateTask, onRefreshTasks }: SidePanelProps) {
+  const [title, setTitle] = useState("");
+  const [priority, setPriority] = useState("");
+
+  const submit = (e: React.FormEvent) => {
+    e.preventDefault();
+    const text = title.trim();
+    if (!text) return;
+    onCreateTask(text, priority || undefined);
+    setTitle("");
+    setPriority("");
+  };
+
+  return (
+    <div className="panel-body">
+      <form className="task-add" onSubmit={submit}>
+        <input
+          value={title}
+          onChange={(e) => setTitle(e.target.value)}
+          placeholder="Add a task…"
+          maxLength={200}
+        />
+        <select value={priority} onChange={(e) => setPriority(e.target.value)} aria-label="Priority">
+          <option value="">Priority</option>
+          <option value="High">High</option>
+          <option value="Medium">Medium</option>
+          <option value="Low">Low</option>
+        </select>
+        <button type="submit" disabled={!title.trim()}>
+          Add
+        </button>
+      </form>
+
+      {tasksState === "unconfigured" ? (
+        <p className="task-note">Notion is not connected on the server.</p>
+      ) : tasksState === "error" ? (
+        <p className="task-note">
+          Could not reach Notion.{" "}
+          <button type="button" className="link" onClick={onRefreshTasks}>
+            Try again
+          </button>
+        </p>
+      ) : tasks.length === 0 ? (
+        <p className="task-note">{tasksState === "loading" ? "Loading…" : "Nothing open."}</p>
+      ) : (
+        <ul className="task-list">
+          {tasks.map((task) => (
+            <li key={task.id} className="task-row">
+              <a href={task.url} target="_blank" rel="noreferrer" className="task-title">
+                {task.title}
+              </a>
+              <span className="task-meta mono">
+                <span className={`task-status s-${task.status.replace(/\s+/g, "-").toLowerCase()}`}>
+                  {task.status}
+                </span>
+                {task.priority && <span className={`task-pri p-${task.priority.toLowerCase()}`}>{task.priority}</span>}
+                {task.due && <span>{task.due}</span>}
+              </span>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
 }
