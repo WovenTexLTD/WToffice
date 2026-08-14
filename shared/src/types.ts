@@ -128,7 +128,10 @@ export type FurnitureKind =
   | "redChair"
   | "tvWall"
   | "gadget"
-  | "meetingRug";
+  | "meetingRug"
+  | "poolTable"
+  | "arcade"
+  | "vending";
 
 export interface Furniture {
   kind: FurnitureKind;
@@ -236,6 +239,9 @@ export const FURNITURE_SIZE: Record<FurnitureKind, { w: number; h: number }> = {
   tvWall: { w: 225, h: 39 }, //        3.01 × 0.52 m at 0.88x
   gadget: { w: 19, h: 18 }, //         0.22 × 0.21 m
   meetingRug: { w: 313, h: 358 }, //   1.60 × 1.83 m at 2.3x
+  poolTable: { w: 118, h: 201 }, //    1.39 × 2.37 m
+  arcade: { w: 60, h: 65 }, //         0.83 × 0.90 m at 0.85x
+  vending: { w: 82, h: 41 }, //        0.97 × 0.48 m
 };
 
 export type PresenceStatus = "available" | "focusing" | "away";

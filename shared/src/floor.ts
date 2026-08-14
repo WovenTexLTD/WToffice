@@ -364,31 +364,33 @@ export const woventexFloor: Floor = {
     { kind: "plant", x: 882, y: 430, model: "plant-c" },
     { kind: "plant", x: 1458, y: 430, model: "tree" },
 
-    /* ── The unnamed room ─────────────────────────────────────────── */
+    /* ── The unnamed room: work at one end, games at the other ────── */
 
-    // Both halves of what used to be two rooms, in one space: quiet desks along
-    // the north wall, seating at the south end, and the doorway between them so
-    // nobody crosses either half to reach the other.
-    { kind: "desk", x: 1980, y: 900, solid: true, model: "desk-c" },
-    { kind: "chair", x: 1980, y: 978, rotation: deg(180) },
-    { kind: "deskLamp", x: 2032, y: 878 },
-    { kind: "desk", x: 2200, y: 900, solid: true },
-    { kind: "chair", x: 2200, y: 978, rotation: deg(180) },
-    { kind: "desk", x: 2420, y: 900, solid: true, model: "desk-b" },
-    { kind: "chair", x: 2420, y: 978, rotation: deg(180) },
-    { kind: "deskLamp", x: 2472, y: 878 },
-    { kind: "shelf", x: 2560, y: 1080, rotation: deg(-90), solid: true },
-    { kind: "plant", x: 1870, y: 900, model: "plant-c" },
-    { kind: "lamp", x: 2540, y: 1560, model: "floor-lamp-b" },
+    // Split across the doorway rather than around it. The door is halfway up
+    // the west wall, so whichever end you are heading for you arrive between
+    // the two and turn — nobody crosses the pool table to reach a desk.
 
-    // The seating end. The sofa faces south, so the screen goes on the south
-    // wall in front of it rather than on the wall the room lost.
-    ...loungeSet(2160, 1400, "rug-c", "sofa-b"),
-    { kind: "stool", x: 2350, y: 1332 },
-    { kind: "stool", x: 2404, y: 1386 },
-    { kind: "tv", x: 2160, y: 1600 },
-    { kind: "plant", x: 1880, y: 1580, model: "tree" },
-    { kind: "lamp", x: 1880, y: 1240 },
+    // Work end, north.
+    { kind: "meetingTable", x: 1980, y: 920, solid: true },
+    { kind: "chair", x: 1938, y: 1030, rotation: deg(180) },
+    { kind: "chair", x: 2022, y: 1030, rotation: deg(180) },
+    { kind: "garmentRail", x: 2290, y: 900, solid: true },
+    { kind: "garmentRail", x: 2440, y: 900, solid: true, model: "rail-b" },
+    { kind: "plant", x: 1862, y: 872, model: "plant-c" },
+
+    // Games end, south. The pool table sits clear of both side walls, since a
+    // cue needs about a metre and a half behind it and a table shoved against
+    // a wall is a table you can only play half of.
+    { kind: "poolTable", x: 2120, y: 1300, rotation: deg(90), solid: true },
+    { kind: "arcade", x: 2528, y: 1120, rotation: deg(90), solid: true },
+    { kind: "vending", x: 2540, y: 1236, rotation: deg(90), solid: true },
+
+    // Somewhere to sit out a frame.
+    { kind: "coffeeTable", x: 1940, y: 1450, solid: true },
+    { kind: "armchair", x: 1940, y: 1358, rotation: deg(180), solid: true },
+    { kind: "armchair", x: 1940, y: 1542, solid: true },
+    { kind: "lamp", x: 1868, y: 1592 },
+    { kind: "plant", x: 2520, y: 1560, model: "tree" },
 
     /* ── Lounge ───────────────────────────────────────────────────── */
     ...loungeSet(300, 1400, "rug"),

@@ -147,5 +147,9 @@ export const MODELS: Partial<Record<FurnitureKind, ModelSpec>> = {
   // The same rug as Karim's at twice the size, painted rather than tinted so
   // the colour lands whatever the model's own map turns out to be.
   meetingRug: { url: "/models/office-rug.glb", scale: M * 2.3, upAxis: "z", paint: "#9C3A31" },
+  poolTable: { url: "/models/pool-table.glb", scale: M, upAxis: "z" },
+  // 0.85x: the cabinet is 2.12m and the walls are 1.94.
+  arcade: { url: "/models/arcade.glb", scale: M * 0.85, upAxis: "z" },
+  vending: { url: "/models/vending.glb", scale: M, upAxis: "z" },
   floorCushion: { url: "/models/floor-cushion.glb", scale: M, upAxis: "z" },
 };
