@@ -346,6 +346,13 @@ export const woventexFloor: Floor = {
     ...seatsAround(1200, 250, 200, 100, 3, { model: "visitor-chair", w: 59, h: 55 }),
     { kind: "tvWall", x: 1532, y: 250, rotation: deg(90), solid: true },
 
+    // The four corners, which is the only floor this room has spare — the door
+    // lane runs up the west wall between the two on that side.
+    { kind: "lamp", x: 1450, y: 70 },
+    { kind: "plant", x: 862, y: 80, model: "plant-big" },
+    { kind: "plant", x: 882, y: 430, model: "plant-c" },
+    { kind: "plant", x: 1458, y: 430, model: "tree" },
+
     /* ── The unnamed room ─────────────────────────────────────────── */
 
     // Both halves of what used to be two rooms, in one space: quiet desks along
