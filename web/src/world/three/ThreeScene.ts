@@ -228,7 +228,18 @@ export class ThreeScene {
       const w = this.container.clientWidth || 1;
       const h = this.container.clientHeight || 1;
 
-      const composer = new EffectComposer(renderer);
+      // The renderer's own antialiasing only applies when it draws straight to
+      // the canvas. Rendering into a composer target bypasses it, which is why
+      // adding the pass made every edge jagged — so the target asks for MSAA
+      // itself. Half-float keeps highlights intact for the tone mapping at the
+      // end of the chain.
+      const buffer = renderer.getDrawingBufferSize(new THREE.Vector2());
+      const target = new THREE.WebGLRenderTarget(buffer.x, buffer.y, {
+        type: THREE.HalfFloatType,
+        samples: 4,
+      });
+
+      const composer = new EffectComposer(renderer, target);
       composer.addPass(new RenderPass(this.scene, this.camera));
 
       const ao = new GTAOPass(this.scene, this.camera, w, h);

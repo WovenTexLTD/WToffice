@@ -147,7 +147,7 @@ await page.waitForTimeout(700);
 // to stop moving, and a canvas rendering at 60fps never does.
 // 3200x2000 through SwiftShader is a slow capture, and slower again while the
 // dev server is recompiling in the background. The default 30s is not enough.
-await page.screenshot({ path: out, timeout: 120000 });
+await page.screenshot({ path: out, timeout: 300000 });
 console.log(`\nwrote ${out}`);
 if (problems.length) {
   console.log("\npage errors:");
