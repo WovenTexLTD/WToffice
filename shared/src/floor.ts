@@ -193,8 +193,10 @@ export const woventexFloor: Floor = {
     { id: "abd-door", zoneId: "abd", x: 2100, y: 200, w: WALL, h: 100 },
   ],
 
-  // Boards throughout, with the areas laid over the top.
-  groundMaterial: "oak",
+  // Boards throughout, with the areas laid over the top. The same warm brown as
+  // the rooms and the studio: the pale circulation boards read as a different
+  // building from the floors they surround.
+  groundMaterial: "walnut",
 
   areas: [
     { id: "entrance", label: "Entrance", x: 40, y: 700, w: 400, h: 320, material: "tile" },
