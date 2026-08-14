@@ -299,7 +299,9 @@ export const woventexFloor: Floor = {
     { kind: "desk", x: 250, y: 150, rotation: deg(180), solid: true, model: "office-desk" },
     { kind: "monitor", x: 250, y: 154, rotation: deg(180), elevation: DESK_TOP },
     { kind: "chair", x: 250, y: 78, model: "desk-chair" },
-    { kind: "coffeeTable", x: 34, y: 207, rotation: deg(90), w: 77, h: 29, solid: true, model: "side-table" },
+    // Along the west wall, below the two instruments standing at its north end.
+    // Same 0.88 as ABD's: both units are 2.17m against a 1.94m wall.
+    { kind: "tvWall", x: 31, y: 250, rotation: deg(-90), w: 232, h: 33, solid: true, model: "tv-wall-b" },
     // North-west corner, turned so its face is flat to the west wall.
     { kind: "instrument", x: 22, y: 52, rotation: deg(-90) },
     { kind: "instrument", x: 22, y: 92, rotation: deg(-90), w: 33, h: 7, model: "instrument-b" },
@@ -308,7 +310,6 @@ export const woventexFloor: Floor = {
     { kind: "lamp", x: 438, y: 62 },
     // South-east corner, turned north-west to face the desk.
     { kind: "redChair", x: 424, y: 344, rotation: deg(135), solid: true },
-    { kind: "tv", x: 22, y: 252, rotation: deg(-90), elevation: 72, model: "wall-screen" },
 
     /* ── ABD's office ─────────────────────────────────────────────── */
 
