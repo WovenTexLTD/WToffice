@@ -34,7 +34,7 @@ import {
 
 import { buildFurniture } from "./models";
 import { doorLeaf, groundTiles, modelFor, tileFloor } from "./loader";
-import { floorMaterial, labelSprite } from "./textures";
+import { floorMaterial, labelSprite, wallMaterial } from "./textures";
 
 /* ── Scale ────────────────────────────────────────────────────────── */
 
@@ -378,7 +378,6 @@ export class ThreeScene {
     // texture between them. So there is no wall pattern to apply, only the
     // colour it points at, and a flat mesh laid over these walls would have
     // added geometry for nothing.
-    const material = new THREE.MeshStandardMaterial({ color: "#8D6E63", roughness: 0.94 });
     const skirting = new THREE.MeshStandardMaterial({ color: "#6E564E", roughness: 0.8 });
 
     for (const w of floor.walls) {
@@ -387,7 +386,12 @@ export class ThreeScene {
         continue;
       }
 
-      const mesh = new THREE.Mesh(new THREE.BoxGeometry(w.w, WALL_H, w.h), material);
+      // Brick sized to this wall's own run, so the courses are the same height
+      // on a 30m elevation as on a 3m one.
+      const mesh = new THREE.Mesh(
+        new THREE.BoxGeometry(w.w, WALL_H, w.h),
+        wallMaterial(Math.max(w.w, w.h), WALL_H),
+      );
       mesh.position.set(w.x + w.w / 2, WALL_H / 2, w.y + w.h / 2);
       mesh.castShadow = true;
       mesh.receiveShadow = true;

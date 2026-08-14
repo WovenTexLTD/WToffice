@@ -168,6 +168,55 @@ function carpetCanvas(hue: number, sat: number, base: number, spread: number): H
   });
 }
 
+/* ── Brick ───────────────────────────────────────────────────────── */
+
+/**
+ * Running bond: courses of brick, every other one offset by half a brick.
+ *
+ * Drawn rather than photographed for the same reason as the floors — but here
+ * there was no choice. This pack ships one 23KB image of flat colour swatches
+ * for all 1,740 models, so there is no brick texture anywhere in it to use.
+ *
+ * The mortar is drawn as the background and the bricks laid over it, which is
+ * both how a wall is built and one fewer pass than drawing the joints.
+ */
+function brickCanvas(): HTMLCanvasElement {
+  return surface((ctx, size) => {
+    const courses = 26; // ~65mm brick over the 1.7m this tile covers
+    const perCourse = 8;
+    const courseH = size / courses;
+    const brickW = size / perCourse;
+    const joint = Math.max(2, courseH * 0.16);
+
+    ctx.fillStyle = "hsl(34, 9%, 68%)";
+    ctx.fillRect(0, 0, size, size);
+
+    for (let row = 0; row < courses; row++) {
+      // Half-brick offset on alternate courses, which is what stops the joints
+      // running in unbroken vertical lines.
+      const stagger = row % 2 === 0 ? 0 : brickW / 2;
+
+      for (let i = -1; i < perCourse + 1; i++) {
+        const x = stagger + i * brickW;
+        const y = row * courseH;
+        const seed = row * 17 + i * 5;
+        const light = 40 + (rand(seed) - 0.5) * 13;
+        const hue = 12 + (rand(seed + 3) - 0.5) * 8;
+
+        ctx.fillStyle = `hsl(${hue}, 34%, ${light}%)`;
+        ctx.fillRect(x, y, brickW - joint, courseH - joint);
+
+        // A lighter top edge and darker bottom: bricks are not flat, and this
+        // is most of what stops the wall reading as printed paper.
+        ctx.fillStyle = `hsla(${hue}, 30%, ${light + 9}%, 0.55)`;
+        ctx.fillRect(x, y, brickW - joint, 1.5);
+        ctx.fillStyle = `hsla(${hue}, 34%, ${light - 12}%, 0.5)`;
+        ctx.fillRect(x, y + courseH - joint - 1.5, brickW - joint, 1.5);
+      }
+    }
+  });
+}
+
 /* ── Roughness ────────────────────────────────────────────────────── */
 
 /** Greyscale noise, used as a roughness map so highlights break up. */
@@ -202,7 +251,8 @@ export type SurfaceName =
   | "carpet"
   | "carpetDark"
   | "concrete"
-  | "navy";
+  | "navy"
+  | "brick";
 
 export function surfaces(): Record<SurfaceName, SurfaceMaps> {
   if (cache) return cache as Record<SurfaceName, SurfaceMaps>;
@@ -227,6 +277,7 @@ export function surfaces(): Record<SurfaceName, SurfaceMaps> {
     // Rug navy. Deeper and more saturated than the floor carpets, because a rug
     // is meant to be seen as an object on the floor rather than as the floor.
     navy: { map: toTexture(carpetCanvas(217, 34, 21, 9), 1), roughnessMap: rough(0.96, 0.1, 1) },
+    brick: { map: toTexture(brickCanvas(), 1), roughnessMap: rough(0.92, 0.14, 1) },
   };
   return cache as Record<SurfaceName, SurfaceMaps>;
 }
@@ -239,6 +290,7 @@ const ROUGHNESS: Record<SurfaceName, number> = {
   carpetDark: 0.98,
   concrete: 0.85,
   navy: 0.99,
+  brick: 0.95,
 };
 
 /**
@@ -262,6 +314,28 @@ export function floorMaterial(
   roughnessMap.repeat.set(rx, ry);
 
   return new THREE.MeshStandardMaterial({ map, roughnessMap, roughness: ROUGHNESS[name] });
+}
+
+/** World units one brick tile covers — about 1.7 metres. */
+const BRICK_WORLD = 170;
+
+/**
+ * Brick sized to the wall it clads.
+ *
+ * Repeat is rounded to whole tiles so the running bond meets itself at the
+ * wrap rather than cutting a brick in half down the length of the wall.
+ */
+export function wallMaterial(length: number, height: number): THREE.MeshStandardMaterial {
+  const maps = surfaces().brick;
+  const map = maps.map.clone();
+  const roughnessMap = maps.roughnessMap.clone();
+
+  const rx = Math.max(1, Math.round(length / BRICK_WORLD));
+  const ry = Math.max(1, Math.round(height / BRICK_WORLD));
+  map.repeat.set(rx, ry);
+  roughnessMap.repeat.set(rx, ry);
+
+  return new THREE.MeshStandardMaterial({ map, roughnessMap, roughness: ROUGHNESS.brick });
 }
 
 /** A canvas-backed label that always faces the camera. */
