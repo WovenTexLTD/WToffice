@@ -92,7 +92,7 @@ export const GROUND: ModelSpec & { tileMetres: number } = {
 };
 
 export const MODELS: Partial<Record<FurnitureKind, ModelSpec>> = {
-  desk: { url: "/models/desk.glb", scale: M, upAxis: "z" },
+  desk: { url: "/models/desk.glb", scale: M, upAxis: "z", tint: "#EDEAE4" },
   chair: { url: "/models/task-chair.glb", scale: M, upAxis: "z" },
   meetingTable: { url: "/models/meeting-table.glb", scale: M, upAxis: "z" },
   sofa: { url: "/models/sofa.glb", scale: M, upAxis: "z" },

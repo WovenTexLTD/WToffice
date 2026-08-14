@@ -185,7 +185,7 @@ export interface Floor {
  *   node tools/inspect-models.mjs <pack-dir> <prefix> --zup
  */
 export const FURNITURE_SIZE: Record<FurnitureKind, { w: number; h: number }> = {
-  desk: { w: 127, h: 58 }, //          1.49 × 0.68 m, top at 62
+  desk: { w: 134, h: 56 }, //          1.58 × 0.66 m
   chair: { w: 54, h: 56 }, //          0.63 × 0.66 m
   sofa: { w: 174, h: 74 }, //          2.05 × 0.87 m
   armchair: { w: 56, h: 60 }, //       0.66 × 0.70 m
