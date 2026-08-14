@@ -124,7 +124,8 @@ export type FurnitureKind =
   | "fabricStack"
   | "crate"
   | "instrument"
-  | "officeRug";
+  | "officeRug"
+  | "redChair";
 
 export interface Furniture {
   kind: FurnitureKind;
@@ -228,6 +229,7 @@ export const FURNITURE_SIZE: Record<FurnitureKind, { w: number; h: number }> = {
   crate: { w: 36, h: 56 }, //          0.42 × 0.66 m
   instrument: { w: 34, h: 7 }, //      0.40 × 0.08 m, 1.25 m tall
   officeRug: { w: 136, h: 156 }, //    1.60 × 1.83 m
+  redChair: { w: 75, h: 71 }, //       0.88 × 0.84 m — sideChair, repainted
 };
 
 export type PresenceStatus = "available" | "focusing" | "away";
