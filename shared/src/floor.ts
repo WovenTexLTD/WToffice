@@ -393,8 +393,10 @@ export const woventexFloor: Floor = {
 
     // Somewhere to sit out a frame.
     { kind: "coffeeTable", x: 1940, y: 1450, solid: true },
-    { kind: "armchair", x: 1940, y: 1358, rotation: deg(180), solid: true },
-    { kind: "armchair", x: 1940, y: 1542, solid: true },
+    // This model's rotation 0 faces south, not north — the opposite of what the
+    // lounge set's angles implied.
+    { kind: "armchair", x: 1940, y: 1358, solid: true },
+    { kind: "armchair", x: 1940, y: 1542, rotation: deg(180), solid: true },
     { kind: "lamp", x: 1868, y: 1592 },
     { kind: "plant", x: 2520, y: 1560, model: "tree" },
 
