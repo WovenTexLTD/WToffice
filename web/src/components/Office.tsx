@@ -5,10 +5,8 @@ import { ThreeScene as OfficeScene } from "@/world/three/ThreeScene";
 import { OfficeClient, type ConnectionStatus } from "@/net/officeClient";
 import { MediaEngine, type MicState, type PeerDiagnostic, type ShareState } from "@/media/MediaEngine";
 import { VideoOverlay, type AvatarLook } from "@/video/VideoOverlay";
-import { SidePanel } from "@/components/SidePanel";
 import { TasksBoard, type TasksState } from "@/components/TasksBoard";
 import {
-  pointInRect,
   type Floor,
   type NotionSource,
   type NotionTask,
@@ -119,7 +117,6 @@ function Stage({ name, onLeave }: { name: string; onLeave: () => void }) {
   const [knocks, setKnocks] = useState<{ id: number; name: string; doorId: string }[]>([]);
   const [diagnostics, setDiagnostics] = useState<PeerDiagnostic[] | null>(null);
 
-  const [panelOpen, setPanelOpen] = useState(true);
 
   useEffect(() => {
     const host = hostRef.current;
@@ -354,16 +351,6 @@ function Stage({ name, onLeave }: { name: string; onLeave: () => void }) {
     clientRef.current?.sendStatus(status, note);
   }, []);
 
-  /** Where somebody is, in words — a room name, an area, or just the floor. */
-  const locationOf = useCallback(
-    (p: PlayerState) => {
-      if (!floor) return "the floor";
-      if (p.zoneId) return floor.zones.find((z) => z.id === p.zoneId)?.name ?? "a room";
-      return floor.areas.find((a) => pointInRect(p.x, p.y, a))?.label ?? "the floor";
-    },
-    [floor],
-  );
-
   /* Auto-away, and back again on the first sign of life. */
   useEffect(() => {
     if (!self) return;
@@ -425,9 +412,9 @@ function Stage({ name, onLeave }: { name: string; onLeave: () => void }) {
         setDiagnostics((shown) => (shown ? null : (mediaRef.current?.getDiagnostics() ?? [])));
         return;
       }
-      if (e.key.toLowerCase() === "c") {
+      if (e.key.toLowerCase() === "t") {
         e.preventDefault();
-        setPanelOpen((open) => !open);
+        setTasksOpen((open) => !open);
       }
     };
     window.addEventListener("keydown", onKey);
@@ -468,7 +455,7 @@ function Stage({ name, onLeave }: { name: string; onLeave: () => void }) {
   };
 
   return (
-    <div className={`office${panelOpen ? " with-panel" : ""}`}>
+    <div className="office">
       <div className="stage" ref={hostRef} />
 
       {sharer && (
@@ -569,14 +556,6 @@ function Stage({ name, onLeave }: { name: string; onLeave: () => void }) {
           {broadcasting ? "Stop broadcast" : "Broadcast"}
         </button>
 
-        <button
-          type="button"
-          className={`hud-btn${panelOpen ? " active" : ""}`}
-          onClick={() => setPanelOpen((open) => !open)}
-          aria-pressed={panelOpen}
-        >
-          People
-        </button>
       </div>
 
       <button
@@ -619,17 +598,6 @@ function Stage({ name, onLeave }: { name: string; onLeave: () => void }) {
             clientRef.current?.requestTasks(taskDb || undefined);
           }}
           onClose={() => setTasksOpen(false)}
-        />
-      )}
-
-      {panelOpen && (
-        <SidePanel
-          players={players}
-          self={self}
-          onClose={() => setPanelOpen(false)}
-          onStatus={updatePresence}
-          onFind={(id) => sceneRef.current?.walkToPlayer(id)}
-          locationOf={locationOf}
         />
       )}
 
