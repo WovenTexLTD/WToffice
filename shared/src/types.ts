@@ -235,7 +235,7 @@ export const FURNITURE_SIZE: Record<FurnitureKind, { w: number; h: number }> = {
   redChair: { w: 75, h: 71 }, //       0.88 × 0.84 m — sideChair, repainted
   tvWall: { w: 225, h: 39 }, //        3.01 × 0.52 m at 0.88x
   gadget: { w: 19, h: 18 }, //         0.22 × 0.21 m
-  meetingRug: { w: 272, h: 312 }, //   1.60 × 1.83 m at 2x
+  meetingRug: { w: 313, h: 358 }, //   1.60 × 1.83 m at 2.3x
 };
 
 export type PresenceStatus = "available" | "focusing" | "away";
