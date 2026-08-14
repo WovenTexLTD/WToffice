@@ -28,6 +28,14 @@ const ROOM_LEFT = 1800;
 
 /* ── Composition helpers ──────────────────────────────────────────── */
 
+/**
+ * The seat used out on the studio floor: the eight at the desk banks and the
+ * two at the sample bench. The rooms are seated separately — the offices in a
+ * wood-framed visitor chair, the annex in the default — so this is deliberately
+ * not the `chair` kind's own model.
+ */
+const STUDIO_SEAT = "studio-chair";
+
 /** Height of the desk surface, in world units — where a monitor sits. */
 const DESK_TOP = 62;
 
@@ -59,7 +67,7 @@ function deskBank(cx: number, cy: number): Furniture[] {
     // North desk: whoever sits here is above it, facing south.
     out.push({ kind: "desk", x, y: cy - REACH, rotation: deg(180), solid: true });
     out.push({ kind: "monitor", x, y: cy - 24, rotation: deg(180), elevation: DESK_TOP });
-    out.push({ kind: "chair", x, y: cy - SEAT });
+    out.push({ kind: "chair", x, y: cy - SEAT, model: STUDIO_SEAT });
 
     // The screen they share, sitting on the desks between them.
     // Set into the desks rather than perched on them: the base disappears
@@ -70,7 +78,7 @@ function deskBank(cx: number, cy: number): Furniture[] {
     // South desk: whoever sits here is below it, facing north.
     out.push({ kind: "desk", x, y: cy + REACH, solid: true });
     out.push({ kind: "monitor", x, y: cy + 24, elevation: DESK_TOP });
-    out.push({ kind: "chair", x, y: cy + SEAT, rotation: deg(180) });
+    out.push({ kind: "chair", x, y: cy + SEAT, rotation: deg(180), model: STUDIO_SEAT });
 
     out.push({ kind: "deskLamp", x: x + 54, y: cy - REACH - 14, elevation: DESK_TOP });
   }
@@ -276,8 +284,8 @@ export const woventexFloor: Floor = {
     // at y 850. Rotation 0 faces south, which is what the desk banks use for
     // the seat above a desk.
     { kind: "benchDesk", x: 1400, y: 1170, solid: true },
-    { kind: "chair", x: 1330, y: 1097 },
-    { kind: "chair", x: 1462, y: 1097 },
+    { kind: "chair", x: 1330, y: 1097, model: STUDIO_SEAT },
+    { kind: "chair", x: 1462, y: 1097, model: STUDIO_SEAT },
     { kind: "fabricRoll", x: 1310, y: 1158, rotation: deg(18), elevation: 62 },
     { kind: "fabricRoll", x: 1352, y: 1172, rotation: deg(-12), elevation: 62, model: "fabric-roll-b" },
     { kind: "fabricRoll", x: 1394, y: 1156, rotation: deg(32), elevation: 62, model: "fabric-roll-c" },
