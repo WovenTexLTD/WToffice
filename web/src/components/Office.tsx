@@ -108,6 +108,8 @@ function Stage({ name, onLeave }: { name: string; onLeave: () => void }) {
   const [taskStatuses, setTaskStatuses] = useState<string[]>([]);
   const [tasksOpen, setTasksOpen] = useState(false);
   const [tasksState, setTasksState] = useState<TasksState>("loading");
+  /** Fires if a task request goes unanswered, so the board cannot spin forever. */
+  const tasksTimer = useRef<number | null>(null);
 
   /** Bumped when remote tracks arrive or earshot membership changes. */
   const [mediaVersion, setMediaVersion] = useState(0);
@@ -199,6 +201,10 @@ function Stage({ name, onLeave }: { name: string; onLeave: () => void }) {
       onSignal: (from, data) => void media.handleSignal(from, data),
 
       onTasks: (items, sources, database, statuses, configured, error) => {
+        if (tasksTimer.current !== null) {
+          window.clearTimeout(tasksTimer.current);
+          tasksTimer.current = null;
+        }
         setTasks(items);
         setTaskSources(sources);
         setTaskDb(database);
@@ -305,11 +311,30 @@ function Stage({ name, onLeave }: { name: string; onLeave: () => void }) {
     clientRef.current?.sendAvatar(canvas.toDataURL("image/webp", 0.82));
   }, []);
 
+  /**
+   * Ask for tasks, and give up if nothing comes back.
+   *
+   * A request that is never answered used to leave the board on "Loading…"
+   * indefinitely — which is exactly what a server running code older than the
+   * feature does, and it looks identical to Notion being slow.
+   */
+  const loadTasks = useCallback((database?: string) => {
+    setTasksState("loading");
+    clientRef.current?.requestTasks(database);
+
+    if (tasksTimer.current !== null) window.clearTimeout(tasksTimer.current);
+    tasksTimer.current = window.setTimeout(() => {
+      tasksTimer.current = null;
+      setTasksState((current) => (current === "loading" ? "error" : current));
+    }, 12_000);
+  }, []);
+
   // Fetched when the board is opened rather than at join: most sessions never
   // open it, and it is a round trip to Notion.
   useEffect(() => {
-    if (tasksOpen) clientRef.current?.requestTasks(taskDb || undefined);
-  }, [tasksOpen]);
+    if (tasksOpen) loadTasks(taskDb || undefined);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tasksOpen, loadTasks]);
 
   const toggleMute = useCallback(() => {
     const media = mediaRef.current;
@@ -587,16 +612,12 @@ function Stage({ name, onLeave }: { name: string; onLeave: () => void }) {
           state={tasksState}
           onPick={(db) => {
             setTaskDb(db);
-            setTasksState("loading");
-            clientRef.current?.requestTasks(db);
+            loadTasks(db);
           }}
           onCreate={(title, priority, due) =>
             clientRef.current?.createTask(title, priority, due, taskDb || undefined)
           }
-          onRefresh={() => {
-            setTasksState("loading");
-            clientRef.current?.requestTasks(taskDb || undefined);
-          }}
+          onRefresh={() => loadTasks(taskDb || undefined)}
           onClose={() => setTasksOpen(false)}
         />
       )}

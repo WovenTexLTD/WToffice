@@ -163,7 +163,13 @@ export function TasksBoard({
         {state === "unconfigured" ? (
           <p className="tasks-empty">Notion is not connected on the server.</p>
         ) : state === "error" ? (
-          <p className="tasks-empty">Could not reach Notion.</p>
+          <p className="tasks-empty">
+            No answer from the server. If it was started before this feature, it needs a restart.
+            <br />
+            <button type="button" className="tasks-ghost" onClick={onRefresh}>
+              Try again
+            </button>
+          </p>
         ) : state === "loading" && tasks.length === 0 ? (
           <p className="tasks-empty">Loading…</p>
         ) : (
