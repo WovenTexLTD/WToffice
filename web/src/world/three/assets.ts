@@ -126,6 +126,6 @@ export const MODELS: Partial<Record<FurnitureKind, ModelSpec>> = {
   instrument: { url: "/models/instrument.glb", scale: M, upAxis: "z" },
   // Twelve triangles and no texture, so a tint actually takes here — colour
   // multiplies a map where one exists, and this model has none to fight.
-  officeRug: { url: "/models/office-rug.glb", scale: M, upAxis: "z", tint: "#2C4C86" },
+  officeRug: { url: "/models/office-rug.glb", scale: M, upAxis: "z", tint: "#8FB4DC" },
   floorCushion: { url: "/models/floor-cushion.glb", scale: M, upAxis: "z" },
 };
