@@ -53,7 +53,7 @@ const open = (x: number, y: number) => ({ x, y, zoneId: null });
 const inRoom = (id: string) => ({ x: 2180, y: 300, zoneId: id });
 
 check("same room hears at full volume", audioGain(inRoom("meeting"), inRoom("meeting"), EARSHOT) === 1);
-check("different rooms are silent", audioGain(inRoom("meeting"), inRoom("focus"), EARSHOT) === 0);
+check("different rooms are silent", audioGain(inRoom("meeting"), inRoom("annex"), EARSHOT) === 0);
 check("room seals against the open floor", audioGain(inRoom("meeting"), open(2180, 300), EARSHOT) === 0);
 check("open floor seals against a room", audioGain(open(2180, 300), inRoom("meeting"), EARSHOT) === 0);
 check("touching is full volume", audioGain(open(500, 500), open(500, 500), EARSHOT) === 1);
@@ -86,8 +86,8 @@ check(
 check("video carries across the open floor", videoVisible(open(60, 60), open(1600, 1400)));
 check("video is hidden by a sealed room", !videoVisible(open(300, 870), inRoom("meeting")));
 check("video is shared inside a room", videoVisible(inRoom("meeting"), inRoom("meeting")));
-check("video is hidden between two rooms", !videoVisible(inRoom("focus"), inRoom("meeting")));
-check("a broadcaster is visible from anywhere", videoVisible(inRoom("focus"), shouting));
+check("video is hidden between two rooms", !videoVisible(inRoom("annex"), inRoom("meeting")));
+check("a broadcaster is visible from anywhere", videoVisible(inRoom("annex"), shouting));
 
 const doorId = meetingDoor.id;
 const d0 = meetingDoor;

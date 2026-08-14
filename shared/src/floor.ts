@@ -168,31 +168,27 @@ export const woventexFloor: Floor = {
     { x: WALL, y: 400, w: 196, h: WALL, glass: true },
     { x: 310, y: 400, w: 190, h: WALL, glass: true },
 
-    // Focus room.
-    { x: ROOM_LEFT, y: 660, w: W - ROOM_LEFT - WALL, h: WALL, glass: true },
-    { x: ROOM_LEFT, y: 1046, w: W - ROOM_LEFT - WALL, h: WALL, glass: true },
-    { x: ROOM_LEFT, y: 660, w: WALL, h: 140, glass: true },
-    { x: ROOM_LEFT, y: 900, w: WALL, h: 160, glass: true },
-
-    // Breakout room.
-    { x: ROOM_LEFT, y: 1160, w: W - ROOM_LEFT - WALL, h: WALL, glass: true },
+    // The focus and breakout rooms are one room now, and it sits lower than
+    // either did: quiet desks along the top, seating at the bottom. One space
+    // that seals as a unit rather than two that each seal half of it.
+    { x: ROOM_LEFT, y: 800, w: W - ROOM_LEFT - WALL, h: WALL, glass: true },
     { x: ROOM_LEFT, y: 1626, w: W - ROOM_LEFT - WALL, h: WALL, glass: true },
-    { x: ROOM_LEFT, y: 1160, w: WALL, h: 150, glass: true },
-    { x: ROOM_LEFT, y: 1410, w: WALL, h: 230, glass: true },
+    { x: ROOM_LEFT, y: 800, w: WALL, h: 350, glass: true },
+    { x: ROOM_LEFT, y: 1250, w: WALL, h: 390, glass: true },
   ],
 
   zones: [
     { id: "meeting", name: "Meeting Room", x: 794, y: WALL, w: 772, h: 472, material: "walnut" },
-    { id: "focus", name: "Focus Room", x: 1814, y: 674, w: 772, h: 372, material: "walnut" },
-    { id: "breakout", name: "Breakout", x: 1814, y: 1174, w: 772, h: 452, material: "walnut" },
+    // Deliberately unnamed: the interface calls it "a room" and it gets no
+    // plaque. The id is internal and never shown.
+    { id: "annex", x: 1814, y: 814, w: 772, h: 812, material: "walnut" },
     { id: "karim", name: "Karim's Office", x: WALL, y: WALL, w: 472, h: 386, material: "walnut" },
     { id: "abd", name: "ABD's Office", x: 2114, y: WALL, w: 472, h: 386, material: "walnut" },
   ],
 
   doors: [
     { id: "meeting-door", zoneId: "meeting", x: 780, y: 200, w: WALL, h: 100 },
-    { id: "focus-door", zoneId: "focus", x: ROOM_LEFT, y: 800, w: WALL, h: 100 },
-    { id: "breakout-door", zoneId: "breakout", x: ROOM_LEFT, y: 1310, w: WALL, h: 100 },
+    { id: "annex-door", zoneId: "annex", x: ROOM_LEFT, y: 1150, w: WALL, h: 100 },
     { id: "karim-door", zoneId: "karim", x: 210, y: 400, w: 100, h: WALL },
     { id: "abd-door", zoneId: "abd", x: 2100, y: 200, w: WALL, h: 100 },
   ],
@@ -337,27 +333,31 @@ export const woventexFloor: Floor = {
     { kind: "plant", x: 1500, y: 430, model: "tree" },
     { kind: "plant", x: 880, y: 80, model: "plant-big" },
 
-    /* ── Focus room: quiet desks along the far wall ───────────────── */
-    { kind: "desk", x: 1980, y: 760, solid: true, model: "desk-c" },
-    { kind: "chair", x: 1980, y: 838, rotation: deg(180) },
-    { kind: "deskLamp", x: 2032, y: 738 },
-    { kind: "desk", x: 2200, y: 760, solid: true },
-    { kind: "chair", x: 2200, y: 838, rotation: deg(180) },
-    { kind: "desk", x: 2420, y: 760, solid: true, model: "desk-b" },
-    { kind: "chair", x: 2420, y: 838, rotation: deg(180) },
-    { kind: "deskLamp", x: 2472, y: 738 },
-    { kind: "shelf", x: 2200, y: 1020, rotation: deg(180), solid: true },
-    { kind: "plant", x: 1870, y: 1000, model: "plant-c" },
-    { kind: "lamp", x: 2540, y: 1000, model: "floor-lamp-b" },
+    /* ── The unnamed room ─────────────────────────────────────────── */
 
-    /* ── Breakout ─────────────────────────────────────────────────── */
-    ...loungeSet(2120, 1420, "rug-c", "sofa-b"),
-    { kind: "stool", x: 2400, y: 1300 },
-    { kind: "stool", x: 2470, y: 1360 },
-    { kind: "tv", x: 2120, y: 1196 },
-    { kind: "shelf", x: 2450, y: 1600, rotation: deg(180), solid: true, model: "shelf-b" },
+    // Both halves of what used to be two rooms, in one space: quiet desks along
+    // the north wall, seating at the south end, and the doorway between them so
+    // nobody crosses either half to reach the other.
+    { kind: "desk", x: 1980, y: 900, solid: true, model: "desk-c" },
+    { kind: "chair", x: 1980, y: 978, rotation: deg(180) },
+    { kind: "deskLamp", x: 2032, y: 878 },
+    { kind: "desk", x: 2200, y: 900, solid: true },
+    { kind: "chair", x: 2200, y: 978, rotation: deg(180) },
+    { kind: "desk", x: 2420, y: 900, solid: true, model: "desk-b" },
+    { kind: "chair", x: 2420, y: 978, rotation: deg(180) },
+    { kind: "deskLamp", x: 2472, y: 878 },
+    { kind: "shelf", x: 2560, y: 1080, rotation: deg(-90), solid: true },
+    { kind: "plant", x: 1870, y: 900, model: "plant-c" },
+    { kind: "lamp", x: 2540, y: 1560, model: "floor-lamp-b" },
+
+    // The seating end. The sofa faces south, so the screen goes on the south
+    // wall in front of it rather than on the wall the room lost.
+    ...loungeSet(2160, 1400, "rug-c", "sofa-b"),
+    { kind: "stool", x: 2350, y: 1332 },
+    { kind: "stool", x: 2404, y: 1386 },
+    { kind: "tv", x: 2160, y: 1600 },
     { kind: "plant", x: 1880, y: 1580, model: "tree" },
-    { kind: "lamp", x: 1880, y: 1230 },
+    { kind: "lamp", x: 1880, y: 1240 },
 
     /* ── Lounge ───────────────────────────────────────────────────── */
     ...loungeSet(300, 1400, "rug"),
@@ -375,8 +375,6 @@ export const woventexFloor: Floor = {
   signs: [
     { id: "brand", x: 430, y: WALL, w: 420, h: WALL_HEIGHT, text: "WOVENTEX", mark: true },
     { id: "meeting-plaque", x: 806, y: 34, w: 180, h: WALL_HEIGHT, text: "MEETING" },
-    { id: "focus-plaque", x: 1826, y: 660 + WALL, w: 180, h: WALL_HEIGHT, text: "FOCUS" },
-    { id: "breakout-plaque", x: 1826, y: 1160 + WALL, w: 180, h: WALL_HEIGHT, text: "BREAKOUT" },
     { id: "karim-plaque", x: 310, y: 418, w: 180, h: WALL_HEIGHT, text: "KARIM" },
     { id: "abd-plaque", x: 2126, y: 34, w: 180, h: WALL_HEIGHT, text: "ABD" },
   ],

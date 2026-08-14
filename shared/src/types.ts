@@ -19,7 +19,11 @@ export interface Rect {
  */
 export interface Zone extends Rect {
   id: string;
-  name: string;
+  /**
+   * Optional, because a room does not have to be called anything. Without one
+   * the interface says "a room" rather than naming it, and no plaque is hung.
+   */
+  name?: string;
   material: Material;
 }
 
