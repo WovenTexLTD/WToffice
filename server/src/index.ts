@@ -306,6 +306,33 @@ wss.on("connection", (socket) => {
       return;
     }
 
+    if (msg.t === "tasks") {
+      if (!conn.player) return;
+      const database = typeof msg.database === "string" ? msg.database : undefined;
+      void listTasks(database).then((result) => send(socket, { t: "tasks", ...result }));
+      return;
+    }
+
+    if (msg.t === "task") {
+      const player = conn.player;
+      if (!player) return;
+
+      const title = typeof msg.title === "string" ? msg.title.trim().slice(0, 200) : "";
+      if (!title) return;
+
+      const priority = PRIORITIES.includes(String(msg.priority)) ? String(msg.priority) : undefined;
+      const due = /^\d{4}-\d{2}-\d{2}$/.test(String(msg.due)) ? String(msg.due) : undefined;
+      const database = typeof msg.database === "string" ? msg.database : undefined;
+
+      void createTask(title, player.name, priority, due, database).then(async () => {
+        // Refetch rather than splice the new row in locally: Notion decides the
+        // ordering and the status, and guessing them here is how a list starts
+        // disagreeing with the thing it is showing.
+        send(socket, { t: "tasks", ...(await listTasks(database)) });
+      });
+      return;
+    }
+
     if (msg.t === "signal") {
       // Relay WebRTC signalling verbatim. The server never inspects the payload
       // and never joins the call — media is peer-to-peer.
