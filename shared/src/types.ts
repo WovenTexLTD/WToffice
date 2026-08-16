@@ -338,6 +338,19 @@ export interface NotionSource {
   hasDue: boolean;
 }
 
+/** Something new appeared in a database you are watching. */
+export interface TaskAlert {
+  /** The Notion page id — what makes an alert unique, not its timestamp. */
+  id: string;
+  database: string;
+  /** The database's display name, so the alert reads without a lookup. */
+  source: string;
+  title: string;
+  url: string;
+  /** When it was created, epoch ms. */
+  at: number;
+}
+
 /** A row from the team's Notion task database, flattened for the panel. */
 export interface NotionTask {
   id: string;
@@ -366,7 +379,9 @@ export type ClientMessage =
   /** Ask for a task list. Omit `database` for the default one. */
   | { t: "tasks"; database?: string }
   /** File a new task, into `database` or the default one. */
-  | { t: "task"; title: string; priority?: string; due?: string; database?: string };
+  | { t: "task"; title: string; priority?: string; due?: string; database?: string }
+  /** Start or stop watching a database for new tasks. */
+  | { t: "watch"; database: string; on: boolean };
 
 export type ServerMessage =
   | { t: "welcome"; selfId: string; floor: Floor; players: PlayerState[]; shutDoors: string[] }
@@ -377,6 +392,10 @@ export type ServerMessage =
    * panel says out loud rather than showing an empty list that looks like "no
    * tasks".
    */
+  /** Which databases you are watching. Sent on join and after any change. */
+  | { t: "watching"; databases: string[] }
+  /** A task appeared in a database you watch. */
+  | { t: "alert"; alert: TaskAlert }
   | {
       t: "tasks";
       items: NotionTask[];

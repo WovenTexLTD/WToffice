@@ -1,5 +1,5 @@
 /**
- * Profile store.
+ * Local store: profiles and notification subscriptions.
  *
  * SQLite via node:sqlite — built into Node, so no container, no native build
  * and no dependency. A five-person office writes a profile picture once and
@@ -18,7 +18,7 @@ import { dirname } from "node:path";
 
 const DB_PATH = process.env.DB_PATH ?? "./data/office.db";
 
-export class ProfileStore {
+export class Store {
   private db: DatabaseSync;
 
   constructor(path: string = DB_PATH) {
@@ -36,6 +36,14 @@ export class ProfileStore {
     // Keyed by identity, not by connection: the whole point is that the
     // picture is still there next time you sign in under the same name.
     this.db.exec(`
+      CREATE TABLE IF NOT EXISTS watches (
+        identity    TEXT    NOT NULL,
+        database_id TEXT    NOT NULL,
+        created_at  INTEGER NOT NULL,
+        PRIMARY KEY (identity, database_id)
+      )
+    `);
+    this.db.exec(`
       CREATE TABLE IF NOT EXISTS profiles (
         identity   TEXT    PRIMARY KEY,
         avatar     TEXT    NOT NULL,
@@ -50,6 +58,42 @@ export class ProfileStore {
       .prepare("SELECT avatar FROM profiles WHERE identity = ?")
       .get(identity) as { avatar?: string } | undefined;
     return row?.avatar ?? null;
+  }
+
+  /** Which databases an identity has asked to be told about. */
+  watching(identity: string): string[] {
+    const rows = this.db
+      .prepare("SELECT database_id FROM watches WHERE identity = ?")
+      .all(identity) as { database_id: string }[];
+    return rows.map((r) => r.database_id);
+  }
+
+  /** Every identity watching a database. */
+  watchers(database: string): string[] {
+    const rows = this.db
+      .prepare("SELECT identity FROM watches WHERE database_id = ?")
+      .all(database) as { identity: string }[];
+    return rows.map((r) => r.identity);
+  }
+
+  /** Every database anyone is watching, so the poller knows what to ask for. */
+  watchedDatabases(): string[] {
+    const rows = this.db
+      .prepare("SELECT DISTINCT database_id FROM watches")
+      .all() as { database_id: string }[];
+    return rows.map((r) => r.database_id);
+  }
+
+  setWatch(identity: string, database: string, on: boolean): void {
+    if (on) {
+      this.db
+        .prepare("INSERT OR IGNORE INTO watches (identity, database_id, created_at) VALUES (?, ?, ?)")
+        .run(identity, database, Date.now());
+    } else {
+      this.db
+        .prepare("DELETE FROM watches WHERE identity = ? AND database_id = ?")
+        .run(identity, database);
+    }
   }
 
   /** Store a picture, or clear it when given an empty string. */

@@ -561,6 +561,74 @@ body {
 /* ── People ────────────────────────────────────────────────────── */
 
 /* Knocks sit clear of the side panel when it is open. */
+/* ── Task alerts ────────────────────────────────────────────────── */
+
+.tasks-badge {
+  position: absolute;
+  top: -5px;
+  right: -5px;
+  min-width: 17px;
+  height: 17px;
+  padding: 0 4px;
+  display: grid;
+  place-items: center;
+  border-radius: 9px;
+  background: #b8443a;
+  color: #fff;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.alerts {
+  position: absolute;
+  top: 62px;
+  right: 14px;
+  z-index: 8;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 260px;
+}
+
+.alert {
+  display: block;
+  padding: 9px 11px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-left: 3px solid #6fbf95;
+  border-radius: 9px;
+  background: rgba(21, 22, 18, 0.94);
+  color: #f2efe9;
+  text-decoration: none;
+  box-shadow: 0 10px 26px -10px rgba(0, 0, 0, 0.75);
+  backdrop-filter: blur(6px);
+}
+
+.alert:hover {
+  border-color: rgba(255, 255, 255, 0.3);
+}
+
+.alert-source {
+  display: block;
+  font-size: 10px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: rgba(242, 239, 233, 0.45);
+}
+
+.alert-title {
+  display: block;
+  margin-top: 3px;
+  font-size: 13px;
+  line-height: 1.35;
+}
+
+.tasks-ghost.on {
+  border-color: rgba(111, 191, 149, 0.6);
+  background: rgba(111, 191, 149, 0.16);
+  color: #8fd3ae;
+}
+
 /* ── Tasks board ────────────────────────────────────────────────── */
 
 .tasks-open {

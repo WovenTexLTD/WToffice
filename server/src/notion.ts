@@ -16,7 +16,7 @@
  * before and the board says so, rather than failing somewhere less obvious.
  */
 
-import type { NotionSource, NotionTask } from "@wtoffice/shared";
+import type { NotionSource, NotionTask, TaskAlert } from "@wtoffice/shared";
 
 const TOKEN = process.env.NOTION_TOKEN ?? "";
 
@@ -352,5 +352,54 @@ export async function createTask(
   } catch (error) {
     console.warn("[notion] create errored", error);
     return { ok: false, message: "Could not reach Notion just now." };
+  }
+}
+
+/**
+ * The most recently created pages in a database, newest first.
+ *
+ * No time filter, because Notion rounds `created_time` down to the whole
+ * minute: a page filed at 10:26:50 reports as 10:26:00, which is older than any
+ * mark taken when it was filed. Two pages in the same minute are also
+ * indistinguishable by time. The caller tracks page ids instead.
+ *
+ * Deliberately small — five rows and only what an alert needs. This runs on a
+ * timer for every watched database, so it is the one call here that must stay
+ * cheap.
+ *
+ * Returns null when the database cannot be read, which the caller must treat
+ * differently from "nothing there": treating a failed read as an empty one
+ * would mark the database as seen and swallow whatever was in it.
+ */
+export async function recentPages(database: string): Promise<TaskAlert[] | null> {
+  if (!notionConfigured) return null;
+
+  try {
+    const schema = await schemaFor(database);
+    if (!schema) return null;
+
+    const response = await fetch(`${API}/databases/${schema.id}/query`, {
+      method: "POST",
+      headers: HEADERS,
+      body: JSON.stringify({
+        sorts: [{ timestamp: "created_time", direction: "descending" }],
+        page_size: 5,
+      }),
+      signal: AbortSignal.timeout(8000),
+    });
+    if (!response.ok) return null;
+
+    const data = (await response.json()) as { results?: Record<string, any>[] };
+    return (data.results ?? []).map((page) => ({
+      id: String(page.id),
+      database: schema.id,
+      source: schema.title,
+      title: plain(page.properties?.[schema.titleProp]?.title) || "Untitled",
+      url: String(page.url ?? ""),
+      at: Date.parse(String(page.created_time ?? "")) || Date.now(),
+    }));
+  } catch (error) {
+    console.warn("[notion] poll errored", error);
+    return null;
   }
 }

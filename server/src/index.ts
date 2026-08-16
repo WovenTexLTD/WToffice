@@ -12,8 +12,8 @@ import "./env";
 
 import { createServer } from "node:http";
 import { WebSocketServer, WebSocket } from "ws";
-import { ProfileStore } from "./store";
-import { createTask, listTasks, notionConfigured } from "./notion";
+import { Store } from "./store";
+import { createTask, listTasks, notionConfigured, recentPages } from "./notion";
 import {
   woventexFloor,
   toIdentity,
@@ -33,7 +33,7 @@ import {
   type ServerMessage,
 } from "@wtoffice/shared";
 
-const store = new ProfileStore();
+const store = new Store();
 
 const STATUSES: PresenceStatus[] = ["available", "focusing", "away"];
 
@@ -187,6 +187,8 @@ wss.on("connection", (socket) => {
       conn.player = player;
       conn.lastMoveAt = Date.now();
 
+      send(socket, { t: "watching", databases: store.watching(player.identity) });
+
       send(socket, {
         t: "welcome",
         selfId: id,
@@ -308,6 +310,19 @@ wss.on("connection", (socket) => {
       return;
     }
 
+    if (msg.t === "watch") {
+      const player = conn.player;
+      if (!player || typeof msg.database !== "string" || !msg.database) return;
+
+      store.setWatch(player.identity, msg.database, msg.on === true);
+      // Record what is already there now, rather than leaving it to the first
+      // poll: a task filed in that gap would otherwise be taken for
+      // pre-existing and never announced.
+      if (msg.on === true) void seedWatch(msg.database);
+      send(socket, { t: "watching", databases: store.watching(player.identity) });
+      return;
+    }
+
     if (msg.t === "tasks") {
       if (!conn.player) return;
       const database = typeof msg.database === "string" ? msg.database : undefined;
@@ -414,6 +429,82 @@ setInterval(() => {
     conn.socket.ping();
   }
 }, 15_000);
+
+/* ── Watching for new tasks ──────────────────────────────────────── */
+
+/**
+ * Page ids already announced, per database.
+ *
+ * Ids rather than a timestamp high-water mark, because Notion rounds
+ * `created_time` down to the whole minute: a page filed seconds after a mark
+ * was taken reports as older than it, and two pages in the same minute are
+ * indistinguishable. An id is exact.
+ */
+const announced = new Map<string, Set<string>>();
+
+/** Bound on remembered ids per database. Five are fetched per poll. */
+const REMEMBER = 200;
+
+/**
+ * Record what a database already holds without announcing any of it.
+ *
+ * Called when a watch is switched on, rather than left to the first poll: a
+ * task filed in the gap between the two would otherwise be recorded as
+ * pre-existing and never announced.
+ */
+async function seedWatch(database: string): Promise<void> {
+  if (announced.has(database)) return;
+  const pages = await recentPages(database);
+  if (!pages) return;
+  if (!announced.has(database)) announced.set(database, new Set(pages.map((p) => p.id)));
+}
+
+/**
+ * Poll the watched databases and tell the people watching them.
+ *
+ * Polling rather than webhooks: a webhook needs a public URL, and this office
+ * runs on a laptop. A minute of latency on "somebody added a task" is not the
+ * part of this that matters.
+ */
+async function pollWatched(): Promise<void> {
+  if (!notionConfigured) return;
+
+  for (const database of store.watchedDatabases()) {
+    const pages = await recentPages(database);
+    // Null is a failed read, not an empty one. Treating it as empty would mark
+    // the database as seen and swallow whatever is in it.
+    if (!pages) continue;
+
+    let seen = announced.get(database);
+    if (!seen) {
+      // First sight of this database in this process — a restart, not a fresh
+      // subscription. Remember what is there and stay quiet.
+      announced.set(database, new Set(pages.map((p) => p.id)));
+      continue;
+    }
+
+    const watching = new Set(store.watchers(database));
+    // Oldest first, so a burst arrives in the order it happened.
+    for (const page of [...pages].reverse()) {
+      if (seen.has(page.id)) continue;
+      seen.add(page.id);
+
+      for (const conn of connections.values()) {
+        if (!conn.player || !watching.has(conn.player.identity)) continue;
+        send(conn.socket, { t: "alert", alert: page });
+      }
+    }
+
+    if (seen.size > REMEMBER) {
+      // Keep the newest; anything older cannot come back as unseen.
+      seen = new Set(pages.map((p) => p.id));
+      announced.set(database, seen);
+    }
+  }
+}
+
+const POLL_MS = 45_000;
+setInterval(() => void pollWatched(), POLL_MS).unref();
 
 httpServer.listen(PORT, () => {
   console.log(`WovenTex office server → ws://localhost:${PORT}`);

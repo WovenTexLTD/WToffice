@@ -10,6 +10,7 @@ import {
   type Floor,
   type NotionSource,
   type NotionTask,
+  type TaskAlert,
   type PlayerState,
   type PresenceStatus,
 } from "@wtoffice/shared";
@@ -108,6 +109,11 @@ function Stage({ name, onLeave }: { name: string; onLeave: () => void }) {
   const [taskStatuses, setTaskStatuses] = useState<string[]>([]);
   const [tasksOpen, setTasksOpen] = useState(false);
   const [tasksState, setTasksState] = useState<TasksState>("loading");
+  const [watching, setWatching] = useState<string[]>([]);
+  /** Alerts still on screen. */
+  const [alerts, setAlerts] = useState<TaskAlert[]>([]);
+  /** Arrived while the board was shut — cleared when it is opened. */
+  const [unseen, setUnseen] = useState(0);
   /** Fires if a task request goes unanswered, so the board cannot spin forever. */
   const tasksTimer = useRef<number | null>(null);
 
@@ -199,6 +205,17 @@ function Stage({ name, onLeave }: { name: string; onLeave: () => void }) {
       onCorrect: (x, y) => scene.correctPosition(x, y),
       onStatus: setStatus,
       onSignal: (from, data) => void media.handleSignal(from, data),
+
+      onWatching: setWatching,
+
+      onAlert: (alert) => {
+        setAlerts((prev) => [...prev, alert].slice(-4));
+        setUnseen((n) => n + 1);
+        // Each toast clears itself; a stack that only grows is a wall.
+        window.setTimeout(() => {
+          setAlerts((prev) => prev.filter((a) => a !== alert));
+        }, 9000);
+      },
 
       onTasks: (items, sources, database, statuses, configured, error) => {
         if (tasksTimer.current !== null) {
@@ -332,7 +349,10 @@ function Stage({ name, onLeave }: { name: string; onLeave: () => void }) {
   // Fetched when the board is opened rather than at join: most sessions never
   // open it, and it is a round trip to Notion.
   useEffect(() => {
-    if (tasksOpen) loadTasks(taskDb || undefined);
+    if (tasksOpen) {
+      loadTasks(taskDb || undefined);
+      setUnseen(0);
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tasksOpen, loadTasks]);
 
@@ -591,6 +611,7 @@ function Stage({ name, onLeave }: { name: string; onLeave: () => void }) {
         aria-label="Tasks"
         aria-pressed={tasksOpen}
       >
+        {unseen > 0 && <span className="tasks-badge">{unseen > 9 ? "9+" : unseen}</span>}
         <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
           <path
             d="M4 6.5l2 2 3.5-3.5M4 13.5l2 2 3.5-3.5M4 20.5l2 2 3.5-3.5M13 6h7M13 13h7M13 20h7"
@@ -618,8 +639,27 @@ function Stage({ name, onLeave }: { name: string; onLeave: () => void }) {
             clientRef.current?.createTask(title, priority, due, taskDb || undefined)
           }
           onRefresh={() => loadTasks(taskDb || undefined)}
+          watching={watching}
+          onWatch={(db, on) => clientRef.current?.setWatch(db, on)}
           onClose={() => setTasksOpen(false)}
         />
+      )}
+
+      {alerts.length > 0 && (
+        <div className="alerts">
+          {alerts.map((alert) => (
+            <a
+              key={`${alert.url}-${alert.at}`}
+              className="alert"
+              href={alert.url}
+              target="_blank"
+              rel="noreferrer"
+            >
+              <span className="alert-source mono">{alert.source}</span>
+              <span className="alert-title">{alert.title}</span>
+            </a>
+          ))}
+        </div>
       )}
 
       {broadcasting && (

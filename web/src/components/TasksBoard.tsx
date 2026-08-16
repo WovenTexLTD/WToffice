@@ -17,6 +17,10 @@ export interface TasksBoardProps {
   onCreate(title: string, priority?: string, due?: string): void;
   onRefresh(): void;
   onClose(): void;
+
+  /** Databases this person is being told about. */
+  watching: string[];
+  onWatch(database: string, on: boolean): void;
 }
 
 /** Today, as the same YYYY-MM-DD string Notion returns, in local time. */
@@ -42,6 +46,8 @@ export function TasksBoard({
   onCreate,
   onRefresh,
   onClose,
+  watching,
+  onWatch,
 }: TasksBoardProps) {
   const [title, setTitle] = useState("");
   const [priority, setPriority] = useState("");
@@ -50,6 +56,9 @@ export function TasksBoard({
   // What this database can actually hold. Offering a priority field on a
   // database with no such column would silently drop whatever was typed.
   const current = sources.find((s) => s.id.replace(/-/g, "") === database.replace(/-/g, ""));
+
+  const bare = (id: string) => id.replace(/-/g, "");
+  const watched = watching.some((id) => bare(id) === bare(database));
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -119,6 +128,19 @@ export function TasksBoard({
           </select>
           <span className="tasks-count mono">{tasks.length} open</span>
           <span className="tasks-grow" />
+          <button
+            type="button"
+            className={`tasks-ghost${watched ? " on" : ""}`}
+            onClick={() => onWatch(database, !watched)}
+            aria-pressed={watched}
+            title={
+              watched
+                ? "You are told when a task is added here"
+                : "Tell me when a task is added here"
+            }
+          >
+            {watched ? "Notifying" : "Notify me"}
+          </button>
           <button type="button" className="tasks-ghost" onClick={onRefresh}>
             Refresh
           </button>

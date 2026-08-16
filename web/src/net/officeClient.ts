@@ -10,6 +10,7 @@ import type {
   Floor,
   NotionSource,
   NotionTask,
+  TaskAlert,
   PlayerState,
   PresenceStatus,
   ServerMessage,
@@ -26,6 +27,8 @@ export interface OfficeClientHandlers {
   onSignal(from: string, data: SignalData): void;
   onDoors(shut: string[]): void;
   onKnock(doorId: string, name: string): void;
+  onWatching(databases: string[]): void;
+  onAlert(alert: TaskAlert): void;
   onTasks(
     items: NotionTask[],
     sources: NotionSource[],
@@ -92,6 +95,12 @@ export class OfficeClient {
           break;
         case "knock":
           this.handlers.onKnock(msg.doorId, msg.name);
+          break;
+        case "watching":
+          this.handlers.onWatching(msg.databases);
+          break;
+        case "alert":
+          this.handlers.onAlert(msg.alert);
           break;
         case "tasks":
           this.handlers.onTasks(
@@ -179,6 +188,11 @@ export class OfficeClient {
   /** Ask for a task list. Omit the database for the server's default. */
   requestTasks(database?: string): void {
     this.send({ t: "tasks", database });
+  }
+
+  /** Start or stop being told about new tasks in a database. */
+  setWatch(database: string, on: boolean): void {
+    this.send({ t: "watch", database, on });
   }
 
   /** File a task. The server answers with a refreshed list. */
