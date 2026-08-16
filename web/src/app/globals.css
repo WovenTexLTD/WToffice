@@ -561,6 +561,16 @@ body {
 /* ── People ────────────────────────────────────────────────────── */
 
 /* Knocks sit clear of the side panel when it is open. */
+.entry-denied {
+  margin: 0;
+  padding: 9px 12px;
+  border: 1px solid rgba(190, 82, 70, 0.45);
+  border-radius: 9px;
+  background: rgba(190, 82, 70, 0.14);
+  color: #e79486;
+  font-size: 13px;
+}
+
 /* ── Tasks: button, alerts, board ───────────────────────────────── */
 
 .tasks-open {

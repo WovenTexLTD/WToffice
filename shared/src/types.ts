@@ -363,7 +363,12 @@ export interface NotionTask {
 }
 
 export type ClientMessage =
-  | { t: "join"; name: string }
+  /**
+   * `key` is the shared passphrase, when the server is running with one. It is
+   * checked before anything else: an unguessable URL is not a lock, and this
+   * has to survive the link being pasted somewhere it should not be.
+   */
+  | { t: "join"; name: string; key?: string }
   | { t: "move"; x: number; y: number }
   | { t: "presence"; speaking: boolean; muted: boolean }
   | { t: "media"; cameraOn: boolean; screenOn: boolean }
@@ -393,6 +398,8 @@ export type ClientMessage =
   | { t: "seen"; page?: string; database?: string };
 
 export type ServerMessage =
+  /** The passphrase was wrong or missing. The socket closes straight after. */
+  | { t: "denied"; reason: string }
   | { t: "welcome"; selfId: string; floor: Floor; players: PlayerState[]; shutDoors: string[] }
   /**
    * The task list, or why there is not one.

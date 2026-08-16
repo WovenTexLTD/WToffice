@@ -37,6 +37,22 @@ const store = new Store();
 
 const STATUSES: PresenceStatus[] = ["available", "focusing", "away"];
 
+/**
+ * Shared passphrase. Unset means anyone who can reach the port can walk in,
+ * which is right for localhost and wrong for anything reachable.
+ */
+const OFFICE_KEY = process.env.OFFICE_KEY ?? "";
+
+/** Compared without short-circuiting, so the answer takes the same time either way. */
+function keyMatches(given: unknown): boolean {
+  if (!OFFICE_KEY) return true;
+  const value = typeof given === "string" ? given : "";
+  if (value.length !== OFFICE_KEY.length) return false;
+  let diff = 0;
+  for (let i = 0; i < OFFICE_KEY.length; i++) diff |= value.charCodeAt(i) ^ OFFICE_KEY.charCodeAt(i);
+  return diff === 0;
+}
+
 /** Accepted `Priority` values. Anything else is dropped rather than sent on. */
 const PRIORITIES = ["High", "Medium", "Low"];
 
@@ -161,6 +177,15 @@ wss.on("connection", (socket) => {
 
     if (msg.t === "join") {
       if (conn.player) return; // Already joined; ignore duplicates.
+
+      if (!keyMatches(msg.key)) {
+        // A pause, so the port cannot be used to try passphrases quickly.
+        setTimeout(() => {
+          send(socket, { t: "denied", reason: "That passphrase is not right." });
+          socket.close();
+        }, 600);
+        return;
+      }
 
       const name = sanitiseName(msg.name);
       const player: PlayerState = {
@@ -524,6 +549,11 @@ setInterval(() => void pollWatched(), POLL_MS).unref();
 httpServer.listen(PORT, () => {
   console.log(`WovenTex office server → ws://localhost:${PORT}`);
   console.log(`floor "${floor.name}" — ${floor.walls.length} walls, ${floor.zones.length} zones`);
+  console.log(
+    OFFICE_KEY
+      ? "access: passphrase required"
+      : "access: open — set OFFICE_KEY before exposing this beyond localhost",
+  );
   console.log(
     notionConfigured
       ? "notion: connected — the tasks board can read and write"

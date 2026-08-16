@@ -27,6 +27,8 @@ export interface OfficeClientHandlers {
   onSignal(from: string, data: SignalData): void;
   onDoors(shut: string[]): void;
   onKnock(doorId: string, name: string): void;
+  /** Refused at the door. The socket is closed; do not reconnect. */
+  onDenied(reason: string): void;
   onWatching(databases: string[]): void;
   onAlert(alert: TaskAlert): void;
   /** The backlog, delivered on join. */
@@ -58,6 +60,7 @@ export class OfficeClient {
     private readonly url: string,
     private readonly name: string,
     private readonly handlers: OfficeClientHandlers,
+    private readonly key = "",
   ) {}
 
   connect(): void {
@@ -77,7 +80,7 @@ export class OfficeClient {
     socket.onopen = () => {
       this.attempt = 0;
       this.handlers.onStatus("online");
-      this.send({ t: "join", name: this.name });
+      this.send({ t: "join", name: this.name, key: this.key || undefined });
     };
 
     socket.onmessage = (event) => {
@@ -97,6 +100,12 @@ export class OfficeClient {
           break;
         case "knock":
           this.handlers.onKnock(msg.doorId, msg.name);
+          break;
+        case "denied":
+          // Terminal: reconnecting with the same wrong passphrase would only
+          // hammer the door.
+          this.disposed = true;
+          this.handlers.onDenied(msg.reason);
           break;
         case "watching":
           this.handlers.onWatching(msg.databases);

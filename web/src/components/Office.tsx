@@ -20,14 +20,49 @@ const IDLE_MS = 5 * 60_000;
 
 const WS_URL = process.env.NEXT_PUBLIC_WS_URL ?? "ws://localhost:3001";
 
+/** Where the passphrase is kept, so it is typed once per browser. */
+const KEY_STORE = "wtoffice.key";
+
 export function Office() {
   const [name, setName] = useState("");
+  const [key, setKey] = useState("");
   const [joined, setJoined] = useState(false);
+  const [denied, setDenied] = useState<string | null>(null);
+
+  // Remembered, not for secrecy — this is a shared passphrase, and typing it on
+  // every reload is how a lock ends up propped open.
+  useEffect(() => {
+    setKey(window.localStorage.getItem(KEY_STORE) ?? "");
+  }, []);
 
   if (!joined) {
-    return <Entry name={name} setName={setName} onJoin={() => setJoined(true)} />;
+    return (
+      <Entry
+        name={name}
+        setName={setName}
+        entryKey={key}
+        setEntryKey={setKey}
+        denied={denied}
+        onJoin={() => {
+          window.localStorage.setItem(KEY_STORE, key);
+          setDenied(null);
+          setJoined(true);
+        }}
+      />
+    );
   }
-  return <Stage name={name.trim()} onLeave={() => setJoined(false)} />;
+  return (
+    <Stage
+      name={name.trim()}
+      entryKey={key}
+      onLeave={() => setJoined(false)}
+      onDenied={(reason) => {
+        window.localStorage.removeItem(KEY_STORE);
+        setDenied(reason);
+        setJoined(false);
+      }}
+    />
+  );
 }
 
 /* ── Entry ─────────────────────────────────────────────────────── */
@@ -35,10 +70,16 @@ export function Office() {
 function Entry({
   name,
   setName,
+  entryKey,
+  setEntryKey,
+  denied,
   onJoin,
 }: {
   name: string;
   setName: (v: string) => void;
+  entryKey: string;
+  setEntryKey: (v: string) => void;
+  denied: string | null;
   onJoin: () => void;
 }) {
   const ready = name.trim().length > 0;
@@ -73,6 +114,18 @@ function Entry({
             autoComplete="off"
           />
         </div>
+        <div>
+          <label htmlFor="office-key">Passphrase</label>
+          <input
+            id="office-key"
+            type="password"
+            value={entryKey}
+            onChange={(e) => setEntryKey(e.target.value)}
+            placeholder="Leave blank if the office has none"
+            autoComplete="current-password"
+          />
+        </div>
+        {denied && <p className="entry-denied">{denied}</p>}
         <button type="submit" disabled={!ready}>
           Walk in
         </button>
@@ -83,7 +136,17 @@ function Entry({
 
 /* ── Stage ─────────────────────────────────────────────────────── */
 
-function Stage({ name, onLeave }: { name: string; onLeave: () => void }) {
+function Stage({
+  name,
+  entryKey,
+  onLeave,
+  onDenied,
+}: {
+  name: string;
+  entryKey: string;
+  onLeave: () => void;
+  onDenied: (reason: string) => void;
+}) {
   const hostRef = useRef<HTMLDivElement>(null);
   const sceneRef = useRef<OfficeScene | null>(null);
   const clientRef = useRef<OfficeClient | null>(null);
@@ -181,6 +244,7 @@ function Stage({ name, onLeave }: { name: string; onLeave: () => void }) {
     }
 
     const client = new OfficeClient(WS_URL, name, {
+      onDenied,
       onWelcome: (id, f, list, shutDoors) => {
         setSelfId(id);
         setFloor(f);
@@ -241,7 +305,7 @@ function Stage({ name, onLeave }: { name: string; onLeave: () => void }) {
         setTaskStatuses(statuses);
         setTasksState(!configured ? "unconfigured" : error ? "error" : "ready");
       },
-    });
+    }, entryKey);
     clientRef.current = client;
 
     // React double-invokes effects in development. Everything below the await
