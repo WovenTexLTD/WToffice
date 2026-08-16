@@ -112,8 +112,14 @@ function Stage({ name, onLeave }: { name: string; onLeave: () => void }) {
   const [watching, setWatching] = useState<string[]>([]);
   /** Alerts still on screen. */
   const [alerts, setAlerts] = useState<TaskAlert[]>([]);
-  /** Arrived while the board was shut — cleared when it is opened. */
-  const [unseen, setUnseen] = useState(0);
+  /**
+   * Alerts not yet dismissed.
+   *
+   * Kept whole rather than counted, because the board marks the database and
+   * the individual task each one came from — and they clear only when clicked,
+   * not because the board was opened.
+   */
+  const [unseen, setUnseen] = useState<TaskAlert[]>([]);
   /** Fires if a task request goes unanswered, so the board cannot spin forever. */
   const tasksTimer = useRef<number | null>(null);
 
@@ -212,11 +218,12 @@ function Stage({ name, onLeave }: { name: string; onLeave: () => void }) {
        * The backlog. Counted, but not thrown on screen as a stack of toasts —
        * you were away, and the board is where you go to see what happened.
        */
-      onAlerts: (list) => setUnseen((n) => n + list.length),
+      onAlerts: (list) =>
+        setUnseen((prev) => [...prev, ...list.filter((a) => !prev.some((p) => p.id === a.id))]),
 
       onAlert: (alert) => {
         setAlerts((prev) => [...prev, alert].slice(-4));
-        setUnseen((n) => n + 1);
+        setUnseen((prev) => (prev.some((p) => p.id === alert.id) ? prev : [...prev, alert]));
         // Each toast clears itself; a stack that only grows is a wall.
         window.setTimeout(() => {
           setAlerts((prev) => prev.filter((a) => a !== alert));
@@ -355,12 +362,7 @@ function Stage({ name, onLeave }: { name: string; onLeave: () => void }) {
   // Fetched when the board is opened rather than at join: most sessions never
   // open it, and it is a round trip to Notion.
   useEffect(() => {
-    if (tasksOpen) {
-      loadTasks(taskDb || undefined);
-      setUnseen(0);
-      // Tell the server too, or the same backlog arrives again next sign-in.
-      clientRef.current?.markAlertsSeen();
-    }
+    if (tasksOpen) loadTasks(taskDb || undefined);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tasksOpen, loadTasks]);
 
@@ -619,7 +621,9 @@ function Stage({ name, onLeave }: { name: string; onLeave: () => void }) {
         aria-label="Tasks"
         aria-pressed={tasksOpen}
       >
-        {unseen > 0 && <span className="tasks-badge">{unseen > 9 ? "9+" : unseen}</span>}
+        {unseen.length > 0 && (
+          <span className="tasks-badge">{unseen.length > 9 ? "9+" : unseen.length}</span>
+        )}
         <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
           <path
             d="M4 6.5l2 2 3.5-3.5M4 13.5l2 2 3.5-3.5M4 20.5l2 2 3.5-3.5M13 6h7M13 13h7M13 20h7"
@@ -649,6 +653,19 @@ function Stage({ name, onLeave }: { name: string; onLeave: () => void }) {
           onRefresh={() => loadTasks(taskDb || undefined)}
           watching={watching}
           onWatch={(db, on) => clientRef.current?.setWatch(db, on)}
+          unseen={unseen}
+          onDismiss={(what) => {
+            setUnseen((prev) =>
+              prev.filter((a) =>
+                what.page
+                  ? a.id !== what.page
+                  : what.database
+                    ? a.database.replace(/-/g, "") !== what.database.replace(/-/g, "")
+                    : false,
+              ),
+            );
+            clientRef.current?.markAlertsSeen(what);
+          }}
           onClose={() => setTasksOpen(false)}
         />
       )}

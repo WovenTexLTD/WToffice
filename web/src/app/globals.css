@@ -629,6 +629,41 @@ body {
   color: #8fd3ae;
 }
 
+.tasks-bang {
+  display: inline-grid;
+  place-items: center;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 6px;
+  border: 1px solid rgba(184, 68, 58, 0.55);
+  border-radius: 10px;
+  background: rgba(184, 68, 58, 0.22);
+  color: #ef9b90;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.tasks-bang:hover {
+  background: rgba(184, 68, 58, 0.42);
+  color: #fff;
+}
+
+.tasks-bang.inline {
+  min-width: 16px;
+  height: 16px;
+  padding: 0 4px;
+  margin-right: 6px;
+  font-size: 10px;
+  vertical-align: 1px;
+}
+
+.tasks-card.is-new {
+  border-color: rgba(184, 68, 58, 0.45);
+  background: rgba(184, 68, 58, 0.09);
+}
+
 /* ── Tasks board ────────────────────────────────────────────────── */
 
 .tasks-open {

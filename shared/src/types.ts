@@ -382,8 +382,13 @@ export type ClientMessage =
   | { t: "task"; title: string; priority?: string; due?: string; database?: string }
   /** Start or stop watching a database for new tasks. */
   | { t: "watch"; database: string; on: boolean }
-  /** Acknowledge everything queued, clearing the count. */
-  | { t: "seen" };
+  /**
+   * Dismiss queued alerts: one page, one database's worth, or all of them.
+   *
+   * Deliberately explicit. Opening the board used to clear everything, which
+   * meant a glance destroyed the only record of what was new.
+   */
+  | { t: "seen"; page?: string; database?: string };
 
 export type ServerMessage =
   | { t: "welcome"; selfId: string; floor: Floor; players: PlayerState[]; shutDoors: string[] }

@@ -178,7 +178,20 @@ export class Store {
     }));
   }
 
-  markAlertsSeen(identity: string): void {
+  /** Dismiss one page, one database's worth, or everything. */
+  markAlertsSeen(identity: string, page?: string, database?: string): void {
+    if (page) {
+      this.db
+        .prepare("UPDATE alerts SET seen = 1 WHERE identity = ? AND page_id = ?")
+        .run(identity, page);
+      return;
+    }
+    if (database) {
+      this.db
+        .prepare("UPDATE alerts SET seen = 1 WHERE identity = ? AND database_id = ?")
+        .run(identity, database);
+      return;
+    }
     this.db.prepare("UPDATE alerts SET seen = 1 WHERE identity = ? AND seen = 0").run(identity);
   }
 

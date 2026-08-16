@@ -316,7 +316,12 @@ wss.on("connection", (socket) => {
     }
 
     if (msg.t === "seen") {
-      if (conn.player) store.markAlertsSeen(conn.player.identity);
+      if (!conn.player) return;
+      store.markAlertsSeen(
+        conn.player.identity,
+        typeof msg.page === "string" ? msg.page : undefined,
+        typeof msg.database === "string" ? msg.database : undefined,
+      );
       return;
     }
 

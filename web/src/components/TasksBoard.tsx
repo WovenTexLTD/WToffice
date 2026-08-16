@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import type { NotionSource, NotionTask } from "@wtoffice/shared";
+import type { NotionSource, NotionTask, TaskAlert } from "@wtoffice/shared";
 
 export type TasksState = "loading" | "ready" | "error" | "unconfigured";
 
@@ -21,6 +21,10 @@ export interface TasksBoardProps {
   /** Databases this person is being told about. */
   watching: string[];
   onWatch(database: string, on: boolean): void;
+
+  /** Alerts not yet dismissed — one mark per database, one per task. */
+  unseen: TaskAlert[];
+  onDismiss(what: { page?: string; database?: string }): void;
 }
 
 /** Today, as the same YYYY-MM-DD string Notion returns, in local time. */
@@ -48,6 +52,8 @@ export function TasksBoard({
   onClose,
   watching,
   onWatch,
+  unseen,
+  onDismiss,
 }: TasksBoardProps) {
   const [title, setTitle] = useState("");
   const [priority, setPriority] = useState("");
@@ -59,6 +65,14 @@ export function TasksBoard({
 
   const bare = (id: string) => id.replace(/-/g, "");
   const watched = watching.some((id) => bare(id) === bare(database));
+
+  const flagged = new Set(unseen.map((a) => a.id));
+  const perSource = new Map<string, number>();
+  for (const alert of unseen) {
+    const key = bare(alert.database);
+    perSource.set(key, (perSource.get(key) ?? 0) + 1);
+  }
+  const hereCount = perSource.get(bare(database)) ?? 0;
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -120,12 +134,25 @@ export function TasksBoard({
             aria-label="Database"
           >
             {sources.length === 0 && <option value={database}>Loading…</option>}
-            {sources.map((source) => (
-              <option key={source.id} value={source.id}>
-                {source.title}
-              </option>
-            ))}
+            {sources.map((source) => {
+              const marked = perSource.get(bare(source.id)) ?? 0;
+              return (
+                <option key={source.id} value={source.id}>
+                  {marked > 0 ? `! ${source.title} (${marked})` : source.title}
+                </option>
+              );
+            })}
           </select>
+          {hereCount > 0 && (
+            <button
+              type="button"
+              className="tasks-bang"
+              onClick={() => onDismiss({ database })}
+              title={`${hereCount} new here — dismiss`}
+            >
+              ! {hereCount}
+            </button>
+          )}
           <span className="tasks-count mono">{tasks.length} open</span>
           <span className="tasks-grow" />
           <button
@@ -205,12 +232,29 @@ export function TasksBoard({
                 {column.items.map((task) => (
                   <a
                     key={task.id}
-                    className="tasks-card"
+                    className={`tasks-card${flagged.has(task.id) ? " is-new" : ""}`}
                     href={task.url}
                     target="_blank"
                     rel="noreferrer"
                   >
-                    <span className="tasks-card-title">{task.title}</span>
+                    <span className="tasks-card-title">
+                      {flagged.has(task.id) && (
+                        <button
+                          type="button"
+                          className="tasks-bang inline"
+                          title="New since you last looked — dismiss"
+                          onClick={(e) => {
+                            // The card is a link; dismissing must not follow it.
+                            e.preventDefault();
+                            e.stopPropagation();
+                            onDismiss({ page: task.id });
+                          }}
+                        >
+                          !
+                        </button>
+                      )}
+                      {task.title}
+                    </span>
                     {(task.priority || task.due) && (
                       <span className="tasks-card-meta mono">
                         {task.priority && (

@@ -195,9 +195,9 @@ export class OfficeClient {
     this.send({ t: "tasks", database });
   }
 
-  /** Acknowledge queued alerts, so they do not come back next sign-in. */
-  markAlertsSeen(): void {
-    this.send({ t: "seen" });
+  /** Dismiss alerts: one page, one database's worth, or all of them. */
+  markAlertsSeen(what: { page?: string; database?: string } = {}): void {
+    this.send({ t: "seen", ...what });
   }
 
   /** Start or stop being told about new tasks in a database. */
