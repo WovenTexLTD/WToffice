@@ -44,6 +44,8 @@ interface Schema {
   /** The name of the title column, which differs in every database. */
   titleProp: string;
   statusProp: string | null;
+  /** Notion has two kinds of single-choice column and they patch differently. */
+  statusType: "status" | "select";
   statusOptions: string[];
   priorityProp: string | null;
   priorityOptions: string[];
@@ -89,6 +91,7 @@ function readSchema(db: Record<string, any>): Schema {
     parentId: db.parent?.type === "page_id" ? String(db.parent.page_id) : null,
     titleProp: findProp(props, "title") ?? "Name",
     statusProp,
+    statusType: statusProp && props[statusProp]?.type === "status" ? "status" : "select",
     statusOptions: options(statusProp),
     // Priority and Category are both selects; never let them resolve to the
     // same column, or filing a task would overwrite one with the other.
@@ -234,18 +237,33 @@ export async function listTasks(database?: string): Promise<TaskList> {
     if (!schema) return { ...empty, sources, error: "That database is not shared with the integration." };
 
     const done = schema.statusOptions.find((o) => /^(done|complete|completed)$/i.test(o));
-    const response = await fetch(`${API}/databases/${schema.id}/query`, {
-      method: "POST",
-      headers: HEADERS,
-      body: JSON.stringify({
-        ...(schema.statusProp && done
-          ? { filter: { property: schema.statusProp, status: { does_not_equal: done } } }
-          : {}),
-        sorts: [{ timestamp: "created_time", direction: "descending" }],
-        page_size: 40,
-      }),
-      signal: AbortSignal.timeout(8000),
-    });
+    const filterOn = schema.statusProp && done ? schema.statusProp : null;
+
+    const query = (body: Record<string, unknown>) =>
+      fetch(`${API}/databases/${schema.id}/query`, {
+        method: "POST",
+        headers: HEADERS,
+        body: JSON.stringify({
+          sorts: [{ timestamp: "created_time", direction: "descending" }],
+          ...body,
+        }),
+        signal: AbortSignal.timeout(8000),
+      });
+
+    // Open work in full, plus a handful of what was finished recently. Two
+    // queries rather than one unfiltered page: done tasks are unbounded, and a
+    // single window sorted by date would let a long tail of them push the open
+    // ones out of the list entirely.
+    const [response, doneResponse] = await Promise.all([
+      query(
+        filterOn && done
+          ? { filter: { property: filterOn, [schema.statusType]: { does_not_equal: done } }, page_size: 40 }
+          : { page_size: 40 },
+      ),
+      filterOn && done
+        ? query({ filter: { property: filterOn, [schema.statusType]: { equals: done } }, page_size: 8 })
+        : Promise.resolve(null),
+    ]);
 
     if (!response.ok) {
       const detail = await response.text();
@@ -254,7 +272,12 @@ export async function listTasks(database?: string): Promise<TaskList> {
     }
 
     const data = (await response.json()) as { results?: Record<string, any>[] };
-    const items: NotionTask[] = (data.results ?? []).map((page) => {
+    const doneData =
+      doneResponse && doneResponse.ok
+        ? ((await doneResponse.json()) as { results?: Record<string, any>[] })
+        : { results: [] };
+
+    const items: NotionTask[] = [...(data.results ?? []), ...(doneData.results ?? [])].map((page) => {
       const props: Record<string, any> = page.properties ?? {};
       const status = schema.statusProp ? props[schema.statusProp] : null;
       return {
@@ -271,7 +294,7 @@ export async function listTasks(database?: string): Promise<TaskList> {
       items,
       sources,
       database: schema.id,
-      statuses: schema.statusOptions.filter((o) => o !== done),
+      statuses: schema.statusOptions,
       configured: true,
     };
   } catch (error) {
@@ -401,5 +424,43 @@ export async function recentPages(database: string): Promise<TaskAlert[] | null>
   } catch (error) {
     console.warn("[notion] poll errored", error);
     return null;
+  }
+}
+
+/**
+ * Move a task to another status.
+ *
+ * The column name comes from the database's own list, so it is already a legal
+ * value — but it is checked again here, because the client is not the only
+ * thing that can send a message.
+ */
+export async function setTaskStatus(
+  page: string,
+  database: string,
+  status: string,
+): Promise<boolean> {
+  if (!notionConfigured) return false;
+
+  try {
+    const schema = await schemaFor(database);
+    if (!schema?.statusProp || !schema.statusOptions.includes(status)) return false;
+
+    const response = await fetch(`${API}/pages/${page}`, {
+      method: "PATCH",
+      headers: HEADERS,
+      body: JSON.stringify({
+        properties: { [schema.statusProp]: { [schema.statusType]: { name: status } } },
+      }),
+      signal: AbortSignal.timeout(8000),
+    });
+
+    if (!response.ok) {
+      console.warn("[notion] status change failed", response.status, (await response.text()).slice(0, 200));
+      return false;
+    }
+    return true;
+  } catch (error) {
+    console.warn("[notion] status change errored", error);
+    return false;
   }
 }

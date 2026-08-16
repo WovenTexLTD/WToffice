@@ -380,6 +380,8 @@ export type ClientMessage =
   | { t: "tasks"; database?: string }
   /** File a new task, into `database` or the default one. */
   | { t: "task"; title: string; priority?: string; due?: string; database?: string }
+  /** Move a task to another status. `move` is already the player walking. */
+  | { t: "taskMove"; page: string; database: string; status: string }
   /** Start or stop watching a database for new tasks. */
   | { t: "watch"; database: string; on: boolean }
   /**

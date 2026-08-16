@@ -885,6 +885,20 @@ body {
   background: rgba(255, 255, 255, 0.022);
 }
 
+.tasks-column.is-over {
+  border-color: rgba(224, 183, 106, 0.55);
+  background: rgba(224, 183, 106, 0.07);
+  box-shadow: inset 0 0 0 1px rgba(224, 183, 106, 0.18);
+}
+
+.tasks-card[draggable="true"] {
+  cursor: grab;
+}
+
+.tasks-card:active {
+  cursor: grabbing;
+}
+
 .tasks-column h3 {
   display: flex;
   align-items: center;

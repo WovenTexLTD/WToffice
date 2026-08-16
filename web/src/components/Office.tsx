@@ -653,6 +653,14 @@ function Stage({ name, onLeave }: { name: string; onLeave: () => void }) {
           onRefresh={() => loadTasks(taskDb || undefined)}
           watching={watching}
           onWatch={(db, on) => clientRef.current?.setWatch(db, on)}
+          onMove={(page, status) => {
+            // Move the card the moment it is dropped rather than waiting for
+            // Notion — a board that pauses on every drag feels broken. The
+            // server answers with the real list, which corrects this if the
+            // change was refused.
+            setTasks((prev) => prev.map((t) => (t.id === page ? { ...t, status } : t)));
+            clientRef.current?.moveTask(page, taskDb, status);
+          }}
           unseen={unseen}
           onDismiss={(what) => {
             setUnseen((prev) =>

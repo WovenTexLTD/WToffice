@@ -200,6 +200,11 @@ export class OfficeClient {
     this.send({ t: "seen", ...what });
   }
 
+  /** Move a task to another status. The server answers with a fresh list. */
+  moveTask(page: string, database: string, status: string): void {
+    this.send({ t: "taskMove", page, database, status });
+  }
+
   /** Start or stop being told about new tasks in a database. */
   setWatch(database: string, on: boolean): void {
     this.send({ t: "watch", database, on });

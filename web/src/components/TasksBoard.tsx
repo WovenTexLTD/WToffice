@@ -25,6 +25,9 @@ export interface TasksBoardProps {
   /** Alerts not yet dismissed — one mark per database, one per task. */
   unseen: TaskAlert[];
   onDismiss(what: { page?: string; database?: string }): void;
+
+  /** Drop a task into another status column. */
+  onMove(page: string, status: string): void;
 }
 
 const bare = (id: string) => id.replace(/-/g, "");
@@ -87,11 +90,17 @@ export function TasksBoard({
   onWatch,
   unseen,
   onDismiss,
+  onMove,
 }: TasksBoardProps) {
   const [title, setTitle] = useState("");
   const [priority, setPriority] = useState("");
   const [due, setDue] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
+
+  /** The column a card is currently hovering over, for the drop highlight. */
+  const [over, setOver] = useState<string | null>(null);
+  /** The task being dragged, so its own column does not light up. */
+  const dragging = useRef<{ id: string; from: string } | null>(null);
 
   const current = sources.find((s) => bare(s.id) === bare(database));
   const watched = watching.some((id) => bare(id) === bare(database));
@@ -295,7 +304,32 @@ export function TasksBoard({
             style={{ gridTemplateColumns: `repeat(${Math.max(1, columns.length)}, minmax(0, 1fr))` }}
           >
             {columns.map((column, i) => (
-              <section key={column.name} className="tasks-column" data-column={i % 4}>
+              <section
+                key={column.name}
+                className={`tasks-column${over === column.name ? " is-over" : ""}`}
+                data-column={i % 4}
+                onDragOver={(e) => {
+                  // Without preventDefault the browser refuses the drop.
+                  e.preventDefault();
+                  e.dataTransfer.dropEffect = "move";
+                  if (dragging.current && dragging.current.from !== column.name) {
+                    setOver(column.name);
+                  }
+                }}
+                onDragLeave={(e) => {
+                  // Leaving for a child of this column is not leaving it.
+                  if (e.currentTarget.contains(e.relatedTarget as Node | null)) return;
+                  setOver((name) => (name === column.name ? null : name));
+                }}
+                onDrop={(e) => {
+                  e.preventDefault();
+                  setOver(null);
+                  const page = e.dataTransfer.getData("text/task-id") || dragging.current?.id;
+                  const from = dragging.current?.from;
+                  dragging.current = null;
+                  if (page && from !== column.name) onMove(page, column.name);
+                }}
+              >
                 <h3>
                   <span className="col-dot" />
                   {column.name}
@@ -314,6 +348,19 @@ export function TasksBoard({
                         target="_blank"
                         rel="noreferrer"
                         data-priority={task.priority?.toLowerCase() ?? "none"}
+                        draggable
+                        onDragStart={(e) => {
+                          dragging.current = { id: task.id, from: column.name };
+                          e.dataTransfer.effectAllowed = "move";
+                          e.dataTransfer.setData("text/task-id", task.id);
+                          // A link drags its href by default, which offers the
+                          // Notion URL to every other drop target on the desktop.
+                          e.dataTransfer.setData("text/plain", task.title);
+                        }}
+                        onDragEnd={() => {
+                          dragging.current = null;
+                          setOver(null);
+                        }}
                       >
                         <span className="tasks-card-title">{task.title}</span>
 

@@ -13,7 +13,7 @@ import "./env";
 import { createServer } from "node:http";
 import { WebSocketServer, WebSocket } from "ws";
 import { Store } from "./store";
-import { createTask, listTasks, notionConfigured, recentPages } from "./notion";
+import { createTask, listTasks, notionConfigured, recentPages, setTaskStatus } from "./notion";
 import {
   woventexFloor,
   toIdentity,
@@ -322,6 +322,21 @@ wss.on("connection", (socket) => {
         typeof msg.page === "string" ? msg.page : undefined,
         typeof msg.database === "string" ? msg.database : undefined,
       );
+      return;
+    }
+
+    if (msg.t === "taskMove") {
+      if (!conn.player) return;
+      const { page, database, status } = msg;
+      if (typeof page !== "string" || typeof database !== "string" || typeof status !== "string") {
+        return;
+      }
+
+      void setTaskStatus(page, database, status).then(async () => {
+        // Answer with the truth either way: the board moved the card the moment
+        // it was dropped, and if Notion refused, this puts it back.
+        send(socket, { t: "tasks", ...(await listTasks(database)) });
+      });
       return;
     }
 
