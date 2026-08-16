@@ -5,6 +5,7 @@
  */
 
 import WebSocket from "ws";
+import { existsSync } from "node:fs";
 import {
   woventexFloor as floor,
   audioGain,
@@ -19,7 +20,16 @@ import {
   type ServerMessage,
 } from "../shared/src/index";
 
+// The office may be password-protected; the test has to knock like anyone else.
+for (const path of ["./.env", "../.env"]) {
+  if (existsSync(path)) {
+    process.loadEnvFile(path);
+    break;
+  }
+}
+
 const WS_URL = process.env.WS_URL ?? "ws://localhost:3001";
+const OFFICE_KEY = process.env.OFFICE_KEY ?? "";
 
 let failures = 0;
 function check(label: string, pass: boolean, detail = ""): void {
@@ -147,7 +157,9 @@ function connect(name: string): Promise<Client> {
       clearTimeout(timer);
       reject(e);
     });
-    socket.on("open", () => socket.send(JSON.stringify({ t: "join", name })));
+    socket.on("open", () =>
+      socket.send(JSON.stringify({ t: "join", name, key: OFFICE_KEY || undefined })),
+    );
   });
 }
 
@@ -439,6 +451,39 @@ async function run(): Promise<void> {
   );
 
   bob.socket.close();
+
+  /* ── The door ──────────────────────────────────────────────────── */
+
+  if (OFFICE_KEY) {
+    console.log("\nAccess\n");
+
+    // Knock with the wrong answer and make sure it does not open. Without this
+    // the whole suite would keep passing if the gate were removed, because
+    // every other test knows the password.
+    const refused = await new Promise<boolean>((resolve) => {
+      const socket = new WebSocket(WS_URL);
+      let denied = false;
+      const timer = setTimeout(() => {
+        socket.close();
+        resolve(denied);
+      }, 2500);
+
+      socket.on("message", (raw) => {
+        const msg = JSON.parse(String(raw)) as ServerMessage;
+        if (msg.t === "denied") denied = true;
+        if (msg.t === "welcome") {
+          clearTimeout(timer);
+          socket.close();
+          resolve(false);
+        }
+      });
+      socket.on("error", () => resolve(denied));
+      socket.on("open", () =>
+        socket.send(JSON.stringify({ t: "join", name: "Stranger", key: `${OFFICE_KEY}x` })),
+      );
+    });
+    check("a wrong password does not get in", refused);
+  }
 
   /* ── Profiles: a picture outlives the connection that set it ───── */
 
