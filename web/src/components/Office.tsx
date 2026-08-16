@@ -208,6 +208,12 @@ function Stage({ name, onLeave }: { name: string; onLeave: () => void }) {
 
       onWatching: setWatching,
 
+      /**
+       * The backlog. Counted, but not thrown on screen as a stack of toasts —
+       * you were away, and the board is where you go to see what happened.
+       */
+      onAlerts: (list) => setUnseen((n) => n + list.length),
+
       onAlert: (alert) => {
         setAlerts((prev) => [...prev, alert].slice(-4));
         setUnseen((n) => n + 1);
@@ -352,6 +358,8 @@ function Stage({ name, onLeave }: { name: string; onLeave: () => void }) {
     if (tasksOpen) {
       loadTasks(taskDb || undefined);
       setUnseen(0);
+      // Tell the server too, or the same backlog arrives again next sign-in.
+      clientRef.current?.markAlertsSeen();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tasksOpen, loadTasks]);

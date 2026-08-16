@@ -29,6 +29,8 @@ export interface OfficeClientHandlers {
   onKnock(doorId: string, name: string): void;
   onWatching(databases: string[]): void;
   onAlert(alert: TaskAlert): void;
+  /** The backlog, delivered on join. */
+  onAlerts(alerts: TaskAlert[]): void;
   onTasks(
     items: NotionTask[],
     sources: NotionSource[],
@@ -101,6 +103,9 @@ export class OfficeClient {
           break;
         case "alert":
           this.handlers.onAlert(msg.alert);
+          break;
+        case "alerts":
+          this.handlers.onAlerts(msg.alerts);
           break;
         case "tasks":
           this.handlers.onTasks(
@@ -188,6 +193,11 @@ export class OfficeClient {
   /** Ask for a task list. Omit the database for the server's default. */
   requestTasks(database?: string): void {
     this.send({ t: "tasks", database });
+  }
+
+  /** Acknowledge queued alerts, so they do not come back next sign-in. */
+  markAlertsSeen(): void {
+    this.send({ t: "seen" });
   }
 
   /** Start or stop being told about new tasks in a database. */

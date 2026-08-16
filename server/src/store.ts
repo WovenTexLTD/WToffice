@@ -13,6 +13,7 @@
  */
 
 import { DatabaseSync } from "node:sqlite";
+import type { TaskAlert } from "@wtoffice/shared";
 import { mkdirSync } from "node:fs";
 import { dirname } from "node:path";
 
@@ -35,6 +36,29 @@ export class Store {
 
     // Keyed by identity, not by connection: the whole point is that the
     // picture is still there next time you sign in under the same name.
+    this.db.exec(`
+      CREATE TABLE IF NOT EXISTS seen_pages (
+        page_id     TEXT    PRIMARY KEY,
+        database_id TEXT    NOT NULL,
+        at          INTEGER NOT NULL
+      )
+    `);
+    this.db.exec("CREATE INDEX IF NOT EXISTS idx_seen_db ON seen_pages (database_id)");
+    this.db.exec(`
+      CREATE TABLE IF NOT EXISTS alerts (
+        id          INTEGER PRIMARY KEY AUTOINCREMENT,
+        identity    TEXT    NOT NULL,
+        page_id     TEXT    NOT NULL,
+        database_id TEXT    NOT NULL,
+        source      TEXT    NOT NULL,
+        title       TEXT    NOT NULL,
+        url         TEXT    NOT NULL,
+        at          INTEGER NOT NULL,
+        seen        INTEGER NOT NULL DEFAULT 0,
+        UNIQUE (identity, page_id)
+      )
+    `);
+    this.db.exec("CREATE INDEX IF NOT EXISTS idx_alerts_identity ON alerts (identity, seen)");
     this.db.exec(`
       CREATE TABLE IF NOT EXISTS watches (
         identity    TEXT    NOT NULL,
@@ -94,6 +118,68 @@ export class Store {
         .prepare("DELETE FROM watches WHERE identity = ? AND database_id = ?")
         .run(identity, database);
     }
+  }
+
+  /**
+   * Record a page as announced.
+   *
+   * Returns true only the first time, which is what decides whether anyone
+   * hears about it. In the database rather than in memory: held in memory, a
+   * server restart both forgets what it had announced and opens a window where
+   * the next poll takes everything new for pre-existing and says nothing.
+   */
+  recordPage(database: string, pageId: string, at: number): boolean {
+    const result = this.db
+      .prepare("INSERT OR IGNORE INTO seen_pages (page_id, database_id, at) VALUES (?, ?, ?)")
+      .run(pageId, database, at);
+    return result.changes > 0;
+  }
+
+  /** Whether this database has ever been polled. */
+  hasSeenDatabase(database: string): boolean {
+    return (
+      this.db.prepare("SELECT 1 FROM seen_pages WHERE database_id = ? LIMIT 1").get(database) !==
+      undefined
+    );
+  }
+
+  /**
+   * Queue an alert for someone.
+   *
+   * Stored rather than only pushed down the socket, because the person it is
+   * for is usually not looking at the screen when a task is filed — and an
+   * alert only the connected receive is one that mostly nobody receives.
+   */
+  queueAlert(identity: string, alert: TaskAlert): void {
+    this.db
+      .prepare(
+        "INSERT OR IGNORE INTO alerts (identity, page_id, database_id, source, title, url, at)" +
+          " VALUES (?, ?, ?, ?, ?, ?, ?)",
+      )
+      .run(identity, alert.id, alert.database, alert.source, alert.title, alert.url, alert.at);
+  }
+
+  /** Everything queued for an identity that it has not acknowledged. */
+  unseenAlerts(identity: string): TaskAlert[] {
+    const rows = this.db
+      .prepare(
+        "SELECT page_id, database_id, source, title, url, at FROM alerts" +
+          " WHERE identity = ? AND seen = 0 ORDER BY at ASC LIMIT 50",
+      )
+      .all(identity) as Record<string, string | number>[];
+
+    return rows.map((r) => ({
+      id: String(r.page_id),
+      database: String(r.database_id),
+      source: String(r.source),
+      title: String(r.title),
+      url: String(r.url),
+      at: Number(r.at),
+    }));
+  }
+
+  markAlertsSeen(identity: string): void {
+    this.db.prepare("UPDATE alerts SET seen = 1 WHERE identity = ? AND seen = 0").run(identity);
   }
 
   /** Store a picture, or clear it when given an empty string. */

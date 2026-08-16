@@ -189,6 +189,11 @@ wss.on("connection", (socket) => {
 
       send(socket, { t: "watching", databases: store.watching(player.identity) });
 
+      // What arrived while nobody was connected. Without this the alert only
+      // reaches whoever happened to be looking, which is mostly nobody.
+      const pending = store.unseenAlerts(player.identity);
+      if (pending.length > 0) send(socket, { t: "alerts", alerts: pending });
+
       send(socket, {
         t: "welcome",
         selfId: id,
@@ -307,6 +312,11 @@ wss.on("connection", (socket) => {
       store.saveAvatar(player.identity, data);
       if (data) player.avatar = data;
       else delete player.avatar;
+      return;
+    }
+
+    if (msg.t === "seen") {
+      if (conn.player) store.markAlertsSeen(conn.player.identity);
       return;
     }
 
@@ -432,18 +442,11 @@ setInterval(() => {
 
 /* ── Watching for new tasks ──────────────────────────────────────── */
 
-/**
- * Page ids already announced, per database.
- *
- * Ids rather than a timestamp high-water mark, because Notion rounds
- * `created_time` down to the whole minute: a page filed seconds after a mark
- * was taken reports as older than it, and two pages in the same minute are
- * indistinguishable. An id is exact.
+/*
+ * Announced pages and queued alerts both live in the database, not in memory.
+ * Ids rather than timestamps, because Notion rounds created_time down to the
+ * whole minute — a page filed seconds after a mark reads as older than it.
  */
-const announced = new Map<string, Set<string>>();
-
-/** Bound on remembered ids per database. Five are fetched per poll. */
-const REMEMBER = 200;
 
 /**
  * Record what a database already holds without announcing any of it.
@@ -453,10 +456,10 @@ const REMEMBER = 200;
  * pre-existing and never announced.
  */
 async function seedWatch(database: string): Promise<void> {
-  if (announced.has(database)) return;
+  if (store.hasSeenDatabase(database)) return;
   const pages = await recentPages(database);
   if (!pages) return;
-  if (!announced.has(database)) announced.set(database, new Set(pages.map((p) => p.id)));
+  for (const page of pages) store.recordPage(database, page.id, page.at);
 }
 
 /**
@@ -475,30 +478,22 @@ async function pollWatched(): Promise<void> {
     // the database as seen and swallow whatever is in it.
     if (!pages) continue;
 
-    let seen = announced.get(database);
-    if (!seen) {
-      // First sight of this database in this process — a restart, not a fresh
-      // subscription. Remember what is there and stay quiet.
-      announced.set(database, new Set(pages.map((p) => p.id)));
-      continue;
-    }
+    // Never polled before: record what is there and stay quiet, so nobody is
+    // told about a backlog they never asked to hear.
+    const first = !store.hasSeenDatabase(database);
+    const watchers = store.watchers(database);
 
-    const watching = new Set(store.watchers(database));
     // Oldest first, so a burst arrives in the order it happened.
     for (const page of [...pages].reverse()) {
-      if (seen.has(page.id)) continue;
-      seen.add(page.id);
+      const isNew = store.recordPage(database, page.id, page.at);
+      if (!isNew || first) continue;
+
+      for (const identity of watchers) store.queueAlert(identity, page);
 
       for (const conn of connections.values()) {
-        if (!conn.player || !watching.has(conn.player.identity)) continue;
+        if (!conn.player || !watchers.includes(conn.player.identity)) continue;
         send(conn.socket, { t: "alert", alert: page });
       }
-    }
-
-    if (seen.size > REMEMBER) {
-      // Keep the newest; anything older cannot come back as unseen.
-      seen = new Set(pages.map((p) => p.id));
-      announced.set(database, seen);
     }
   }
 }

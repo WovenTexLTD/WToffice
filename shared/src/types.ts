@@ -381,7 +381,9 @@ export type ClientMessage =
   /** File a new task, into `database` or the default one. */
   | { t: "task"; title: string; priority?: string; due?: string; database?: string }
   /** Start or stop watching a database for new tasks. */
-  | { t: "watch"; database: string; on: boolean };
+  | { t: "watch"; database: string; on: boolean }
+  /** Acknowledge everything queued, clearing the count. */
+  | { t: "seen" };
 
 export type ServerMessage =
   | { t: "welcome"; selfId: string; floor: Floor; players: PlayerState[]; shutDoors: string[] }
@@ -394,8 +396,10 @@ export type ServerMessage =
    */
   /** Which databases you are watching. Sent on join and after any change. */
   | { t: "watching"; databases: string[] }
-  /** A task appeared in a database you watch. */
+  /** A task appeared in a database you watch, while you were here. */
   | { t: "alert"; alert: TaskAlert }
+  /** What you missed while you were away. Sent on join. */
+  | { t: "alerts"; alerts: TaskAlert[] }
   | {
       t: "tasks";
       items: NotionTask[];
