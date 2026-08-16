@@ -18,7 +18,37 @@ import {
 /** Auto-away after this long with no keyboard or mouse. */
 const IDLE_MS = 5 * 60_000;
 
-const WS_URL = process.env.NEXT_PUBLIC_WS_URL ?? "ws://localhost:3001";
+/**
+ * Where the office server is.
+ *
+ * There is no sensible default away from a developer's own machine. The server
+ * is a long-lived WebSocket process with a database and a polling loop, so it
+ * cannot run on the same serverless host as this page — it lives somewhere
+ * else, and only NEXT_PUBLIC_WS_URL knows where.
+ *
+ * Falling back to localhost in a deployed build would point every visitor at
+ * their own machine and fail silently, so this says so instead.
+ */
+const WS_URL = process.env.NEXT_PUBLIC_WS_URL ?? "";
+
+function wsProblem(): string | null {
+  if (typeof window === "undefined") return null;
+  const local = ["localhost", "127.0.0.1", "[::1]"].includes(window.location.hostname);
+
+  if (!WS_URL) {
+    return local
+      ? null
+      : "This site has no office server configured. Set NEXT_PUBLIC_WS_URL to the server's wss:// address and redeploy.";
+  }
+  // A browser refuses an insecure socket from a secure page, and the failure
+  // looks identical to the server being down.
+  if (window.location.protocol === "https:" && WS_URL.startsWith("ws://")) {
+    return "The office server is configured over ws://, which a browser will not open from an https page. It needs wss://.";
+  }
+  return null;
+}
+
+const DEV_WS = "ws://localhost:3001";
 
 /**
  * Where a remembered browser keeps its grant.
@@ -57,15 +87,19 @@ export function Office() {
   const [joined, setJoined] = useState(false);
   const [denied, setDenied] = useState<string | null>(null);
 
-  // localStorage is not available while rendering on the server.
+  const [problem, setProblem] = useState<string | null>(null);
+
+  // localStorage and location are not available while rendering on the server.
   useEffect(() => {
     setDevice(loadDevice());
+    setProblem(wsProblem());
     setReady(true);
   }, []);
 
   if (!joined) {
     return (
       <Entry
+        problem={problem}
         name={name}
         setName={setName}
         entryKey={key}
@@ -116,6 +150,7 @@ function Entry({
   setRemember,
   remembered,
   denied,
+  problem,
   onJoin,
 }: {
   name: string;
@@ -126,9 +161,10 @@ function Entry({
   setRemember: (v: boolean) => void;
   remembered: boolean;
   denied: string | null;
+  problem: string | null;
   onJoin: () => void;
 }) {
-  const ready = name.trim().length > 0;
+  const ready = name.trim().length > 0 && !problem;
 
   return (
     <div className="entry">
@@ -185,6 +221,7 @@ function Entry({
             </label>
           </>
         )}
+        {problem && <p className="entry-denied">{problem}</p>}
         {denied && <p className="entry-denied">{denied}</p>}
         <button type="submit" disabled={!ready}>
           Walk in
@@ -305,7 +342,7 @@ function Stage({
       (window as unknown as { __officeScene?: OfficeScene }).__officeScene = scene;
     }
 
-    const client = new OfficeClient(WS_URL, name, {
+    const client = new OfficeClient(WS_URL || DEV_WS, name, {
       onDenied,
       onDevice,
       onWelcome: (id, f, list, shutDoors) => {
