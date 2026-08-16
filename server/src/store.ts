@@ -25,6 +25,11 @@ export class ProfileStore {
     if (path !== ":memory:") mkdirSync(dirname(path), { recursive: true });
     this.db = new DatabaseSync(path);
 
+    // Wait rather than fail if another process still holds the file. Under
+    // `tsx watch` the replacement server opens the database while the outgoing
+    // one is still closing it, and without this that race crashes the reload
+    // outright — which reads as the server being broken rather than busy.
+    this.db.exec("PRAGMA busy_timeout = 5000");
     // WAL keeps reads from blocking the single writer.
     this.db.exec("PRAGMA journal_mode = WAL");
 

@@ -8,6 +8,8 @@
  * still making "teleport into the closed meeting room" impossible.
  */
 
+import "./env";
+
 import { createServer } from "node:http";
 import { WebSocketServer, WebSocket } from "ws";
 import { ProfileStore } from "./store";

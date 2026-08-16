@@ -39,6 +39,8 @@ const HEADERS = {
 interface Schema {
   id: string;
   title: string;
+  /** The page it lives under, used to tell same-named databases apart. */
+  parentId: string | null;
   /** The name of the title column, which differs in every database. */
   titleProp: string;
   statusProp: string | null;
@@ -84,6 +86,7 @@ function readSchema(db: Record<string, any>): Schema {
   return {
     id: String(db.id),
     title: plain(db.title) || "Untitled",
+    parentId: db.parent?.type === "page_id" ? String(db.parent.page_id) : null,
     titleProp: findProp(props, "title") ?? "Name",
     statusProp,
     statusOptions: options(statusProp),
@@ -115,8 +118,64 @@ async function schemas(): Promise<Schema[]> {
 
   const data = (await response.json()) as { results?: Record<string, any>[] };
   const list = (data.results ?? []).map(readSchema);
+  await disambiguate(list);
   cache = { at: Date.now(), list };
   return list;
+}
+
+/**
+ * Make same-named databases tellable apart.
+ *
+ * Two of these are called "Tasks" and a dropdown with the same word twice in it
+ * is useless. Only the colliding ones are looked up — their parent page names
+ * the owner ("Karim - Work Planner"), which is the distinction a person
+ * actually holds in their head.
+ */
+async function disambiguate(list: Schema[]): Promise<void> {
+  const counts = new Map<string, number>();
+  for (const s of list) counts.set(s.title, (counts.get(s.title) ?? 0) + 1);
+
+  const clashing = list.filter((s) => (counts.get(s.title) ?? 0) > 1 && s.parentId);
+  if (clashing.length === 0) return;
+
+  const parents = [...new Set(clashing.map((s) => s.parentId!))];
+  const titles = new Map<string, string>();
+
+  await Promise.all(
+    parents.map(async (id) => {
+      try {
+        const response = await fetch(`${API}/pages/${id}`, {
+          headers: HEADERS,
+          signal: AbortSignal.timeout(6000),
+        });
+        if (!response.ok) return;
+        const page = (await response.json()) as { properties?: Record<string, any> };
+        const prop = Object.values(page.properties ?? {}).find((v) => v?.type === "title");
+        const title = plain(prop?.title);
+        if (title) titles.set(id, title);
+      } catch {
+        // A parent we cannot read just leaves that database with its bare name.
+      }
+    }),
+  );
+
+  for (const schema of clashing) {
+    const parent = titles.get(schema.parentId!);
+    if (!parent) continue;
+    // "Karim - Work Planner" is really just "Karim" for labelling purposes.
+    const owner = alias(parent.split(/\s*[-–—|·]\s*/)[0].trim());
+    if (owner) schema.title = `${owner} ${schema.title.toLowerCase()}`;
+  }
+}
+
+/**
+ * How the office already refers to people.
+ *
+ * Abdullah's room is signed ABD, and a task list that calls him something else
+ * is a second name for the same person.
+ */
+function alias(name: string): string {
+  return /^abdullah$/i.test(name) ? "ABD" : name;
 }
 
 async function schemaFor(id: string): Promise<Schema | null> {
