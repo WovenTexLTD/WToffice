@@ -27,18 +27,51 @@ export interface TasksBoardProps {
   onDismiss(what: { page?: string; database?: string }): void;
 }
 
-/** Today, as the same YYYY-MM-DD string Notion returns, in local time. */
-function today(): string {
+const bare = (id: string) => id.replace(/-/g, "");
+
+/** Midnight today, for comparing against Notion's date-only values. */
+function startOfToday(): number {
   const now = new Date();
-  const pad = (n: number) => String(n).padStart(2, "0");
-  return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
+  return new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
 }
+
+/**
+ * A due date as a person would say it.
+ *
+ * "2026-08-14" tells you nothing at a glance; "3 days late" does. Anything
+ * further out than a week falls back to the date, where the exact day starts
+ * mattering more than the distance.
+ */
+function dueLabel(due: string): { text: string; tone: "late" | "soon" | "calm" } {
+  const [y, m, d] = due.slice(0, 10).split("-").map(Number);
+  if (!y || !m || !d) return { text: due, tone: "calm" };
+
+  const days = Math.round((new Date(y, m - 1, d).getTime() - startOfToday()) / 86_400_000);
+  if (days < 0) return { text: days === -1 ? "1 day late" : `${-days} days late`, tone: "late" };
+  if (days === 0) return { text: "Today", tone: "late" };
+  if (days === 1) return { text: "Tomorrow", tone: "soon" };
+  if (days <= 6) return { text: `In ${days} days`, tone: "soon" };
+  return {
+    text: new Date(y, m - 1, d).toLocaleDateString([], { day: "numeric", month: "short" }),
+    tone: "calm",
+  };
+}
+
+const Caret = () => (
+  <svg viewBox="0 0 10 6" aria-hidden="true">
+    <path d="M1 1l4 4 4-4" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+  </svg>
+);
 
 /**
  * The task board.
  *
  * Its own screen rather than a tab, because a list of everything the team owes
- * is not a sidebar-width thing — it wants columns, and columns want room.
+ * wants columns, and columns want room.
+ *
+ * Every control here is styled from scratch. A native select or date input
+ * renders as the operating system's own widget — a white box with a blue focus
+ * ring — which is fine on a white page and looks like a bug on a dark one.
  */
 export function TasksBoard({
   tasks,
@@ -58,12 +91,9 @@ export function TasksBoard({
   const [title, setTitle] = useState("");
   const [priority, setPriority] = useState("");
   const [due, setDue] = useState("");
+  const inputRef = useRef<HTMLInputElement>(null);
 
-  // What this database can actually hold. Offering a priority field on a
-  // database with no such column would silently drop whatever was typed.
-  const current = sources.find((s) => s.id.replace(/-/g, "") === database.replace(/-/g, ""));
-
-  const bare = (id: string) => id.replace(/-/g, "");
+  const current = sources.find((s) => bare(s.id) === bare(database));
   const watched = watching.some((id) => bare(id) === bare(database));
 
   const flagged = new Set(unseen.map((a) => a.id));
@@ -73,13 +103,11 @@ export function TasksBoard({
     perSource.set(key, (perSource.get(key) ?? 0) + 1);
   }
   const hereCount = perSource.get(bare(database)) ?? 0;
-  const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     inputRef.current?.focus();
   }, []);
 
-  // Escape closes, which is what every overlay in the world does.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") onClose();
@@ -89,13 +117,10 @@ export function TasksBoard({
   }, [onClose]);
 
   // Columns come from the database, not from this file. One calls them To Do /
-  // In Progress / On Hold and the next Not started / In progress; three
-  // hard-coded columns filed half of them under the wrong heading.
+  // In Progress / On Hold and the next Not started / In progress.
   const columns = useMemo(() => {
     const byStatus = new Map<string, NotionTask[]>(statuses.map((name) => [name, []]));
     const loose: NotionTask[] = [];
-    // A status the database did not declare still has to go somewhere, or the
-    // task vanishes from the only view of it.
     for (const task of tasks) {
       const bucket = byStatus.get(task.status);
       if (bucket) bucket.push(task);
@@ -115,8 +140,6 @@ export function TasksBoard({
     setDue("");
   };
 
-  const now = today();
-
   return (
     <div className="tasks-scrim" onPointerDown={onClose}>
       <section
@@ -126,86 +149,132 @@ export function TasksBoard({
         aria-label="Tasks"
       >
         <header className="tasks-head">
-          <h2>Tasks</h2>
-          <select
-            className="tasks-source"
-            value={database}
-            onChange={(e) => onPick(e.target.value)}
-            aria-label="Database"
-          >
-            {sources.length === 0 && <option value={database}>Loading…</option>}
-            {sources.map((source) => {
-              const marked = perSource.get(bare(source.id)) ?? 0;
-              return (
-                <option key={source.id} value={source.id}>
-                  {marked > 0 ? `! ${source.title} (${marked})` : source.title}
-                </option>
-              );
-            })}
-          </select>
+          <div className="tasks-heading">
+            <h2>Tasks</h2>
+            <span className="tasks-count">
+              {tasks.length} open
+              {hereCount > 0 && ` · ${hereCount} new`}
+            </span>
+          </div>
+
+          <label className="tasks-picker">
+            <select value={database} onChange={(e) => onPick(e.target.value)} aria-label="Database">
+              {sources.length === 0 && <option value={database}>Loading…</option>}
+              {sources.map((source) => {
+                const marked = perSource.get(bare(source.id)) ?? 0;
+                return (
+                  <option key={source.id} value={source.id}>
+                    {marked > 0 ? `● ${source.title} (${marked})` : source.title}
+                  </option>
+                );
+              })}
+            </select>
+            <Caret />
+          </label>
+
+          <span className="tasks-grow" />
+
           {hereCount > 0 && (
             <button
               type="button"
               className="tasks-bang"
               onClick={() => onDismiss({ database })}
-              title={`${hereCount} new here — dismiss`}
+              title={`${hereCount} new here — dismiss all`}
             >
-              ! {hereCount}
+              <span className="bang-dot" />
+              {hereCount} new
             </button>
           )}
-          <span className="tasks-count mono">{tasks.length} open</span>
-          <span className="tasks-grow" />
+
           <button
             type="button"
-            className={`tasks-ghost${watched ? " on" : ""}`}
+            className={`tasks-icon${watched ? " on" : ""}`}
             onClick={() => onWatch(database, !watched)}
             aria-pressed={watched}
-            title={
-              watched
-                ? "You are told when a task is added here"
-                : "Tell me when a task is added here"
-            }
+            title={watched ? "You are notified about this list" : "Notify me about this list"}
           >
-            {watched ? "Notifying" : "Notify me"}
+            <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true">
+              <path
+                d="M18 8a6 6 0 10-12 0c0 6-3 7-3 7h18s-3-1-3-7M13.7 20a2 2 0 01-3.4 0"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.8"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </svg>
           </button>
-          <button type="button" className="tasks-ghost" onClick={onRefresh}>
-            Refresh
+
+          <button type="button" className="tasks-icon" onClick={onRefresh} title="Refresh">
+            <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true">
+              <path
+                d="M20 11a8 8 0 10-2.3 5.7M20 5v6h-6"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.8"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </svg>
           </button>
-          <button type="button" className="tasks-close" onClick={onClose} aria-label="Close">
-            ×
+
+          <button
+            type="button"
+            className="tasks-icon"
+            onClick={onClose}
+            title="Close"
+            aria-label="Close"
+          >
+            <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true">
+              <path
+                d="M6 6l12 12M18 6L6 18"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.8"
+                strokeLinecap="round"
+              />
+            </svg>
           </button>
         </header>
 
         <form className="tasks-new" onSubmit={submit}>
           <input
             ref={inputRef}
+            className="tasks-input"
             value={title}
             onChange={(e) => setTitle(e.target.value)}
             placeholder="What needs doing?"
             maxLength={200}
           />
+
           {current?.hasPriority !== false && (
-            <select
-              value={priority}
-              onChange={(e) => setPriority(e.target.value)}
-              aria-label="Priority"
-            >
-              <option value="">No priority</option>
-              <option value="High">High</option>
-              <option value="Medium">Medium</option>
-              <option value="Low">Low</option>
-            </select>
+            <label className="tasks-picker small">
+              <select
+                value={priority}
+                onChange={(e) => setPriority(e.target.value)}
+                aria-label="Priority"
+              >
+                <option value="">Priority</option>
+                <option value="High">High</option>
+                <option value="Medium">Medium</option>
+                <option value="Low">Low</option>
+              </select>
+              <Caret />
+            </label>
           )}
+
           {current?.hasDue !== false && (
             <input
               type="date"
+              className="tasks-date"
               value={due}
               onChange={(e) => setDue(e.target.value)}
               aria-label="Due date"
             />
           )}
-          <button type="submit" disabled={!title.trim()}>
-            Add task
+
+          <button type="submit" className="tasks-add" disabled={!title.trim()}>
+            Add
           </button>
         </form>
 
@@ -214,65 +283,75 @@ export function TasksBoard({
         ) : state === "error" ? (
           <p className="tasks-empty">
             No answer from the server. If it was started before this feature, it needs a restart.
-            <br />
-            <button type="button" className="tasks-ghost" onClick={onRefresh}>
+            <button type="button" className="tasks-retry" onClick={onRefresh}>
               Try again
             </button>
           </p>
         ) : state === "loading" && tasks.length === 0 ? (
           <p className="tasks-empty">Loading…</p>
         ) : (
-          <div className="tasks-columns" style={{ gridTemplateColumns: `repeat(${Math.max(1, columns.length)}, minmax(0, 1fr))` }}>
-            {columns.map((column) => (
-              <div key={column.name} className="tasks-column">
+          <div
+            className="tasks-columns"
+            style={{ gridTemplateColumns: `repeat(${Math.max(1, columns.length)}, minmax(0, 1fr))` }}
+          >
+            {columns.map((column, i) => (
+              <section key={column.name} className="tasks-column" data-column={i % 4}>
                 <h3>
+                  <span className="col-dot" />
                   {column.name}
-                  <span className="mono">{column.items.length}</span>
+                  <span className="col-count">{column.items.length}</span>
                 </h3>
-                {column.items.map((task) => (
-                  <a
-                    key={task.id}
-                    className={`tasks-card${flagged.has(task.id) ? " is-new" : ""}`}
-                    href={task.url}
-                    target="_blank"
-                    rel="noreferrer"
-                  >
-                    <span className="tasks-card-title">
-                      {flagged.has(task.id) && (
-                        <button
-                          type="button"
-                          className="tasks-bang inline"
-                          title="New since you last looked — dismiss"
-                          onClick={(e) => {
-                            // The card is a link; dismissing must not follow it.
-                            e.preventDefault();
-                            e.stopPropagation();
-                            onDismiss({ page: task.id });
-                          }}
-                        >
-                          !
-                        </button>
-                      )}
-                      {task.title}
-                    </span>
-                    {(task.priority || task.due) && (
-                      <span className="tasks-card-meta mono">
-                        {task.priority && (
-                          <span className={`tasks-pri p-${task.priority.toLowerCase()}`}>
-                            {task.priority}
+
+                <div className="tasks-stack">
+                  {column.items.map((task) => {
+                    const isNew = flagged.has(task.id);
+                    const label = task.due ? dueLabel(task.due) : null;
+                    return (
+                      <a
+                        key={task.id}
+                        className={`tasks-card${isNew ? " is-new" : ""}`}
+                        href={task.url}
+                        target="_blank"
+                        rel="noreferrer"
+                        data-priority={task.priority?.toLowerCase() ?? "none"}
+                      >
+                        <span className="tasks-card-title">{task.title}</span>
+
+                        {(task.priority || label || isNew) && (
+                          <span className="tasks-card-meta">
+                            {isNew && (
+                              <button
+                                type="button"
+                                className="tasks-bang inline"
+                                title="New since you last looked — dismiss"
+                                onClick={(e) => {
+                                  // The card is a link; dismissing must not follow it.
+                                  e.preventDefault();
+                                  e.stopPropagation();
+                                  onDismiss({ page: task.id });
+                                }}
+                              >
+                                <span className="bang-dot" />
+                                New
+                              </button>
+                            )}
+                            {task.priority && (
+                              <span className={`tasks-pill p-${task.priority.toLowerCase()}`}>
+                                {task.priority}
+                              </span>
+                            )}
+                            {label && (
+                              <span className={`tasks-pill d-${label.tone}`}>{label.text}</span>
+                            )}
                           </span>
                         )}
-                        {task.due && (
-                          <span className={task.due < now ? "tasks-late" : undefined}>
-                            {task.due}
-                          </span>
-                        )}
-                      </span>
-                    )}
-                  </a>
-                ))}
-                {column.items.length === 0 && <p className="tasks-none">—</p>}
-              </div>
+                      </a>
+                    );
+                  })}
+
+                  {column.items.length === 0 && <p className="tasks-none">Nothing here</p>}
+                </div>
+              </section>
             ))}
           </div>
         )}

@@ -561,15 +561,45 @@ body {
 /* ── People ────────────────────────────────────────────────────── */
 
 /* Knocks sit clear of the side panel when it is open. */
-/* ── Task alerts ────────────────────────────────────────────────── */
+/* ── Tasks: button, alerts, board ───────────────────────────────── */
+
+.tasks-open {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  z-index: 7;
+  width: 40px;
+  height: 40px;
+  display: grid;
+  place-items: center;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 12px;
+  background: linear-gradient(180deg, rgba(46, 48, 41, 0.92), rgba(24, 25, 21, 0.92));
+  color: #ddd8cd;
+  cursor: pointer;
+  backdrop-filter: blur(8px);
+  box-shadow: 0 6px 18px -8px rgba(0, 0, 0, 0.8);
+  transition: transform 120ms ease, border-color 120ms ease, color 120ms ease;
+}
+
+.tasks-open:hover {
+  transform: translateY(-1px);
+  border-color: rgba(255, 255, 255, 0.3);
+  color: #fff;
+}
+
+.tasks-open.on {
+  border-color: rgba(224, 183, 106, 0.5);
+  color: #e8c179;
+}
 
 .tasks-badge {
   position: absolute;
-  top: -5px;
-  right: -5px;
-  min-width: 17px;
-  height: 17px;
-  padding: 0 4px;
+  top: -6px;
+  right: -6px;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
   display: grid;
   place-items: center;
   border-radius: 9px;
@@ -578,71 +608,411 @@ body {
   font-size: 10px;
   font-weight: 700;
   line-height: 1;
+  box-shadow: 0 0 0 2px rgba(18, 19, 16, 0.9);
 }
+
+/* ── Toasts ─────────────────────────────────────────────────────── */
 
 .alerts {
   position: absolute;
-  top: 62px;
+  top: 66px;
   right: 14px;
   z-index: 8;
   display: flex;
   flex-direction: column;
   gap: 8px;
-  width: 260px;
+  width: 268px;
 }
 
 .alert {
   display: block;
-  padding: 9px 11px;
-  border: 1px solid rgba(255, 255, 255, 0.14);
+  padding: 10px 12px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
   border-left: 3px solid #e0b76a;
-  border-radius: 9px;
-  background: rgba(21, 22, 18, 0.94);
+  border-radius: 10px;
+  background: linear-gradient(180deg, rgba(34, 35, 29, 0.96), rgba(22, 23, 19, 0.96));
   color: #f2efe9;
   text-decoration: none;
-  box-shadow: 0 10px 26px -10px rgba(0, 0, 0, 0.75);
-  backdrop-filter: blur(6px);
+  box-shadow: 0 12px 30px -12px rgba(0, 0, 0, 0.8);
+  backdrop-filter: blur(8px);
+  animation: alert-in 220ms cubic-bezier(0.2, 0.8, 0.3, 1) both;
+}
+
+@keyframes alert-in {
+  from { opacity: 0; transform: translateX(14px); }
 }
 
 .alert:hover {
-  border-color: rgba(255, 255, 255, 0.3);
+  border-color: rgba(255, 255, 255, 0.28);
 }
 
 .alert-source {
   display: block;
   font-size: 10px;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
-  color: rgba(242, 239, 233, 0.45);
+  color: #c9a465;
 }
 
 .alert-title {
   display: block;
   margin-top: 3px;
   font-size: 13px;
-  line-height: 1.35;
+  line-height: 1.4;
 }
 
-.tasks-ghost.on {
-  border-color: rgba(111, 191, 149, 0.6);
-  background: rgba(111, 191, 149, 0.16);
-  color: #8fd3ae;
+/* ── Board ──────────────────────────────────────────────────────── */
+
+.tasks-scrim {
+  position: absolute;
+  inset: 0;
+  z-index: 9;
+  display: grid;
+  place-items: center;
+  padding: 32px;
+  background: rgba(8, 9, 7, 0.6);
+  backdrop-filter: blur(4px);
+  animation: scrim-in 160ms ease both;
 }
+
+@keyframes scrim-in {
+  from { opacity: 0; }
+}
+
+.tasks-board {
+  width: min(1120px, 100%);
+  max-height: 100%;
+  display: flex;
+  flex-direction: column;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 18px;
+  background:
+    radial-gradient(120% 100% at 50% 0%, rgba(224, 183, 106, 0.06), transparent 60%),
+    linear-gradient(180deg, #23241e, #16170f);
+  box-shadow:
+    0 40px 90px -30px rgba(0, 0, 0, 0.85),
+    inset 0 1px 0 rgba(255, 255, 255, 0.07);
+  overflow: hidden;
+  animation: board-in 200ms cubic-bezier(0.2, 0.8, 0.3, 1) both;
+}
+
+@keyframes board-in {
+  from { opacity: 0; transform: translateY(12px) scale(0.985); }
+}
+
+.tasks-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px 18px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+}
+
+.tasks-heading h2 {
+  margin: 0;
+  font-size: 17px;
+  font-weight: 650;
+  letter-spacing: -0.01em;
+  color: #f5f2ec;
+}
+
+.tasks-count {
+  display: block;
+  margin-top: 2px;
+  font-size: 11px;
+  color: rgba(242, 239, 233, 0.42);
+}
+
+.tasks-grow {
+  flex: 1;
+}
+
+/* Selects, styled from scratch — the native widget is a white box. */
+.tasks-picker {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+}
+
+.tasks-picker select {
+  appearance: none;
+  -webkit-appearance: none;
+  padding: 7px 30px 7px 12px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 9px;
+  background: rgba(255, 255, 255, 0.05);
+  color: #ece7dd;
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.tasks-picker.small select {
+  font-size: 12px;
+  padding: 8px 28px 8px 11px;
+}
+
+.tasks-picker select:hover {
+  border-color: rgba(255, 255, 255, 0.28);
+}
+
+.tasks-picker select:focus-visible {
+  outline: none;
+  border-color: rgba(224, 183, 106, 0.7);
+  box-shadow: 0 0 0 3px rgba(224, 183, 106, 0.18);
+}
+
+/* The menu itself is drawn by the OS, so its colours must be set directly. */
+.tasks-picker option {
+  background: #22231d;
+  color: #ece7dd;
+}
+
+.tasks-picker svg {
+  position: absolute;
+  right: 11px;
+  width: 9px;
+  pointer-events: none;
+  color: rgba(236, 231, 221, 0.5);
+}
+
+.tasks-icon {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 9px;
+  background: rgba(255, 255, 255, 0.03);
+  color: rgba(242, 239, 233, 0.7);
+  cursor: pointer;
+  transition: color 120ms ease, border-color 120ms ease, background 120ms ease;
+}
+
+.tasks-icon:hover {
+  background: rgba(255, 255, 255, 0.09);
+  border-color: rgba(255, 255, 255, 0.26);
+  color: #fff;
+}
+
+.tasks-icon.on {
+  border-color: rgba(224, 183, 106, 0.55);
+  background: rgba(224, 183, 106, 0.14);
+  color: #e8c179;
+}
+
+/* ── Composer ───────────────────────────────────────────────────── */
+
+.tasks-new {
+  display: flex;
+  gap: 9px;
+  padding: 14px 18px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+  background: rgba(255, 255, 255, 0.015);
+}
+
+.tasks-input,
+.tasks-date {
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 9px;
+  background: rgba(255, 255, 255, 0.05);
+  color: #f2efe9;
+  font: inherit;
+  font-size: 13px;
+  padding: 9px 12px;
+}
+
+.tasks-input {
+  flex: 1;
+  min-width: 0;
+}
+
+.tasks-input::placeholder {
+  color: rgba(242, 239, 233, 0.32);
+}
+
+.tasks-input:focus-visible,
+.tasks-date:focus-visible {
+  outline: none;
+  border-color: rgba(224, 183, 106, 0.7);
+  box-shadow: 0 0 0 3px rgba(224, 183, 106, 0.18);
+}
+
+/* Safari and Chrome render the date parts and picker icon dark on dark. */
+.tasks-date {
+  color-scheme: dark;
+  flex: 0 0 auto;
+}
+
+.tasks-add {
+  padding: 9px 18px;
+  border: 1px solid rgba(224, 183, 106, 0.5);
+  border-radius: 9px;
+  background: linear-gradient(180deg, #e6c079, #cfa457);
+  color: #1a1b17;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 650;
+  cursor: pointer;
+  transition: filter 120ms ease;
+}
+
+.tasks-add:hover:not(:disabled) {
+  filter: brightness(1.08);
+}
+
+.tasks-add:disabled {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(255, 255, 255, 0.1);
+  color: rgba(242, 239, 233, 0.3);
+  cursor: default;
+}
+
+/* ── Columns ────────────────────────────────────────────────────── */
+
+.tasks-columns {
+  display: grid;
+  gap: 14px;
+  padding: 16px 18px 20px;
+  overflow-y: auto;
+}
+
+.tasks-column {
+  min-width: 0;
+  padding: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.055);
+  border-radius: 13px;
+  background: rgba(255, 255, 255, 0.022);
+}
+
+.tasks-column h3 {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin: 2px 2px 11px;
+  font-size: 11px;
+  font-weight: 650;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: rgba(242, 239, 233, 0.6);
+}
+
+.col-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: rgba(242, 239, 233, 0.35);
+}
+
+/* A colour per column, so the eye can tell them apart at a glance. */
+.tasks-column[data-column="0"] .col-dot { background: #8fa8c4; }
+.tasks-column[data-column="1"] .col-dot { background: #e0b76a; }
+.tasks-column[data-column="2"] .col-dot { background: #6fbf95; }
+.tasks-column[data-column="3"] .col-dot { background: #b58fc4; }
+
+.col-count {
+  margin-left: auto;
+  padding: 1px 7px;
+  border-radius: 9px;
+  background: rgba(255, 255, 255, 0.07);
+  font-size: 10px;
+  color: rgba(242, 239, 233, 0.55);
+}
+
+.tasks-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* ── Cards ──────────────────────────────────────────────────────── */
+
+.tasks-card {
+  position: relative;
+  display: block;
+  padding: 11px 12px 11px 15px;
+  border: 1px solid rgba(255, 255, 255, 0.075);
+  border-radius: 10px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.055), rgba(255, 255, 255, 0.028));
+  color: #f2efe9;
+  text-decoration: none;
+  transition: transform 110ms ease, border-color 110ms ease, background 110ms ease;
+}
+
+/* Priority as a rail down the edge: legible without reading a word. */
+.tasks-card::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 9px;
+  bottom: 9px;
+  width: 3px;
+  border-radius: 0 3px 3px 0;
+  background: transparent;
+}
+
+.tasks-card[data-priority="high"]::before { background: #d2705f; }
+.tasks-card[data-priority="medium"]::before { background: #e0b76a; }
+.tasks-card[data-priority="low"]::before { background: #6fbf95; }
+
+.tasks-card:hover {
+  transform: translateY(-1px);
+  border-color: rgba(255, 255, 255, 0.2);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.09), rgba(255, 255, 255, 0.045));
+}
+
+.tasks-card.is-new {
+  border-color: rgba(224, 183, 106, 0.42);
+  background: linear-gradient(180deg, rgba(224, 183, 106, 0.14), rgba(224, 183, 106, 0.05));
+}
+
+.tasks-card-title {
+  display: block;
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+.tasks-card-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  margin-top: 8px;
+}
+
+.tasks-pill {
+  padding: 2px 7px;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.07);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: rgba(242, 239, 233, 0.6);
+}
+
+.tasks-pill.p-high { background: rgba(210, 112, 95, 0.2); color: #e79486; }
+.tasks-pill.p-medium { background: rgba(224, 183, 106, 0.16); color: #e0b76a; }
+.tasks-pill.p-low { background: rgba(111, 191, 149, 0.16); color: #8fd3ae; }
+
+.tasks-pill.d-late { background: rgba(210, 112, 95, 0.2); color: #e79486; }
+.tasks-pill.d-soon { background: rgba(224, 183, 106, 0.16); color: #e0b76a; }
+
+/* ── The new-task mark ──────────────────────────────────────────── */
 
 .tasks-bang {
-  display: inline-grid;
-  place-items: center;
-  min-width: 20px;
-  height: 20px;
-  padding: 0 6px;
-  border: 1px solid rgba(224, 183, 106, 0.55);
-  border-radius: 10px;
-  background: rgba(224, 183, 106, 0.2);
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 9px;
+  border: 1px solid rgba(224, 183, 106, 0.5);
+  border-radius: 8px;
+  background: rgba(224, 183, 106, 0.16);
   color: #e8c179;
+  font: inherit;
   font-size: 11px;
-  font-weight: 700;
+  font-weight: 650;
   line-height: 1;
   cursor: pointer;
+  transition: background 120ms ease, color 120ms ease;
 }
 
 .tasks-bang:hover {
@@ -651,197 +1021,79 @@ body {
 }
 
 .tasks-bang.inline {
-  min-width: 16px;
-  height: 16px;
-  padding: 0 4px;
-  margin-right: 6px;
+  padding: 2px 7px;
   font-size: 10px;
-  vertical-align: 1px;
 }
 
-.tasks-card.is-new {
-  border-color: rgba(224, 183, 106, 0.45);
-  background: rgba(224, 183, 106, 0.08);
+.bang-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+  box-shadow: 0 0 0 3px rgba(224, 183, 106, 0.18);
 }
 
-/* ── Tasks board ────────────────────────────────────────────────── */
+/* ── Empty and loading ──────────────────────────────────────────── */
 
-.tasks-open {
-  position: absolute;
-  top: 14px;
-  right: 14px;
-  z-index: 7;
-  width: 38px;
-  height: 38px;
-  display: grid;
-  place-items: center;
-  border: 1px solid rgba(255, 255, 255, 0.16);
-  border-radius: 10px;
-  background: rgba(21, 22, 18, 0.82);
-  color: #e6e1d8;
-  cursor: pointer;
-  backdrop-filter: blur(6px);
+.tasks-none {
+  margin: 2px;
+  padding: 10px 2px;
+  color: rgba(242, 239, 233, 0.22);
+  font-size: 12px;
 }
 
-.tasks-open:hover,
-.tasks-open.on {
-  background: rgba(38, 40, 34, 0.94);
-  border-color: rgba(255, 255, 255, 0.3);
-  color: #fff;
-}
-
-.tasks-scrim {
-  position: absolute;
-  inset: 0;
-  z-index: 9;
-  display: grid;
-  place-items: center;
-  padding: 28px;
-  background: rgba(8, 9, 7, 0.55);
-  backdrop-filter: blur(3px);
-}
-
-.tasks-board {
-  width: min(980px, 100%);
-  max-height: 100%;
+.tasks-empty {
   display: flex;
   flex-direction: column;
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  border-radius: 14px;
-  background: #1a1b17;
-  box-shadow: 0 26px 70px -20px rgba(0, 0, 0, 0.8);
-  overflow: hidden;
-}
-
-.tasks-head {
-  display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 14px 16px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  gap: 12px;
+  padding: 48px 18px;
+  color: rgba(242, 239, 233, 0.42);
+  font-size: 13px;
+  text-align: center;
 }
 
-.tasks-head h2 {
-  margin: 0;
-  font-size: 15px;
-  font-weight: 600;
-  color: #f2efe9;
-}
-
-.tasks-count {
-  font-size: 11px;
-  color: rgba(242, 239, 233, 0.45);
-}
-
-.tasks-grow {
-  flex: 1;
-}
-
-.tasks-ghost,
-.tasks-close {
-  border: 1px solid rgba(255, 255, 255, 0.14);
-  border-radius: 7px;
-  background: transparent;
-  color: rgba(242, 239, 233, 0.75);
-  padding: 5px 10px;
+.tasks-retry {
+  padding: 7px 14px;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 9px;
+  background: rgba(255, 255, 255, 0.05);
+  color: #ece7dd;
+  font: inherit;
   font-size: 12px;
   cursor: pointer;
 }
 
-.tasks-close {
-  padding: 3px 9px;
-  font-size: 17px;
-  line-height: 1.1;
+.tasks-retry:hover {
+  background: rgba(255, 255, 255, 0.1);
 }
 
-.tasks-ghost:hover,
-.tasks-close:hover {
-  background: rgba(255, 255, 255, 0.08);
-  color: #fff;
+/* Scrollbars, so a long list does not paint a light strip down a dark panel. */
+.tasks-columns::-webkit-scrollbar {
+  width: 10px;
 }
 
-.tasks-new {
-  display: flex;
-  gap: 8px;
-  padding: 12px 16px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-}
-
-.tasks-new input[type="text"],
-.tasks-new input:not([type]) {
-  flex: 1;
-  min-width: 0;
-}
-
-.tasks-columns {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 12px;
-  padding: 14px 16px 18px;
-  overflow-y: auto;
-}
-
-.tasks-column h3 {
-  display: flex;
-  justify-content: space-between;
-  margin: 0 0 8px;
-  font-size: 11px;
-  font-weight: 600;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: rgba(242, 239, 233, 0.5);
-}
-
-.tasks-card {
-  display: block;
-  margin-bottom: 7px;
-  padding: 9px 10px;
-  border: 1px solid rgba(255, 255, 255, 0.07);
+.tasks-columns::-webkit-scrollbar-thumb {
+  border: 3px solid transparent;
   border-radius: 8px;
-  background: rgba(255, 255, 255, 0.035);
-  color: #f2efe9;
-  text-decoration: none;
-  font-size: 13px;
-  line-height: 1.35;
+  background-clip: padding-box;
+  background-color: rgba(255, 255, 255, 0.14);
 }
 
-.tasks-card:hover {
-  background: rgba(255, 255, 255, 0.075);
-  border-color: rgba(255, 255, 255, 0.16);
+.tasks-columns::-webkit-scrollbar-thumb:hover {
+  background-color: rgba(255, 255, 255, 0.24);
 }
 
-.tasks-card-meta {
-  display: flex;
-  gap: 6px;
-  margin-top: 6px;
-  font-size: 10px;
-  color: rgba(242, 239, 233, 0.45);
-}
-
-.tasks-pri {
-  padding: 1px 5px;
-  border-radius: 3px;
-  background: rgba(255, 255, 255, 0.08);
-}
-
-.tasks-pri.p-high {
-  background: rgba(190, 82, 70, 0.28);
-  color: #e79486;
-}
-
-.tasks-late {
-  color: #e08a7e;
-}
-
-.tasks-none,
-.tasks-empty {
-  color: rgba(242, 239, 233, 0.3);
-  font-size: 12px;
-}
-
-.tasks-empty {
-  padding: 28px 16px;
-  text-align: center;
+@media (prefers-reduced-motion: reduce) {
+  .tasks-board,
+  .tasks-scrim,
+  .alert {
+    animation: none;
+  }
+  .tasks-card:hover,
+  .tasks-open:hover {
+    transform: none;
+  }
 }
 
 /* Appears only when you are standing at the front doors. */
