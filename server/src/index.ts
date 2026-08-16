@@ -38,12 +38,15 @@ const store = new Store();
 const STATUSES: PresenceStatus[] = ["available", "focusing", "away"];
 
 /**
- * Shared passphrase. Unset means anyone who can reach the port can walk in,
+ * Shared password. Unset means anyone who can reach the port can walk in,
  * which is right for localhost and wrong for anything reachable.
  */
 const OFFICE_KEY = process.env.OFFICE_KEY ?? "";
 
-/** Compared without short-circuiting, so the answer takes the same time either way. */
+/** How long a remembered browser stays remembered. */
+const DEVICE_TTL = 30 * 24 * 60 * 60_000;
+
+/** Compared without short-circuiting, so a wrong answer takes as long as a right one. */
 function keyMatches(given: unknown): boolean {
   if (!OFFICE_KEY) return true;
   const value = typeof given === "string" ? given : "";
@@ -178,13 +181,26 @@ wss.on("connection", (socket) => {
     if (msg.t === "join") {
       if (conn.player) return; // Already joined; ignore duplicates.
 
-      if (!keyMatches(msg.key)) {
-        // A pause, so the port cannot be used to try passphrases quickly.
+      // A remembered browser, or the password. Either opens the door; only the
+      // password can mint a new grant, so a stolen token cannot extend itself.
+      const byToken = typeof msg.token === "string" && store.deviceValid(msg.token);
+      const byKey = keyMatches(msg.key);
+
+      if (!byToken && !byKey) {
+        // A pause, so the port cannot be used to try passwords quickly.
         setTimeout(() => {
-          send(socket, { t: "denied", reason: "That passphrase is not right." });
+          send(socket, {
+            t: "denied",
+            reason: OFFICE_KEY ? "That password is not right." : "Not allowed in.",
+          });
           socket.close();
         }, 600);
         return;
+      }
+
+      if (byKey && msg.remember === true && OFFICE_KEY) {
+        const device = store.createDevice(DEVICE_TTL);
+        send(socket, { t: "device", ...device });
       }
 
       const name = sanitiseName(msg.name);
@@ -551,7 +567,7 @@ httpServer.listen(PORT, () => {
   console.log(`floor "${floor.name}" — ${floor.walls.length} walls, ${floor.zones.length} zones`);
   console.log(
     OFFICE_KEY
-      ? "access: passphrase required"
+      ? "access: password required, remembered devices last 30 days"
       : "access: open — set OFFICE_KEY before exposing this beyond localhost",
   );
   console.log(

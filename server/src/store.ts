@@ -13,6 +13,7 @@
  */
 
 import { DatabaseSync } from "node:sqlite";
+import { randomBytes } from "node:crypto";
 import type { TaskAlert } from "@wtoffice/shared";
 import { mkdirSync } from "node:fs";
 import { dirname } from "node:path";
@@ -36,6 +37,15 @@ export class Store {
 
     // Keyed by identity, not by connection: the whole point is that the
     // picture is still there next time you sign in under the same name.
+    this.db.exec(`
+      CREATE TABLE IF NOT EXISTS devices (
+        token      TEXT    PRIMARY KEY,
+        created_at INTEGER NOT NULL,
+        expires_at INTEGER NOT NULL
+      )
+    `);
+    // Expired grants are of no use to anyone and should not sit around.
+    this.db.prepare("DELETE FROM devices WHERE expires_at <= ?").run(Date.now());
     this.db.exec(`
       CREATE TABLE IF NOT EXISTS seen_pages (
         page_id     TEXT    PRIMARY KEY,
@@ -82,6 +92,42 @@ export class Store {
       .prepare("SELECT avatar FROM profiles WHERE identity = ?")
       .get(identity) as { avatar?: string } | undefined;
     return row?.avatar ?? null;
+  }
+
+  /**
+   * Remember a browser for a while.
+   *
+   * A random token, not the password: the browser then never holds the password
+   * at all, the grant expires on its own, and a device can be forgotten without
+   * changing anything for anyone else.
+   */
+  createDevice(ttlMs: number): { token: string; expiresAt: number } {
+    const token = randomBytes(32).toString("base64url");
+    const expiresAt = Date.now() + ttlMs;
+    this.db
+      .prepare("INSERT INTO devices (token, created_at, expires_at) VALUES (?, ?, ?)")
+      .run(token, Date.now(), expiresAt);
+    return { token, expiresAt };
+  }
+
+  /** Whether a token is known and still current. Expired ones are dropped. */
+  deviceValid(token: string): boolean {
+    if (!token) return false;
+    const row = this.db
+      .prepare("SELECT expires_at FROM devices WHERE token = ?")
+      .get(token) as { expires_at?: number } | undefined;
+    if (!row) return false;
+
+    if (Number(row.expires_at) <= Date.now()) {
+      this.db.prepare("DELETE FROM devices WHERE token = ?").run(token);
+      return false;
+    }
+    return true;
+  }
+
+  /** Forget every remembered device — the lever for when a laptop goes missing. */
+  forgetDevices(): number {
+    return Number(this.db.prepare("DELETE FROM devices").run().changes);
   }
 
   /** Which databases an identity has asked to be told about. */

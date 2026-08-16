@@ -561,6 +561,22 @@ body {
 /* ── People ────────────────────────────────────────────────────── */
 
 /* Knocks sit clear of the side panel when it is open. */
+.entry-remember {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  font-size: 13px;
+  color: rgba(242, 239, 233, 0.7);
+  cursor: pointer;
+}
+
+.entry-remember input {
+  width: 15px;
+  height: 15px;
+  accent-color: #e0b76a;
+  cursor: pointer;
+}
+
 .entry-denied {
   margin: 0;
   padding: 9px 12px;

@@ -368,7 +368,16 @@ export type ClientMessage =
    * checked before anything else: an unguessable URL is not a lock, and this
    * has to survive the link being pasted somewhere it should not be.
    */
-  | { t: "join"; name: string; key?: string }
+  | {
+      t: "join";
+      name: string;
+      /** The shared password, when the browser has no valid device token. */
+      key?: string;
+      /** A device token issued earlier, used instead of the password. */
+      token?: string;
+      /** Issue a device token, so this browser is not asked again. */
+      remember?: boolean;
+    }
   | { t: "move"; x: number; y: number }
   | { t: "presence"; speaking: boolean; muted: boolean }
   | { t: "media"; cameraOn: boolean; screenOn: boolean }
@@ -398,8 +407,14 @@ export type ClientMessage =
   | { t: "seen"; page?: string; database?: string };
 
 export type ServerMessage =
-  /** The passphrase was wrong or missing. The socket closes straight after. */
+  /** The password was wrong or missing. The socket closes straight after. */
   | { t: "denied"; reason: string }
+  /**
+   * A device token, when one was asked for. The browser stores this instead of
+   * the password — so the password is never kept anywhere, and access expires
+   * on its own.
+   */
+  | { t: "device"; token: string; expiresAt: number }
   | { t: "welcome"; selfId: string; floor: Floor; players: PlayerState[]; shutDoors: string[] }
   /**
    * The task list, or why there is not one.

@@ -29,6 +29,8 @@ export interface OfficeClientHandlers {
   onKnock(doorId: string, name: string): void;
   /** Refused at the door. The socket is closed; do not reconnect. */
   onDenied(reason: string): void;
+  /** This browser is remembered until `expiresAt`. */
+  onDevice(token: string, expiresAt: number): void;
   onWatching(databases: string[]): void;
   onAlert(alert: TaskAlert): void;
   /** The backlog, delivered on join. */
@@ -60,7 +62,7 @@ export class OfficeClient {
     private readonly url: string,
     private readonly name: string,
     private readonly handlers: OfficeClientHandlers,
-    private readonly key = "",
+    private readonly auth: { key?: string; token?: string; remember?: boolean } = {},
   ) {}
 
   connect(): void {
@@ -80,7 +82,13 @@ export class OfficeClient {
     socket.onopen = () => {
       this.attempt = 0;
       this.handlers.onStatus("online");
-      this.send({ t: "join", name: this.name, key: this.key || undefined });
+      this.send({
+        t: "join",
+        name: this.name,
+        key: this.auth.key || undefined,
+        token: this.auth.token || undefined,
+        remember: this.auth.remember || undefined,
+      });
     };
 
     socket.onmessage = (event) => {
@@ -106,6 +114,9 @@ export class OfficeClient {
           // hammer the door.
           this.disposed = true;
           this.handlers.onDenied(msg.reason);
+          break;
+        case "device":
+          this.handlers.onDevice(msg.token, msg.expiresAt);
           break;
         case "watching":
           this.handlers.onWatching(msg.databases);

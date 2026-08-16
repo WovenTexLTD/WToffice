@@ -20,19 +20,47 @@ const IDLE_MS = 5 * 60_000;
 
 const WS_URL = process.env.NEXT_PUBLIC_WS_URL ?? "ws://localhost:3001";
 
-/** Where the passphrase is kept, so it is typed once per browser. */
-const KEY_STORE = "wtoffice.key";
+/**
+ * Where a remembered browser keeps its grant.
+ *
+ * The token, never the password — so the password itself is not sitting in a
+ * browser store, and the grant lapses on its own.
+ */
+const DEVICE_STORE = "wtoffice.device";
+
+interface Device {
+  token: string;
+  expiresAt: number;
+}
+
+function loadDevice(): Device | null {
+  try {
+    const raw = window.localStorage.getItem(DEVICE_STORE);
+    if (!raw) return null;
+    const device = JSON.parse(raw) as Device;
+    if (!device?.token || device.expiresAt <= Date.now()) {
+      window.localStorage.removeItem(DEVICE_STORE);
+      return null;
+    }
+    return device;
+  } catch {
+    return null;
+  }
+}
 
 export function Office() {
   const [name, setName] = useState("");
   const [key, setKey] = useState("");
+  const [remember, setRemember] = useState(true);
+  const [device, setDevice] = useState<Device | null>(null);
+  const [ready, setReady] = useState(false);
   const [joined, setJoined] = useState(false);
   const [denied, setDenied] = useState<string | null>(null);
 
-  // Remembered, not for secrecy — this is a shared passphrase, and typing it on
-  // every reload is how a lock ends up propped open.
+  // localStorage is not available while rendering on the server.
   useEffect(() => {
-    setKey(window.localStorage.getItem(KEY_STORE) ?? "");
+    setDevice(loadDevice());
+    setReady(true);
   }, []);
 
   if (!joined) {
@@ -42,22 +70,34 @@ export function Office() {
         setName={setName}
         entryKey={key}
         setEntryKey={setKey}
+        remember={remember}
+        setRemember={setRemember}
+        /* A live grant means the password field is not shown at all. */
+        remembered={ready && device !== null}
         denied={denied}
         onJoin={() => {
-          window.localStorage.setItem(KEY_STORE, key);
           setDenied(null);
           setJoined(true);
         }}
       />
     );
   }
+
   return (
     <Stage
       name={name.trim()}
-      entryKey={key}
+      auth={device ? { token: device.token } : { key, remember }}
+      onDevice={(token, expiresAt) => {
+        const next = { token, expiresAt };
+        window.localStorage.setItem(DEVICE_STORE, JSON.stringify(next));
+        setDevice(next);
+        // The password has done its job and is not kept.
+        setKey("");
+      }}
       onLeave={() => setJoined(false)}
       onDenied={(reason) => {
-        window.localStorage.removeItem(KEY_STORE);
+        window.localStorage.removeItem(DEVICE_STORE);
+        setDevice(null);
         setDenied(reason);
         setJoined(false);
       }}
@@ -72,6 +112,9 @@ function Entry({
   setName,
   entryKey,
   setEntryKey,
+  remember,
+  setRemember,
+  remembered,
   denied,
   onJoin,
 }: {
@@ -79,6 +122,9 @@ function Entry({
   setName: (v: string) => void;
   entryKey: string;
   setEntryKey: (v: string) => void;
+  remember: boolean;
+  setRemember: (v: boolean) => void;
+  remembered: boolean;
   denied: string | null;
   onJoin: () => void;
 }) {
@@ -114,17 +160,31 @@ function Entry({
             autoComplete="off"
           />
         </div>
-        <div>
-          <label htmlFor="office-key">Passphrase</label>
-          <input
-            id="office-key"
-            type="password"
-            value={entryKey}
-            onChange={(e) => setEntryKey(e.target.value)}
-            placeholder="Leave blank if the office has none"
-            autoComplete="current-password"
-          />
-        </div>
+        {remembered ? (
+          <p className="entry-note">This device is remembered — no password needed.</p>
+        ) : (
+          <>
+            <div>
+              <label htmlFor="office-key">Password</label>
+              <input
+                id="office-key"
+                type="password"
+                value={entryKey}
+                onChange={(e) => setEntryKey(e.target.value)}
+                placeholder="Leave blank if the office has none"
+                autoComplete="current-password"
+              />
+            </div>
+            <label className="entry-remember">
+              <input
+                type="checkbox"
+                checked={remember}
+                onChange={(e) => setRemember(e.target.checked)}
+              />
+              Remember this device for 30 days
+            </label>
+          </>
+        )}
         {denied && <p className="entry-denied">{denied}</p>}
         <button type="submit" disabled={!ready}>
           Walk in
@@ -138,12 +198,14 @@ function Entry({
 
 function Stage({
   name,
-  entryKey,
+  auth,
+  onDevice,
   onLeave,
   onDenied,
 }: {
   name: string;
-  entryKey: string;
+  auth: { key?: string; token?: string; remember?: boolean };
+  onDevice: (token: string, expiresAt: number) => void;
   onLeave: () => void;
   onDenied: (reason: string) => void;
 }) {
@@ -245,6 +307,7 @@ function Stage({
 
     const client = new OfficeClient(WS_URL, name, {
       onDenied,
+      onDevice,
       onWelcome: (id, f, list, shutDoors) => {
         setSelfId(id);
         setFloor(f);
@@ -305,7 +368,7 @@ function Stage({
         setTaskStatuses(statuses);
         setTasksState(!configured ? "unconfigured" : error ? "error" : "ready");
       },
-    }, entryKey);
+    }, auth);
     clientRef.current = client;
 
     // React double-invokes effects in development. Everything below the await
