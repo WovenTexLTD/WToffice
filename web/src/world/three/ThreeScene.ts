@@ -120,6 +120,18 @@ export class ThreeScene {
   private sun: THREE.DirectionalLight | null = null;
 
   /**
+   * Where the camera is looking, which trails where you are.
+   *
+   * Welded to the body it inherits every unevenness in the frame timing:
+   * movement is speed x dt, so a frame that takes 12ms and one that takes 30ms
+   * move you different distances, and with the camera locked on, the whole room
+   * jerks by that difference while you sit still in the middle of it. Damping
+   * spends the error over several frames instead of showing it on one.
+   */
+  private eye = new THREE.Vector3();
+  private eyeReady = false;
+
+  /**
    * How much work each frame is allowed.
    *
    * 2 is everything; 1 drops the occlusion pass; 0 also halves the pixels.
@@ -995,6 +1007,9 @@ export class ThreeScene {
     this.local.x = x;
     this.local.y = y;
     this.moveTarget = null;
+    // A correction is a jump, not a stroll — easing into it would drag the
+    // whole room sideways for half a second.
+    this.eyeReady = false;
   }
 
   setSelfVoice(speaking: boolean, muted: boolean): void {
@@ -1136,7 +1151,7 @@ export class ThreeScene {
       this.smoothRemotes(dt);
       this.updateAudio(floor);
       this.updateChrome();
-      this.updateCamera();
+      this.updateCamera(dt);
       this.placeSurface(renderer);
       this.reportPosition(dt);
     }
@@ -1261,14 +1276,31 @@ export class ThreeScene {
     }
   }
 
-  private updateCamera(): void {
+  private updateCamera(dt: number): void {
     const view = this.cameraOverride;
-    const target = view
-      ? new THREE.Vector3(view.x, 60, view.y)
-      : new THREE.Vector3(this.local.x, 60, this.local.y);
 
-    this.camera.position.copy(target).addScaledVector(VIEW_DIR, view?.distance ?? this.distance);
-    this.camera.lookAt(target);
+    if (view) {
+      // The screenshot camera is placed, not followed.
+      const fixed = new THREE.Vector3(view.x, 60, view.y);
+      this.eye.copy(fixed);
+      this.eyeReady = true;
+      this.camera.position.copy(fixed).addScaledVector(VIEW_DIR, view.distance);
+      this.camera.lookAt(fixed);
+      return;
+    }
+
+    const want = new THREE.Vector3(this.local.x, 60, this.local.y);
+    if (!this.eyeReady) {
+      this.eye.copy(want);
+      this.eyeReady = true;
+    } else {
+      // Framerate-independent damping: the same easing whether the machine is
+      // managing 60 frames a second or 30.
+      this.eye.lerp(want, 1 - Math.exp(-11 * dt));
+    }
+
+    this.camera.position.copy(this.eye).addScaledVector(VIEW_DIR, this.distance);
+    this.camera.lookAt(this.eye);
   }
 
   /** Point the camera at a spot on the plan. For the screenshot tool. */

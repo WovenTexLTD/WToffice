@@ -35,6 +35,8 @@ interface Slot {
   look: AvatarLook | null;
   placedThisFrame: boolean;
   lastSize: number;
+  lastX: number;
+  lastY: number;
 }
 
 export class VideoOverlay {
@@ -100,6 +102,8 @@ export class VideoOverlay {
       look: null,
       placedThisFrame: false,
       lastSize: -1,
+      lastX: Number.NaN,
+      lastY: Number.NaN,
     };
     this.slots.set(id, slot);
     return slot;
@@ -195,7 +199,17 @@ export class VideoOverlay {
       slot.nameplate.style.fontSize = `${Math.max(8, Math.min(13, size * 0.19))}px`;
     }
 
-    slot.root.style.transform = `translate3d(${screenX - size / 2}px, ${screenY - size / 2}px, 0)`;
+    const x = screenX - size / 2;
+    const y = screenY - size / 2;
+
+    // Only write when it has actually moved. These tiles sit over the canvas,
+    // and rewriting the transform every frame makes the compositor redo the
+    // overlay even when nothing changed — which shows up as the tile shimmering
+    // against a world that is holding still.
+    if (Math.abs(x - slot.lastX) < 0.05 && Math.abs(y - slot.lastY) < 0.05) return;
+    slot.lastX = x;
+    slot.lastY = y;
+    slot.root.style.transform = `translate3d(${x}px, ${y}px, 0)`;
   }
 
   /** Hide anything the scene did not place — offscreen or departed. */
