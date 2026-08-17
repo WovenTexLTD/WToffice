@@ -23,6 +23,32 @@ server is the opposite of that:
 None of that survives a serverless function. The server needs a host that runs
 a process and keeps a disk: Fly.io, Railway, Render, or any small VPS.
 
+## Putting the server up (about five minutes)
+
+`render.yaml` in the repo root describes the service, so most of this is
+answering prompts rather than filling in forms.
+
+1. **render.com** → sign in with GitHub → **New** → **Blueprint**
+2. Pick `WovenTexLTD/WToffice`. Render reads `render.yaml` and proposes one
+   service, `wtoffice-server`, with a 1 GB disk mounted at `/data`.
+3. It asks for the three values kept out of the repo:
+   - `OFFICE_KEY` — the site password
+   - `NOTION_TOKEN` — the integration token
+   - `NOTION_TASKS_DB` — `e17b1734-ceaf-8236-a5cb-815a3a49cad0`
+4. Deploy. When it is live, copy the address — `https://wtoffice-server.onrender.com`
+   or similar.
+5. In **Vercel** → the project → Settings → Environment Variables, add
+   `NEXT_PUBLIC_WS_URL` = that address with `https` swapped for `wss`, e.g.
+   `wss://wtoffice-server.onrender.com`. Redeploy.
+
+The message on the entry screen goes away and the office works from anywhere.
+
+Two notes. The blueprint asks for a paid instance because the disk needs one —
+on a free instance the database is wiped on every restart, taking profile
+pictures, notification settings and remembered devices with it. And `OFFICE_KEY`
+set here is what the deployed office uses; the `.env` on your laptop only
+governs the copy running there.
+
 ## Vercel settings
 
 The repo is a workspace, so point Vercel at the web app:

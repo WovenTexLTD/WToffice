@@ -1,0 +1,43 @@
+# Render blueprint for the office server.
+#
+# The web app stays on Vercel; this is the other half — the WebSocket server,
+# its SQLite file and the Notion polling. Render is chosen because it deploys
+# straight from GitHub with no CLI, and because it can mount a real disk, which
+# the free tiers of most hosts cannot.
+#
+# In Render: New → Blueprint → pick this repo. It reads this file, creates the
+# service, and asks only for the three secrets marked `sync: false`.
+
+services:
+  - type: web
+    name: wtoffice-server
+    runtime: docker
+    dockerfilePath: ./server/Dockerfile
+    # The build context is the repo root: the Dockerfile installs from the
+    # workspace lockfile, so it needs every package.json, not just the server's.
+    dockerContext: .
+    region: frankfurt
+    # A disk requires a paid instance. On a free one the database is wiped on
+    # every restart, taking profile pictures, notification settings and
+    # remembered devices with it.
+    plan: starter
+    healthCheckPath: /health
+    envVars:
+      # Render injects PORT; the server already reads it.
+      - key: DB_PATH
+        value: /data/office.db
+      - key: NOTION_TASK_CATEGORY
+        value: WT
+      - key: NOTION_TASK_STATUS
+        value: To Do
+      # Prompted for on first deploy and never stored in the repo.
+      - key: OFFICE_KEY
+        sync: false
+      - key: NOTION_TOKEN
+        sync: false
+      - key: NOTION_TASKS_DB
+        sync: false
+    disk:
+      name: office-data
+      mountPath: /data
+      sizeGB: 1
