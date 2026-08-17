@@ -19,7 +19,8 @@
     "models:optimise": "node tools/optimise-models.mjs",
     "shoot": "node tools/shoot.mjs",
     "shoot:tasks": "node tools/shoot-tasks.mjs",
-    "forget-devices": "npm run forget-devices -w @wtoffice/server"
+    "forget-devices": "npm run forget-devices -w @wtoffice/server",
+    "tunnel": "cloudflared tunnel --url http://localhost:3001"
   },
   "devDependencies": {
     "@gltf-transform/core": "^4.4.2",

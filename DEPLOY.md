@@ -23,7 +23,27 @@ server is the opposite of that:
 None of that survives a serverless function. The server needs a host that runs
 a process and keeps a disk: Fly.io, Railway, Render, or any small VPS.
 
-## Putting the server up (about five minutes)
+## The free way: a tunnel to your laptop
+
+No hosting bill, and the database stays on a real disk. Cloudflare gives the
+tunnel an HTTPS certificate, so the browser gets `wss://` and microphones work.
+
+```sh
+npm run tunnel        # prints https://something.trycloudflare.com
+```
+
+Put that address in Vercel as `NEXT_PUBLIC_WS_URL` with `https` swapped for
+`wss`, and redeploy. Verified end to end: a secure socket opens through the
+tunnel, the password gate still applies, and the task board loads.
+
+Two limits. The address is **random and changes every time the tunnel
+restarts**, which is fine for trying it and useless for something you want to
+keep — a *named* tunnel on your own domain fixes that, is also free, and needs a
+Cloudflare account and one `cloudflared tunnel login`. And your laptop has to be
+awake with the server running; close the lid and the office is gone for both of
+you.
+
+## The paid way: put the server on a host (about five minutes)
 
 `render.yaml` in the repo root describes the service, so most of this is
 answering prompts rather than filling in forms.
