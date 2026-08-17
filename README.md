@@ -8,6 +8,24 @@ multi-tenancy, no billing, no seat limits, and at five concurrent users every
 client subscribes to every peer, which removes the hardest engineering in
 products like Kumospace.
 
+## Getting it off a laptop
+
+The web app is on Vercel. The office **server** is a long-lived process with a
+database and a polling loop, so it cannot go there — it needs a host that runs a
+process and keeps a disk.
+
+[![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/WovenTexLTD/WToffice)
+
+That button reads `render.yaml`, creates the service and asks for three values:
+`OFFICE_KEY`, `NOTION_TOKEN` and `NOTION_TASKS_DB`. Then put the address it
+gives you into Vercel as `NEXT_PUBLIC_WS_URL`, with `https` swapped for `wss`,
+and redeploy.
+
+Until that is done the office runs on whichever machine started it, reachable
+through `npm run tunnel` — which works, and stops the moment that machine
+sleeps. `DEPLOY.md` has the detail, including why the disk costs money and what
+is lost without one.
+
 ## Status
 
 **Phase 5 complete** — the office is worth opening when nobody else is in it.
