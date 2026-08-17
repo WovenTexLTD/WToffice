@@ -17,9 +17,14 @@ services:
     # workspace lockfile, so it needs every package.json, not just the server's.
     dockerContext: .
     region: frankfurt
-    # A disk requires a paid instance. On a free one the database is wiped on
-    # every restart, taking profile pictures, notification settings and
-    # remembered devices with it.
+    # A disk requires a paid instance (~$7/mo), which is why this is not `free`.
+    #
+    # To run it for nothing: set `plan: free` and delete the `disk:` block at
+    # the bottom. The office works, but the service sleeps after 15 minutes idle
+    # — so the first person in waits about a minute and Notion is not polled
+    # while it sleeps — and every restart wipes profile pictures, notification
+    # settings and remembered devices. Tasks are safe either way; they live in
+    # Notion, not here.
     plan: starter
     healthCheckPath: /health
     envVars:
