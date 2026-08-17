@@ -20,7 +20,8 @@
     "shoot": "node tools/shoot.mjs",
     "shoot:tasks": "node tools/shoot-tasks.mjs",
     "forget-devices": "npm run forget-devices -w @wtoffice/server",
-    "tunnel": "cloudflared tunnel --url http://localhost:3001"
+    "tunnel": "cloudflared tunnel --url http://localhost:3001",
+    "perf": "node tools/perf.mjs"
   },
   "devDependencies": {
     "@gltf-transform/core": "^4.4.2",

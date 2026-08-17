@@ -116,6 +116,21 @@ export class ThreeScene {
   private renderer: THREE.WebGLRenderer | null = null;
   /** Set once the post chain loads; until then the scene renders direct. */
   private composer: { render: () => void; setSize: (w: number, h: number) => void } | null = null;
+  /** Kept so the shadow map can be redrawn on the rare occasions it changes. */
+  private sun: THREE.DirectionalLight | null = null;
+
+  /**
+   * How much work each frame is allowed.
+   *
+   * 2 is everything; 1 drops the occlusion pass; 0 also halves the pixels.
+   * Stepped down by measurement rather than by guessing at the machine — the
+   * office runs on whatever laptop someone opens it on, and the same settings
+   * are comfortable on one and unusable on another.
+   */
+  private quality = 2;
+  private frameTimes: number[] = [];
+  /** Wall-clock moment sampling may begin; 0 until the first frame. */
+  private qualityFrom = 0;
   private scene = new THREE.Scene();
   private camera = new THREE.PerspectiveCamera(42, 1, 10, 4000);
   private raycaster = new THREE.Raycaster();
@@ -164,7 +179,12 @@ export class ThreeScene {
   /* ── Lifecycle ─────────────────────────────────────────────────── */
 
   async init(): Promise<void> {
-    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
+    const renderer = new THREE.WebGLRenderer({
+      antialias: true,
+      alpha: false,
+      // Laptops with two GPUs default to the economical one otherwise.
+      powerPreference: "high-performance",
+    });
     // 1.5 rather than 2. On a retina display 2 means four times the pixels of
     // 1, and with an occlusion pass and MSAA on top of that it is the single
     // most expensive number in the renderer. At this camera distance the
@@ -294,7 +314,22 @@ export class ThreeScene {
     // across the floor, which reads as outdoors — interiors are lit from much
     // closer to overhead, and the shadows are short and diffuse.
     const sun = new THREE.DirectionalLight(0xfff4e4, 2.35);
+    this.sun = sun;
     sun.castShadow = true;
+
+    /*
+     * Drawn on demand, not every frame.
+     *
+     * The shadow pass is a second pass over every casting mesh in the scene,
+     * and it was producing an identical map sixty times a second: the office is
+     * furniture, and furniture does not move. People are the only thing that
+     * does, and they are drawn as a tile with a painted circle beneath them
+     * rather than as shadow casters.
+     *
+     * Anything that genuinely changes the scene calls invalidateShadows().
+     */
+    sun.shadow.autoUpdate = false;
+    sun.shadow.needsUpdate = true;
     sun.shadow.mapSize.set(1024, 1024);
     sun.shadow.bias = -0.0006;
     sun.shadow.normalBias = 2;
@@ -396,6 +431,8 @@ export class ThreeScene {
       this.worldGroup.add(placeholder);
 
       void modelFor(item).then((model) => {
+        // Arrives after the first shadow pass, so that pass is now out of date.
+        this.invalidateShadows();
         if (this.destroyed || !model) return;
         // The floor may have been rebuilt while this was in flight.
         if (placeholder.parent !== this.worldGroup) return;
@@ -481,6 +518,7 @@ export class ThreeScene {
     // means there is never a hole, and it is what shows otherwise.
     if (floor.groundModel) {
       void groundTiles(floor.width, floor.height).then((tiles) => {
+        this.invalidateShadows();
         if (!tiles || this.floor !== floor) return;
         tiles.position.y = 0.2;
         this.worldGroup.add(tiles);
@@ -505,6 +543,7 @@ export class ThreeScene {
 
       if (!area.model) continue;
       void tileFloor(`/models/${area.model}.glb`, area).then((tiles) => {
+        this.invalidateShadows();
         if (!tiles || this.floor !== floor) return;
         tiles.position.y = 0.6;
         this.worldGroup.add(tiles);
@@ -601,6 +640,7 @@ export class ThreeScene {
       this.worldGroup.add(hinge);
 
       void doorLeaf(span, H - 14).then((leaf) => {
+        this.invalidateShadows();
         if (!leaf) return;
         leaf.position.z = (side * span) / 2;
         leaf.rotation.y = Math.PI / 2;
@@ -730,6 +770,7 @@ export class ThreeScene {
       this.doorMeshes.push(group);
 
       void doorLeaf(span, DOOR_H).then((leaf) => {
+        this.invalidateShadows();
         if (!leaf) return;
         hang(leaf);
         leaf.traverse((child) => {
@@ -764,12 +805,98 @@ export class ThreeScene {
     return this.shutDoors.has(doorId);
   }
 
+  /**
+   * What the renderer is actually being asked to do.
+   *
+   * Frame rate on its own says "slow" and nothing else. Draw calls, triangles
+   * and the size of the shadow pass say which part is slow, which is the
+   * difference between fixing it and guessing at it.
+   */
+  stats(): Record<string, number> {
+    const renderer = this.renderer;
+    if (!renderer) return {};
+    const { render, memory, programs } = renderer.info;
+    return {
+      calls: render.calls,
+      triangles: render.triangles,
+      geometries: memory.geometries,
+      textures: memory.textures,
+      programs: programs?.length ?? 0,
+      // Meshes in the world, which is the ceiling on how many calls there can be.
+      objects: this.worldGroup.children.length + this.avatarGroup.children.length,
+      quality: this.quality,
+    };
+  }
+
+  /**
+   * Watch the frame time and give something up if it is not keeping pace.
+   *
+   * Judged on the median of a long window, never the worst frame: loading a
+   * model or opening a panel produces a slow frame that says nothing about
+   * whether the machine can hold sixty. Only ever steps down — stepping back up
+   * would find the threshold again and oscillate across it.
+   */
+  private trackQuality(frameMs: number): void {
+    if (this.quality === 0) return;
+
+    // Real elapsed time, not the simulation's dt — that is clamped to 50ms so a
+    // stalled tab cannot teleport anyone, and measuring with it makes a slow
+    // machine look merely half as slow as it is.
+    const now = performance.now();
+    if (this.qualityFrom === 0) {
+      this.qualityFrom = now + 6000;
+      return;
+    }
+    // Frames while the world is still arriving are not representative.
+    if (now < this.qualityFrom) return;
+
+    this.frameTimes.push(frameMs);
+    if (this.frameTimes.length < 120) return;
+
+    const sorted = [...this.frameTimes].sort((a, b) => a - b);
+    const median = sorted[Math.floor(sorted.length / 2)];
+    this.frameTimes = [];
+
+    // 22ms is about 45fps — comfortably below where moving starts to drag.
+    if (median <= 22) return;
+
+    this.reduceQuality();
+  }
+
+  /**
+   * Give up one level of visual work.
+   *
+   * Public so it can be driven directly — the frame rate that triggers it
+   * cannot be produced on demand, and a fallback that has never once been run
+   * is a fallback nobody should trust.
+   */
+  reduceQuality(): void {
+    if (this.quality === 2) {
+      this.quality = 1;
+      // Straight to the canvas, which also restores the renderer's own MSAA.
+      this.composer = null;
+      console.info("[office] dropped ambient occlusion to keep the frame rate up");
+      return;
+    }
+    if (this.quality === 1) {
+      this.quality = 0;
+      this.renderer?.setPixelRatio(1);
+      console.info("[office] reduced resolution to keep the frame rate up");
+    }
+  }
+
+  /** Redraw the shadow map once, next frame. */
+  private invalidateShadows(): void {
+    if (this.sun) this.sun.shadow.needsUpdate = true;
+  }
+
   /** A shut door fills its frame; an open one swings back into the room. */
   private refreshDoors(): void {
     for (const mesh of this.doorMeshes) {
       const id = mesh.userData.doorId as string;
       mesh.rotation.y = this.shutDoors.has(id) ? 0 : (mesh.userData.openAngle as number);
     }
+    this.invalidateShadows();
   }
 
   /* ── Avatars ───────────────────────────────────────────────────── */
@@ -987,15 +1114,17 @@ export class ThreeScene {
     this.lastFrameAt = performance.now();
     const frame = (now: number) => {
       if (this.destroyed) return;
-      const dt = Math.min((now - this.lastFrameAt) / 1000, 0.05);
+      const frameMs = now - this.lastFrameAt;
+      // Clamped for the simulation so a stalled tab cannot teleport anyone.
+      const dt = Math.min(frameMs / 1000, 0.05);
       this.lastFrameAt = now;
-      this.tick(dt);
+      this.tick(dt, frameMs);
       this.frameId = requestAnimationFrame(frame);
     };
     this.frameId = requestAnimationFrame(frame);
   }
 
-  private tick(dt: number): void {
+  private tick(dt: number, frameMs: number): void {
     const renderer = this.renderer;
     const floor = this.floor;
     if (!renderer) return;
@@ -1011,6 +1140,14 @@ export class ThreeScene {
       this.placeSurface(renderer);
       this.reportPosition(dt);
     }
+
+    this.trackQuality(frameMs);
+
+    // Counters accumulate across every pass in the frame rather than being
+    // wiped by each one, so what they report is the frame's real cost and not
+    // the composer's final blit.
+    renderer.info.autoReset = false;
+    renderer.info.reset();
 
     if (this.composer) this.composer.render();
     else renderer.render(this.scene, this.camera);

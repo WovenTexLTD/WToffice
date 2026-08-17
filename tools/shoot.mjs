@@ -13,6 +13,17 @@
  */
 
 import { chromium } from "playwright";
+import { existsSync } from "node:fs";
+
+// The office is password-protected; without this the camera photographs the
+// entry screen and nothing else.
+for (const path of ["./.env", "../.env"]) {
+  if (existsSync(path)) {
+    process.loadEnvFile(path);
+    break;
+  }
+}
+
 import { mkdir } from "node:fs/promises";
 
 const args = process.argv.slice(2);
@@ -72,6 +83,8 @@ await page.goto(url, { waitUntil: "networkidle" });
 
 // Walk in.
 await page.fill("#name", "camera");
+const pw = page.locator("#office-key");
+if (await pw.count()) await pw.fill(process.env.OFFICE_KEY ?? "");
 // noWaitAfter because this form never navigates — it swaps the React tree in
 // place. Playwright otherwise blocks on a navigation that will never happen,
 // and under the dev server's hot reload that turns into a flat 15s timeout.

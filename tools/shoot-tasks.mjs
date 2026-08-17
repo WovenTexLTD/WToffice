@@ -10,6 +10,17 @@
  */
 
 import { chromium } from "playwright";
+import { existsSync } from "node:fs";
+
+// The office is password-protected; without this the camera photographs the
+// entry screen and nothing else.
+for (const path of ["./.env", "../.env"]) {
+  if (existsSync(path)) {
+    process.loadEnvFile(path);
+    break;
+  }
+}
+
 import { mkdir } from "node:fs/promises";
 
 const args = process.argv.slice(2);
@@ -38,6 +49,8 @@ page.on("pageerror", (e) => problems.push(String(e)));
 
 await page.goto(url, { waitUntil: "networkidle" });
 await page.fill("#name", flag("name", "Karim"));
+const pw = page.locator("#office-key");
+if (await pw.count()) await pw.fill(process.env.OFFICE_KEY ?? "");
 await page.click('button[type="submit"]', { timeout: 15000, noWaitAfter: true });
 
 await page.waitForFunction(
