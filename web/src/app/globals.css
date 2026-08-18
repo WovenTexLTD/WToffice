@@ -587,6 +587,40 @@ body {
   font-size: 13px;
 }
 
+.unreachable {
+  position: absolute;
+  top: 14px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 8;
+  max-width: min(560px, calc(100% - 120px));
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  padding: 12px 16px;
+  border: 1px solid rgba(190, 82, 70, 0.5);
+  border-radius: 11px;
+  background: rgba(46, 24, 22, 0.95);
+  color: #f2efe9;
+  font-size: 13px;
+  line-height: 1.45;
+  box-shadow: 0 14px 34px -14px rgba(0, 0, 0, 0.8);
+  backdrop-filter: blur(6px);
+}
+
+.unreachable .mono {
+  font-size: 12px;
+  color: #e79486;
+  word-break: break-all;
+}
+
+.unreachable code {
+  padding: 1px 5px;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.1);
+  font-size: 12px;
+}
+
 /* ── Tasks: button, alerts, board ───────────────────────────────── */
 
 .tasks-open {

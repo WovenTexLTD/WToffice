@@ -23,7 +23,12 @@ export interface OfficeClientHandlers {
   onJoined(player: PlayerState): void;
   onLeft(id: string): void;
   onCorrect(x: number, y: number): void;
-  onStatus(status: ConnectionStatus): void;
+  /**
+   * `unreachable` carries the address being dialled, because every cause of a
+   * reconnect loop looks the same from the inside — a dead tunnel, a wrong
+   * variable, a stopped server — and the address is what tells them apart.
+   */
+  onStatus(status: ConnectionStatus, url?: string): void;
   onSignal(from: string, data: SignalData): void;
   onDoors(shut: string[]): void;
   onKnock(doorId: string, name: string): void;
@@ -45,7 +50,12 @@ export interface OfficeClientHandlers {
   ): void;
 }
 
-export type ConnectionStatus = "connecting" | "online" | "reconnecting" | "offline";
+export type ConnectionStatus =
+  | "connecting"
+  | "online"
+  | "reconnecting"
+  | "unreachable"
+  | "offline";
 
 const RECONNECT_BASE_MS = 500;
 const RECONNECT_MAX_MS = 8000;
@@ -157,7 +167,8 @@ export class OfficeClient {
 
     socket.onclose = () => {
       if (this.closedByUs) return;
-      this.handlers.onStatus("reconnecting");
+      // After enough failures this is not a blip: nothing is answering there.
+      this.handlers.onStatus(this.attempt >= 4 ? "unreachable" : "reconnecting", this.url);
       this.scheduleReconnect();
     };
 

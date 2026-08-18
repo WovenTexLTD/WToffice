@@ -256,6 +256,8 @@ function Stage({
   const visibleRef = useRef<Set<string>>(new Set());
 
   const [status, setStatus] = useState<ConnectionStatus>("connecting");
+  /** The address that is not answering, shown once retrying is clearly futile. */
+  const [deadUrl, setDeadUrl] = useState("");
   const [micState, setMicState] = useState<MicState>("idle");
   const [cameraState, setCameraState] = useState<ShareState>("off");
   const [screenState, setScreenState] = useState<ShareState>("off");
@@ -373,7 +375,10 @@ function Stage({
         visibleRef.current.delete(id);
       },
       onCorrect: (x, y) => scene.correctPosition(x, y),
-      onStatus: setStatus,
+      onStatus: (next, url) => {
+        setStatus(next);
+        if (next === "unreachable" && url) setDeadUrl(url);
+      },
       onSignal: (from, data) => void media.handleSignal(from, data),
 
       onWatching: setWatching,
@@ -662,6 +667,7 @@ function Stage({
     connecting: "Connecting",
     online: `${players.length} in the office`,
     reconnecting: "Reconnecting",
+    unreachable: "Can't reach the server",
     offline: "Offline",
   };
 
@@ -840,6 +846,17 @@ function Stage({
           }}
           onClose={() => setTasksOpen(false)}
         />
+      )}
+
+      {status === "unreachable" && (
+        <div className="unreachable">
+          <strong>Can&rsquo;t reach the office server.</strong>
+          <span className="mono">{deadUrl}</span>
+          <span>
+            Nothing is answering there. The address may have changed, or the server may be
+            stopped — check <code>NEXT_PUBLIC_WS_URL</code> and redeploy.
+          </span>
+        </div>
       )}
 
       {alerts.length > 0 && (
