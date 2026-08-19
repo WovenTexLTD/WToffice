@@ -355,11 +355,14 @@ function Stage({
     const client = new OfficeClient(WS_URL || DEV_WS, name, {
       onDenied,
       onDevice,
-      onWelcome: (id, f, list, shutDoors) => {
+      onWelcome: (id, f, list, shutDoors, ice) => {
         setSelfId(id);
         setFloor(f);
         setPlayers(list);
         scene.setFloor(f, id, list, shutDoors);
+        // Before attach(), which is where the first peer connection is built —
+        // a relay adopted afterwards would arrive too late to be gathered.
+        media.setIceServers(ice);
         // Peer up immediately; the microphone catches up on its own. Waiting on
         // the permission prompt means missing the offer sent while it is open.
         media.attach(id);
@@ -986,6 +989,7 @@ function Stage({
                   <th>direction</th>
                   <th>out</th>
                   <th>in</th>
+                  <th>route</th>
                 </tr>
               </thead>
               <tbody>
@@ -1001,6 +1005,8 @@ function Stage({
                     <td className={d.direction === "sendrecv" ? "ok" : "bad"}>{d.direction}</td>
                     <td className={d.outbound === "sending" ? "ok" : "bad"}>{d.outbound}</td>
                     <td className={d.inbound === "live" ? "ok" : "bad"}>{d.inbound}</td>
+                    {/* Not a fault — a relayed call is a working call. */}
+                    <td className={d.route === "unknown" ? "bad" : "ok"}>{d.route}</td>
                   </tr>
                 ))}
               </tbody>

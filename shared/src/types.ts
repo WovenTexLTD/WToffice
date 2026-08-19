@@ -325,6 +325,25 @@ export interface RTCIceCandidateInitLike {
 }
 
 /**
+ * A STUN or TURN server, structurally the same as RTCIceServer.
+ *
+ * STUN only tells each side what its own public address is and hopes the two
+ * can then reach each other. Behind a symmetric NAT they cannot, and the call
+ * fails silently — both sides believe they are connected and neither hears
+ * anything. TURN is the relay that makes that case work, at the cost of the
+ * audio passing through someone else's machine.
+ *
+ * These come from the server rather than the browser bundle, so the credentials
+ * sit behind the password gate and can be rotated without a redeploy of the web
+ * app — and, where the provider supports it, minted fresh with a short life.
+ */
+export interface IceServer {
+  urls: string[];
+  username?: string;
+  credential?: string;
+}
+
+/**
  * One Notion database the office can file into.
  *
  * Which columns exist differs per database, so the board asks rather than
@@ -415,7 +434,15 @@ export type ServerMessage =
    * on its own.
    */
   | { t: "device"; token: string; expiresAt: number }
-  | { t: "welcome"; selfId: string; floor: Floor; players: PlayerState[]; shutDoors: string[] }
+  | {
+      t: "welcome";
+      selfId: string;
+      floor: Floor;
+      players: PlayerState[];
+      shutDoors: string[];
+      /** Where to find each other. Absent means the browser's own defaults. */
+      ice?: IceServer[];
+    }
   /**
    * The task list, or why there is not one.
    *

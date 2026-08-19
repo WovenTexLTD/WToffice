@@ -8,6 +8,7 @@
 import type {
   ClientMessage,
   Floor,
+  IceServer,
   NotionSource,
   NotionTask,
   TaskAlert,
@@ -18,7 +19,14 @@ import type {
 } from "@wtoffice/shared";
 
 export interface OfficeClientHandlers {
-  onWelcome(selfId: string, floor: Floor, players: PlayerState[], shutDoors: string[]): void;
+  onWelcome(
+    selfId: string,
+    floor: Floor,
+    players: PlayerState[],
+    shutDoors: string[],
+    /** STUN and TURN servers; empty means the browser's own defaults. */
+    ice: IceServer[],
+  ): void;
   onState(players: PlayerState[]): void;
   onJoined(player: PlayerState): void;
   onLeft(id: string): void;
@@ -111,7 +119,7 @@ export class OfficeClient {
 
       switch (msg.t) {
         case "welcome":
-          this.handlers.onWelcome(msg.selfId, msg.floor, msg.players, msg.shutDoors);
+          this.handlers.onWelcome(msg.selfId, msg.floor, msg.players, msg.shutDoors, msg.ice ?? []);
           break;
         case "doors":
           this.handlers.onDoors(msg.shut);

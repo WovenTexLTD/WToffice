@@ -42,6 +42,20 @@ services:
         sync: false
       - key: NOTION_TASKS_DB
         sync: false
+      # Voice relay. Without one, two people on unlucky home networks can be in
+      # the same room hearing nothing, with no error anywhere to explain it.
+      # Set either the three static values or the two Cloudflare ones; leave
+      # them all blank and the office runs on STUN alone, as it did before.
+      - key: TURN_URLS
+        sync: false
+      - key: TURN_USERNAME
+        sync: false
+      - key: TURN_CREDENTIAL
+        sync: false
+      - key: TURN_KEY_ID
+        sync: false
+      - key: TURN_KEY_API_TOKEN
+        sync: false
     disk:
       name: office-data
       mountPath: /data

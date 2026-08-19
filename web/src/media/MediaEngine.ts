@@ -44,9 +44,17 @@ import {
   SCREEN_MAX_WIDTH,
   SPEAKING_OFF,
   SPEAKING_ON,
+  type IceServer,
   type SignalData,
 } from "@wtoffice/shared";
 
+/**
+ * Used until the server says otherwise, and if it never does.
+ *
+ * STUN alone is enough for most home routers but not all of them; the server
+ * sends a relay along with the greeting when one is configured. See
+ * `server/src/ice.ts`.
+ */
 const ICE_SERVERS: RTCIceServer[] = [
   { urls: ["stun:stun.l.google.com:19302", "stun:stun1.l.google.com:19302"] },
 ];
@@ -69,6 +77,18 @@ export interface PeerDiagnostic {
   direction: string;
   outbound: "sending" | "idle";
   inbound: "none" | "muted" | "live";
+  /**
+   * How the audio is actually getting there.
+   *
+   *  - direct    a local address; same network
+   *  - nat       through the routers, no relay involved
+   *  - relay     via TURN, because no direct path could be found
+   *
+   * The only way to know whether the relay is earning its keep. Sampled from
+   * getStats rather than inferred from the configuration: a TURN server can be
+   * configured, unreachable, and silently unused.
+   */
+  route: "direct" | "nat" | "relay" | "unknown";
 }
 
 export interface MediaEngineCallbacks {
@@ -115,6 +135,9 @@ interface Peer {
 
   /** Whether video is currently flowing to this peer. */
   sendingVideo: boolean;
+
+  /** Last sampled candidate-pair type; getStats is async, this panel is not. */
+  route: "direct" | "nat" | "relay" | "unknown";
 }
 
 export class MediaEngine {
@@ -123,6 +146,9 @@ export class MediaEngine {
   private cameraStream: MediaStream | null = null;
   private screenStream: MediaStream | null = null;
   private peers = new Map<string, Peer>();
+
+  /** Replaced by whatever the server hands out on welcome, if anything. */
+  private iceServers: RTCIceServer[] = ICE_SERVERS;
 
   /**
    * Desired per-peer state, held independently of whether the peer exists yet.
@@ -172,6 +198,30 @@ export class MediaEngine {
     }
     this.selfId = selfId;
     this.startLoop();
+  }
+
+  /**
+   * Adopt the relay list the server handed out.
+   *
+   * Must land before the first peer is built, which is why the server sends it
+   * with the greeting rather than after: a connection already negotiated does
+   * not go back and gather relay candidates on its own. Any peer that does
+   * already exist is reconfigured and, if it had failed, asked to try again.
+   */
+  setIceServers(servers: IceServer[]): void {
+    if (servers.length === 0) return;
+    this.iceServers = servers.map((s) => ({
+      urls: s.urls,
+      ...(s.username ? { username: s.username } : {}),
+      ...(s.credential ? { credential: s.credential } : {}),
+    }));
+
+    for (const peer of this.peers.values()) {
+      // setConfiguration takes effect on the next ICE gather, and asking for
+      // one now is cheaper and far less disruptive than tearing the call down.
+      peer.pc.setConfiguration({ iceServers: this.iceServers });
+      if (peer.pc.connectionState === "failed") peer.pc.restartIce();
+    }
   }
 
   /**
@@ -350,7 +400,7 @@ export class MediaEngine {
   }
 
   private createPeer(peerId: string): Peer {
-    const pc = new RTCPeerConnection({ iceServers: ICE_SERVERS });
+    const pc = new RTCPeerConnection({ iceServers: this.iceServers });
 
     const audioEl = new Audio();
     audioEl.autoplay = true;
@@ -389,6 +439,7 @@ export class MediaEngine {
       remoteCamera: null,
       remoteScreen: null,
       sendingVideo: this.desiredVideo.get(peerId) ?? true,
+      route: "unknown",
     };
     this.peers.set(peerId, peer);
 
@@ -716,6 +767,12 @@ export class MediaEngine {
    *  - live      frames are arriving
    */
   getDiagnostics(): PeerDiagnostic[] {
+    // Kicked off here rather than run on the media loop: it costs a promise per
+    // peer and nobody needs the answer unless the panel is open. The reading is
+    // therefore one refresh stale, which for a route that changes at most once
+    // per call is not worth complicating.
+    void this.sampleRoutes();
+
     const out: PeerDiagnostic[] = [];
 
     for (const [id, peer] of this.peers) {
@@ -731,9 +788,56 @@ export class MediaEngine {
         direction: cameraTx?.currentDirection ?? "unbound",
         outbound: cameraTx?.sender.track ? "sending" : "idle",
         inbound: !inboundTrack ? "none" : inboundTrack.muted ? "muted" : "live",
+        route: peer.route,
       });
     }
     return out;
+  }
+
+  /**
+   * Ask each connection which pair of addresses it settled on.
+   *
+   * `relay` on either end means TURN is carrying that call — the case that
+   * would simply have failed before there was a relay to fall back to.
+   */
+  private async sampleRoutes(): Promise<void> {
+    for (const peer of this.peers.values()) {
+      try {
+        const stats = await peer.pc.getStats();
+        let pair: RTCIceCandidatePairStats | null = null;
+        const candidates = new Map<string, { candidateType?: string }>();
+
+        for (const report of stats.values()) {
+          if (report.type === "local-candidate" || report.type === "remote-candidate") {
+            candidates.set(report.id as string, report as { candidateType?: string });
+          }
+          // `selected` is Firefox; everyone else marks the pair succeeded and
+          // nominated. Take whichever the browser offers.
+          const p = report as RTCIceCandidatePairStats & { selected?: boolean };
+          if (report.type === "candidate-pair" && (p.selected || (p.nominated && p.state === "succeeded"))) {
+            pair = p;
+          }
+        }
+
+        if (!pair) {
+          peer.route = "unknown";
+          continue;
+        }
+        const local = candidates.get(pair.localCandidateId ?? "")?.candidateType;
+        const remote = candidates.get(pair.remoteCandidateId ?? "")?.candidateType;
+
+        peer.route =
+          local === "relay" || remote === "relay"
+            ? "relay"
+            : local === "host" && remote === "host"
+              ? "direct"
+              : local || remote
+                ? "nat"
+                : "unknown";
+      } catch {
+        peer.route = "unknown";
+      }
+    }
   }
 
   /* ── Loop ──────────────────────────────────────────────────────── */

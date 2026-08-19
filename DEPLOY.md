@@ -109,12 +109,33 @@ and a persistent volume mounted where `DB_PATH` points, default
 `server/data/office.db`. Losing that file loses profile pictures, notification
 settings and remembered devices — not the tasks, which live in Notion.
 
-## Still missing for calls between two homes
+## Calls between two homes: the TURN relay
 
-Voice and video are peer to peer. Two people on home broadband usually cannot
-open a direct path, and without a relay the call never connects. That needs a
-TURN server — `coturn` on the same box as the office server is the usual
-answer, with its credentials handed to the browser alongside the STUN ones.
+Voice and video are peer to peer. STUN tells each side its own public address
+and hopes the two can reach each other; behind a symmetric or carrier-grade NAT
+they cannot, and the call fails with nothing to show for it — both people in the
+room, microphones live, neither hearing anything. A TURN server relays the audio
+when no direct path exists.
 
-Everything else — the floor, presence, the task board, notifications — works
-without it.
+The office runs without one. Set either group of variables on the server to add
+it, and the browser picks it up when someone walks in:
+
+```
+TURN_KEY_ID=…           Cloudflare Calls — preferred, because the
+TURN_KEY_API_TOKEN=…    credentials are minted per session and expire
+
+TURN_URLS=…             or static credentials, comma separated urls,
+TURN_USERNAME=…         from Metered, Twilio, or your own coturn
+TURN_CREDENTIAL=…
+```
+
+Only the **server** needs these. They travel to the browser inside the welcome
+message, which is behind the password gate, so they are never baked into the web
+build and rotating them needs no redeploy of the site.
+
+The server prints which of the three states it is in on start-up (`voice: …`).
+
+**To confirm it is working**, press `i` in the office to open diagnostics and read
+the `route` column: `direct` is the same network, `nat` is a direct path through
+the routers, `relay` means TURN is carrying the call. `relay` appearing at all is
+the proof it earns its keep — those are the calls that used to fail.

@@ -14,6 +14,7 @@ import { createServer } from "node:http";
 import { WebSocketServer, WebSocket } from "ws";
 import { Store } from "./store";
 import { createTask, listTasks, notionConfigured, recentPages, setTaskStatus } from "./notion";
+import { describeIce, iceServers } from "./ice";
 import {
   woventexFloor,
   toIdentity,
@@ -28,6 +29,7 @@ import {
   SPEED_TOLERANCE,
   TICK_HZ,
   type ClientMessage,
+  type IceServer,
   type PlayerState,
   type PresenceStatus,
   type ServerMessage,
@@ -263,6 +265,10 @@ wss.on("connection", (socket) => {
         floor,
         players: livePlayers(),
         shutDoors: [...shutDoors],
+        // Sent with the greeting because the browser builds its peer
+        // connections the moment it reads this, and a relay that arrives
+        // afterwards is a relay nobody uses.
+        ...(ice.length > 0 ? { ice } : {}),
       });
       broadcast({ t: "joined", player }, id);
       console.log(`[join]  ${player.name} (${id}) — ${livePlayers().length} online`);
@@ -584,6 +590,22 @@ async function pollWatched(): Promise<void> {
 const POLL_MS = 45_000;
 setInterval(() => void pollWatched(), POLL_MS).unref();
 
+/**
+ * The relay list, kept ready rather than fetched at the door.
+ *
+ * Minted credentials mean a round trip to the provider, and the socket handler
+ * that greets someone is not the place to wait on one. Held here, refreshed on
+ * a timer, and read synchronously by `welcome`; anyone who arrives in the first
+ * moment of a cold start gets the browser's own defaults, which is what they
+ * had before this existed.
+ */
+let ice: IceServer[] = [];
+const refreshIce = async () => {
+  ice = await iceServers();
+};
+void refreshIce();
+setInterval(() => void refreshIce(), 60 * 60 * 1000).unref();
+
 httpServer.listen(PORT, () => {
   console.log(`WovenTex office server → ws://localhost:${PORT}`);
   console.log(`floor "${floor.name}" — ${floor.walls.length} walls, ${floor.zones.length} zones`);
@@ -597,4 +619,5 @@ httpServer.listen(PORT, () => {
       ? "notion: connected — the tasks board can read and write"
       : "notion: not configured — set NOTION_TOKEN and NOTION_TASKS_DB to enable /task",
   );
+  console.log(`voice:  ${describeIce()}`);
 });

@@ -22,7 +22,9 @@
     "forget-devices": "npm run forget-devices -w @wtoffice/server",
     "tunnel": "cloudflared tunnel --url http://localhost:3001",
     "perf": "node tools/perf.mjs",
-    "probe:pip": "node tools/probe-pip.mjs"
+    "probe:pip": "node tools/probe-pip.mjs",
+    "probe:turn": "tsx tools/probe-turn.ts",
+    "probe:turn:browser": "node tools/probe-turn-browser.mjs"
   },
   "devDependencies": {
     "@gltf-transform/core": "^4.4.2",
