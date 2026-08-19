@@ -83,6 +83,18 @@ than silently trying to reach a server on the visitor's own machine. Note
 `wss://`, not `ws://` — a browser refuses an insecure socket from a secure page,
 and that failure looks exactly like the server being down.
 
+## The image is known to work
+
+Built and run before being handed over, rather than written and hoped for:
+
+- `docker build -f server/Dockerfile .` succeeds
+- the container boots, reports the password gate on, and connects to Notion
+- `/health` answers
+- a wrong password is refused and the right one gets in
+- the task board loads through it — ten open tasks across seven databases
+- a device grant written to `/data` survives `docker restart`, which is the
+  whole point of paying for the disk
+
 ## The server's own environment
 
 Wherever it runs, it needs:
