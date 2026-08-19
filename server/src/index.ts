@@ -80,6 +80,8 @@ interface Connection {
   /** Timestamp of the last accepted move, for the speed check. */
   lastMoveAt: number;
   alive: boolean;
+  /** Movement credit, in world units. See validateMove. */
+  budget: number;
 }
 
 const connections = new Map<string, Connection>();
@@ -117,32 +119,52 @@ function sanitiseName(raw: unknown): string {
  * Accept, clamp or reject a reported position.
  * Returns the authoritative position and whether the client needs correcting.
  */
+/**
+ * Accept a move, or pull it back to something possible.
+ *
+ * The budget is a bucket that fills with time rather than an allowance per
+ * message, and that distinction is the whole point. Sizing it from the gap
+ * between arrivals assumes the network delivers on a metronome; it does not.
+ * One delayed packet followed by a prompt one leaves almost no gap, so a step
+ * the player genuinely took over 66ms is measured against 5ms of budget and
+ * clamped — and the correction snaps them backwards.
+ *
+ * Over localhost that is invisible. Over the internet it rejected the majority
+ * of perfectly legal moves, which is what "jittering" was.
+ *
+ * A bucket lets a late arrival spend the credit that accrued while it was in
+ * flight, while still bounding sustained speed: nobody can outrun the fill rate
+ * for longer than the cap allows.
+ */
 function validateMove(
-  player: PlayerState,
+  conn: Connection,
   requested: { x: number; y: number },
   elapsedMs: number,
 ): { x: number; y: number; corrected: boolean } {
+  const player = conn.player!;
   const from = { x: player.x, y: player.y };
 
   if (!Number.isFinite(requested.x) || !Number.isFinite(requested.y)) {
     return { ...from, corrected: true };
   }
 
-  // Cap travel since the last accepted move. Generous, because network jitter
-  // arrives as bursts — a tight bound produces constant false corrections.
-  const budget = (MOVE_SPEED * Math.max(elapsedMs, 16)) / 1000 * SPEED_TOLERANCE;
+  // Fill, capped at a second of travel so a long silence cannot be saved up
+  // into one impossible leap across the floor.
+  const fill = (MOVE_SPEED * SPEED_TOLERANCE * Math.max(elapsedMs, 0)) / 1000;
+  conn.budget = Math.min(conn.budget + fill, MOVE_SPEED * SPEED_TOLERANCE);
+
   const asked = distance(from, requested);
 
   let target = requested;
-  if (asked > budget) {
-    const k = budget / asked;
+  if (asked > conn.budget) {
+    const k = conn.budget / (asked || 1);
     target = { x: from.x + (requested.x - from.x) * k, y: from.y + (requested.y - from.y) * k };
   }
+  conn.budget = Math.max(0, conn.budget - asked);
 
   // Same collision resolution the client ran, so results agree.
   const resolved = resolveMove(from, target, PLAYER_RADIUS, activeWalls, floor);
 
-  // Only correct on a meaningful divergence; sub-pixel drift is not worth a packet.
   const corrected = distance(resolved, requested) > 2;
   return { x: resolved.x, y: resolved.y, corrected };
 }
@@ -163,7 +185,7 @@ const wss = new WebSocketServer({ server: httpServer });
 
 wss.on("connection", (socket) => {
   const id = `p${nextId++}`;
-  const conn: Connection = { socket, player: null, lastMoveAt: Date.now(), alive: true };
+  const conn: Connection = { socket, player: null, lastMoveAt: Date.now(), alive: true, budget: 0 };
   connections.set(id, conn);
 
   socket.on("pong", () => {
@@ -252,7 +274,7 @@ wss.on("connection", (socket) => {
       if (!player) return;
 
       const now = Date.now();
-      const result = validateMove(player, msg, now - conn.lastMoveAt);
+      const result = validateMove(conn, msg, now - conn.lastMoveAt);
       conn.lastMoveAt = now;
 
       player.x = result.x;
