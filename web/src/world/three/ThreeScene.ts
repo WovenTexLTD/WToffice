@@ -62,6 +62,10 @@ const TILE_Y = 34;
  */
 const TILE_RADIUS = 43;
 
+/** How often the world advances while the tab is hidden. Four times a second
+ * is plenty to notice someone arriving, and nothing is being drawn. */
+const BACKGROUND_TICK_MS = 250;
+
 const MIN_DISTANCE = 620;
 const MAX_DISTANCE = 1900;
 const DEFAULT_DISTANCE = 1150;
@@ -181,6 +185,8 @@ export class ThreeScene {
   private destroyed = false;
   private resizeObserver: ResizeObserver | null = null;
   private frameId: number | null = null;
+  /** The background driver, only alive while the tab is hidden. */
+  private slowId: number | null = null;
   private lastFrameAt = 0;
 
   constructor(
@@ -393,6 +399,9 @@ export class ThreeScene {
     this.destroyed = true;
     if (this.frameId !== null) cancelAnimationFrame(this.frameId);
     this.frameId = null;
+    if (this.slowId !== null) window.clearInterval(this.slowId);
+    this.slowId = null;
+    document.removeEventListener("visibilitychange", this.onVisibility);
 
     this.unbindInput();
     this.resizeObserver?.disconnect();
@@ -1137,7 +1146,37 @@ export class ThreeScene {
       this.frameId = requestAnimationFrame(frame);
     };
     this.frameId = requestAnimationFrame(frame);
+    document.addEventListener("visibilitychange", this.onVisibility);
   }
+
+  /**
+   * Keep the world ticking while the tab is in the background.
+   *
+   * Browsers stop calling requestAnimationFrame in a hidden tab, which freezes
+   * proximity along with the drawing: someone walks up to you while you are in
+   * another tab and you neither hear them nor see their camera, because the
+   * code that decides who is within earshot never runs. A slow interval keeps
+   * that decision current. `tick` skips the render itself, so this costs almost
+   * nothing — it exists for the audio and video gating, not for pictures.
+   */
+  private onVisibility = () => {
+    if (document.hidden) {
+      if (this.slowId !== null) return;
+      this.slowId = window.setInterval(() => {
+        if (this.destroyed) return;
+        const now = performance.now();
+        const frameMs = now - this.lastFrameAt;
+        this.lastFrameAt = now;
+        this.tick(Math.min(frameMs / 1000, 0.05), frameMs);
+      }, BACKGROUND_TICK_MS);
+      return;
+    }
+
+    if (this.slowId !== null) window.clearInterval(this.slowId);
+    this.slowId = null;
+    // Otherwise the first visible frame inherits the whole time away.
+    this.lastFrameAt = performance.now();
+  };
 
   private tick(dt: number, frameMs: number): void {
     const renderer = this.renderer;
@@ -1155,6 +1194,10 @@ export class ThreeScene {
       this.placeSurface(renderer);
       this.reportPosition(dt);
     }
+
+    // Nothing to draw to, and a background tick's frame time says nothing about
+    // how fast this machine renders.
+    if (document.hidden) return;
 
     this.trackQuality(frameMs);
 

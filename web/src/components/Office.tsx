@@ -5,6 +5,7 @@ import { ThreeScene as OfficeScene } from "@/world/three/ThreeScene";
 import { OfficeClient, type ConnectionStatus } from "@/net/officeClient";
 import { MediaEngine, type MicState, type PeerDiagnostic, type ShareState } from "@/media/MediaEngine";
 import { VideoOverlay, type AvatarLook } from "@/video/VideoOverlay";
+import { FacesWindow, facesWindowSupported, type Face } from "@/video/FacesWindow";
 import { TasksBoard, type TasksState } from "@/components/TasksBoard";
 import {
   type Floor,
@@ -251,6 +252,7 @@ function Stage({
   const clientRef = useRef<OfficeClient | null>(null);
   const mediaRef = useRef<MediaEngine | null>(null);
   const overlayRef = useRef<VideoOverlay | null>(null);
+  const facesRef = useRef<FacesWindow | null>(null);
 
   /** Peers whose video we can see. A ref because it updates at frame rate. */
   const visibleRef = useRef<Set<string>>(new Set());
@@ -290,6 +292,12 @@ function Stage({
   /** Bumped when remote tracks arrive or earshot membership changes. */
   const [mediaVersion, setMediaVersion] = useState(0);
   const bumpMedia = useCallback(() => setMediaVersion((v) => v + 1), []);
+
+  /** Whether the faces have been popped out into their own window. */
+  const [poppedOut, setPoppedOut] = useState(false);
+  /** Chrome and Edge only; checked after mount so the server renders the same. */
+  const [canPopOut, setCanPopOut] = useState(false);
+  useEffect(() => setCanPopOut(facesWindowSupported()), []);
 
   const [broadcasting, setBroadcasting] = useState(false);
   const [knocks, setKnocks] = useState<{ id: number; name: string; doorId: string }[]>([]);
@@ -461,6 +469,11 @@ function Stage({
     }
     overlay.setPlayers(looks);
 
+    // The pop-out shows the same faces as the floor does, so it is filled from
+    // the same pass rather than from a second set of rules that could drift.
+    const faces: Face[] = [];
+    let mine: Face | null = null;
+
     for (const p of players) {
       const isSelf = p.id === selfId;
       // The receiving transceiver always holds a track, black and muted, even
@@ -472,8 +485,49 @@ function Stage({
           : null;
       // Your own face is mirrored, the way a mirror behaves; everyone else's is not.
       overlay.setStream(p.id, stream, isSelf);
+
+      if (!stream) continue;
+      const face: Face = {
+        id: p.id,
+        name: isSelf ? "You" : p.name,
+        stream,
+        speaking: p.speaking,
+        muted: p.muted,
+        mirrored: isSelf,
+      };
+      if (isSelf) mine = face;
+      else faces.push(face);
     }
+
+    // Yourself last: the point of the window is the people you are talking to.
+    if (mine) faces.push(mine);
+    facesRef.current?.render(faces);
   }, [players, selfId, mediaVersion]);
+
+  /**
+   * Pop the faces into a window of their own.
+   *
+   * Has to be driven by this click: the browser refuses to open one without a
+   * recent gesture, which is why it cannot simply appear when the tab is
+   * hidden — by then there is no gesture left to spend.
+   */
+  const togglePopOut = useCallback(async () => {
+    if (facesRef.current?.isOpen) {
+      facesRef.current.close();
+      setPoppedOut(false);
+      return;
+    }
+
+    const faces = (facesRef.current ??= new FacesWindow(() => setPoppedOut(false)));
+    const opened = await faces.open();
+    setPoppedOut(opened);
+    // A window opened between two binding passes has nothing in it yet; this
+    // runs the pass that fills it.
+    if (opened) bumpMedia();
+  }, [bumpMedia]);
+
+  /* The window belongs to the page; it must not outlive it. */
+  useEffect(() => () => facesRef.current?.close(), []);
 
   /* ── Controls ──────────────────────────────────────────────────── */
 
@@ -769,6 +823,18 @@ function Stage({
         >
           {screenState === "on" ? "Stop sharing" : "Share screen"}
         </button>
+
+        {canPopOut && (
+          <button
+            type="button"
+            className={`hud-btn${poppedOut ? " active" : ""}`}
+            onClick={() => void togglePopOut()}
+            aria-pressed={poppedOut}
+            title="Keep everyone's camera on screen while you work in another tab"
+          >
+            {poppedOut ? "Close faces" : "Pop out faces"}
+          </button>
+        )}
 
         <button
           type="button"
